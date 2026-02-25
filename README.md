@@ -1,64 +1,82 @@
-# KinderLab Robotics Project
+# 🤖 KinderLab Robotics - Yaz Dönemi Staj Projesi
 
-This project is a web application for KinderLab Robotics.
+Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-ticaret, içerik yönetimi ve eğitim özelliklerini içeren kapsamlı bir uygulama.
 
-## Getting Started
+## Özellikler
 
-To get started, you can open this project in your favorite code editor.
+**E-Ticaret Sistemi**
+- Kapsamlı ürün kataloğu (79 ürün sayfası)
+- 9 ana ürün kategorisi (KIBO Kitleri, Sınıf Paketleri, Uzantı Setleri vb.)
+- Gelişmiş alışveriş sepeti ve ödeme sistemi
+- Sipariş yönetimi ve takip
 
-1. Open the project in VSCode
-2. Open the terminal and run `npm install`
-3. Run `npm run dev` to start the development server
+**İçerik Yönetim Sistemi**
+- Blog, basın bültenleri, medya kapsamı ve etkinlikler
+- Rich text editor ile içerik oluşturma
+- Görsel yükleme ve yönetim sistemi
 
-## Tech Stack
+**Admin Paneli**
+- Kapsamlı dashboard ve CRUD işlemleri
+- Kullanıcı ve sipariş yönetimi
+- İstatistik kartları ve raporlama
 
-- [Vite](https://vitejs.dev/)
-- [React](https://react.dev/)
-- [TypeScript](https://www.typescriptlang.org/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [shadcn/ui](https://ui.shadcn.com/)
+**Eğitim Platformu**
+- Kurs kayıt sistemi
+- Öğretim materyalleri ve etkinlik yönetimi
 
-## Available Scripts
+**Web Sitesi Sayfaları**
+- Ana sayfa ve navigasyon (Mega menü)
+- Kurumsal sayfalar (Hakkımızda, Ödüller, Referanslar)
+- Blog ve içerik sayfaları
+- Hesap yönetimi ve kullanıcı paneli
 
-In the project directory, you can run:
+## Teknolojiler
 
-### `npm run dev`
+**Frontend**
+- React 18 + TypeScript
+- Vite
+- Tailwind CSS
+- TanStack Query
+- React Router
 
-Runs the app in the development mode.
-Open [http://localhost:5173](http://localhost:5173) to view it in the browser.
+**Backend**
+- Node.js + Express.js
+- SQLite3 veritabanı
 
-The page will reload if you make edits.
+## Proje Büyüklüğü
 
-### `npm run build`
+**Toplam 129 Sayfa:**
+- 79 ürün sayfası (9 kategoride)
+- 20 eğitim ve kaynak sayfası (Kurslar, Etkinlikler, Öğretim materyalleri)
+- 15 ana sayfa (Ana sayfa, Mağaza, Sepet, Ödeme, Giriş vb.)
+- 10 kurumsal sayfa (Hakkımızda, Ödüller, Referanslar, İletişim)
+- 5 hesap yönetimi sayfası (Profil, Siparişler, Ayarlar)
 
-Builds the app for production to the `dist` folder.
-It correctly bundles React in production mode and optimizes the build for the best performance.
+**Diğer:**
+- 64 UI bileşeni
+- 9 veritabanı tablosu
+- 50+ API endpoint
+- 3 Context provider
 
-The build is minified and the filenames include the hashes.
-Your app is ready to be deployed!
+## Veritabanı
 
-### `npm run preview`
+{{ ... }}
+users → orders → order_items
+      → course_registrations
+blog_posts, press_releases, events, media_coverage, contacts
 
-This command will start a local static file server that serves the files from `dist`.
-It's an easy way to check if the production build looks OK on your local machine.
+## Klasör Yapısı
 
-### `npm run lint`
-
-This will run `eslint` on the project.
-
-## Deployment
-
-This project can be deployed to any static host.
-
-### With Vercel
-
-This project can be deployed to Vercel. You can read more here: [Deploying a Vite App to Vercel](https://vitejs.dev/guide/static-deploy.html#vercel)
-
-### With Netlify
-
-This project can be deployed to Netlify. You can read more here: [Deploying a Vite App to Netlify](https://vitejs.dev/guide/static-deploy.html#netlify)
-
-## Learn More
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
+```
+├── src/
+│   ├── components/    # UI bileşenleri
+│   ├── pages/         # Sayfa bileşenleri
+│   │   └── products/  # Ürün kategorileri
+│   ├── assets/        # Görsel ve medya dosyaları
+│   ├── context/       # Global state
+│   └── services/      # API çağrıları
+├── server/
+│   ├── database/      # Veritabanı
+│   └── server.js      # Express sunucu
+└── public/            # Statik dosyalar
+```

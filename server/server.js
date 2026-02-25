@@ -14,9 +14,7 @@ const corsOptions = {
   origin: [
     'http://localhost:8080',
     'http://localhost:3000',
-    process.env.FRONTEND_URL, // Railway'de environment variable olarak ekleyeceksin
-    /\.vercel\.app$/, // Tüm Vercel subdomain'leri
-    /\.railway\.app$/ // Railway subdomain'leri
+    'http://localhost:5173'
   ],
   credentials: true,
   optionsSuccessStatus: 200
