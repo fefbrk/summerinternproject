@@ -43,8 +43,16 @@ class Database {
                     console.error('Veritabanı bağlantı hatası:', err);
                     reject(err);
                 } else {
-                    console.log('SQLite veritabanına bağlandı');
-                    resolve();
+                    this.db.run('PRAGMA foreign_keys = ON', (pragmaErr) => {
+                        if (pragmaErr) {
+                            console.error('PRAGMA foreign_keys ayarlama hatası:', pragmaErr);
+                            reject(pragmaErr);
+                            return;
+                        }
+
+                        console.log('SQLite veritabanına bağlandı');
+                        resolve();
+                    });
                 }
             });
         });
@@ -210,6 +218,24 @@ class Database {
         });
     }
 
+    async runInTransaction(work) {
+        await this.run('BEGIN IMMEDIATE TRANSACTION');
+
+        try {
+            const result = await work();
+            await this.run('COMMIT');
+            return result;
+        } catch (error) {
+            try {
+                await this.run('ROLLBACK');
+            } catch (rollbackError) {
+                console.error('Transaction rollback hatası:', rollbackError);
+            }
+
+            throw error;
+        }
+    }
+
     // === KULLANICI İŞLEMLERİ ===
 
     async getAllUsers() {
@@ -324,39 +350,39 @@ class Database {
     }
 
     async createOrder(order) {
-        const { items, ...orderData } = order;
-        
-        // Siparişi oluştur
-        const sql = `
-            INSERT INTO orders (id, user_id, total_amount, status, customer_name, customer_email, shipping_address, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        await this.run(sql, [
-            order.id,
-            order.userId,
-            order.totalAmount,
-            order.status,
-            order.customerName,
-            order.customerEmail,
-            JSON.stringify(order.shippingAddress),
-            order.createdAt
-        ]);
+        const { items } = order;
 
-        // Sipariş öğelerini ekle
-        for (const item of items) {
-            const itemSql = `
-                INSERT INTO order_items (order_id, product_id, product_name, quantity, price, image)
-                VALUES (?, ?, ?, ?, ?, ?)
+        await this.runInTransaction(async () => {
+            const sql = `
+                INSERT INTO orders (id, user_id, total_amount, status, customer_name, customer_email, shipping_address, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `;
-            await this.run(itemSql, [
+            await this.run(sql, [
                 order.id,
-                item.id,
-                item.name,
-                item.quantity,
-                item.price,
-                item.image
+                order.userId,
+                order.totalAmount,
+                order.status,
+                order.customerName,
+                order.customerEmail,
+                JSON.stringify(order.shippingAddress),
+                order.createdAt
             ]);
-        }
+
+            for (const item of items) {
+                const itemSql = `
+                    INSERT INTO order_items (order_id, product_id, product_name, quantity, price, image)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                `;
+                await this.run(itemSql, [
+                    order.id,
+                    item.id,
+                    item.name,
+                    item.quantity,
+                    item.price,
+                    item.image
+                ]);
+            }
+        });
 
         return order;
     }
@@ -367,11 +393,11 @@ class Database {
     }
 
     async deleteOrder(orderId) {
-        // Önce sipariş öğelerini sil
-        await this.run('DELETE FROM order_items WHERE order_id = ?', [orderId]);
-        // Sonra siparişi sil
-        const sql = 'DELETE FROM orders WHERE id = ?';
-        return this.run(sql, [orderId]);
+        return this.runInTransaction(async () => {
+            await this.run('DELETE FROM order_items WHERE order_id = ?', [orderId]);
+            const sql = 'DELETE FROM orders WHERE id = ?';
+            return this.run(sql, [orderId]);
+        });
     }
 
     // === KURS KAYIT İŞLEMLERİ ===
@@ -872,64 +898,66 @@ async getAllEvents() {
     }
 
     async createUserAddress(address) {
-        // Eğer bu adres default olarak işaretlendiyse, diğer adresleri default olmaktan çıkar
-        if (address.isDefault) {
-            await this.run('UPDATE user_addresses SET is_default = 0 WHERE user_id = ?', [address.userId]);
-        }
+        return this.runInTransaction(async () => {
+            if (address.isDefault) {
+                await this.run('UPDATE user_addresses SET is_default = 0 WHERE user_id = ?', [address.userId]);
+            }
 
-        const sql = `
-            INSERT INTO user_addresses (
-                id, user_id, title, type, is_default, address, apartment, 
-                district, city, postal_code, province, country, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        return this.run(sql, [
-            address.id,
-            address.userId,
-            address.title,
-            address.type,
-            address.isDefault,
-            address.address,
-            address.apartment,
-            address.district,
-            address.city,
-            address.postalCode,
-            address.province,
-            address.country,
-            address.createdAt,
-            address.updatedAt
-        ]);
+            const sql = `
+                INSERT INTO user_addresses (
+                    id, user_id, title, type, is_default, address, apartment, 
+                    district, city, postal_code, province, country, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+            return this.run(sql, [
+                address.id,
+                address.userId,
+                address.title,
+                address.type,
+                address.isDefault,
+                address.address,
+                address.apartment,
+                address.district,
+                address.city,
+                address.postalCode,
+                address.province,
+                address.country,
+                address.createdAt,
+                address.updatedAt
+            ]);
+        });
     }
 
     async updateUserAddress(id, address) {
-        // Eğer bu adres default olarak işaretlendiyse, diğer adresleri default olmaktan çıkar
-        if (address.isDefault) {
-            const existingAddress = await this.get('SELECT user_id FROM user_addresses WHERE id = ?', [id]);
-            if (existingAddress) {
-                await this.run('UPDATE user_addresses SET is_default = 0 WHERE user_id = ?', [existingAddress.user_id]);
+        return this.runInTransaction(async () => {
+            if (address.isDefault) {
+                const existingAddress = await this.get('SELECT user_id FROM user_addresses WHERE id = ?', [id]);
+                if (existingAddress) {
+                    await this.run('UPDATE user_addresses SET is_default = 0 WHERE user_id = ?', [existingAddress.user_id]);
+                }
             }
-        }
 
-        const sql = `
-            UPDATE user_addresses SET 
-                title = ?, type = ?, is_default = ?, address = ?, apartment = ?, 
-                district = ?, city = ?, postal_code = ?, province = ?, country = ?, updated_at = ?
-            WHERE id = ?
-        `;
-        return this.run(sql, [
-            address.title,
-            address.type,
-            address.isDefault,
-            address.address,
-            address.apartment,
-            address.district,
-            address.city,
-            address.postalCode,
-            address.province,
-            address.country,
-            address.updatedAt,
-            id
-        ]);
+            const sql = `
+                UPDATE user_addresses SET 
+                    title = ?, type = ?, is_default = ?, address = ?, apartment = ?, 
+                    district = ?, city = ?, postal_code = ?, province = ?, country = ?, updated_at = ?
+                WHERE id = ?
+            `;
+            return this.run(sql, [
+                address.title,
+                address.type,
+                address.isDefault,
+                address.address,
+                address.apartment,
+                address.district,
+                address.city,
+                address.postalCode,
+                address.province,
+                address.country,
+                address.updatedAt,
+                id
+            ]);
+        });
     }
 
     async deleteUserAddress(id) {
@@ -950,85 +978,86 @@ async getAllEvents() {
     }
 
     async createUserPaymentMethod(paymentMethod) {
-        // Eğer bu ödeme yöntemi default olarak işaretlendiyse, diğerlerini default olmaktan çıkar
-        if (paymentMethod.isDefault) {
-            await this.run('UPDATE user_payment_methods SET is_default = 0 WHERE user_id = ?', [paymentMethod.userId]);
-        }
+        return this.runInTransaction(async () => {
+            if (paymentMethod.isDefault) {
+                await this.run('UPDATE user_payment_methods SET is_default = 0 WHERE user_id = ?', [paymentMethod.userId]);
+            }
 
-        const sql = `
-            INSERT INTO user_payment_methods (
-                id, user_id, card_title, card_last_four, card_type, 
-                expiry_month, expiry_year, holder_name, is_default, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-        return this.run(sql, [
-            paymentMethod.id,
-            paymentMethod.userId,
-            paymentMethod.cardTitle,
-            paymentMethod.cardLastFour,
-            paymentMethod.cardType,
-            paymentMethod.expiryMonth,
-            paymentMethod.expiryYear,
-            paymentMethod.holderName,
-            paymentMethod.isDefault,
-            paymentMethod.createdAt,
-            paymentMethod.updatedAt
-        ]);
+            const sql = `
+                INSERT INTO user_payment_methods (
+                    id, user_id, card_title, card_last_four, card_type, 
+                    expiry_month, expiry_year, holder_name, is_default, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+            return this.run(sql, [
+                paymentMethod.id,
+                paymentMethod.userId,
+                paymentMethod.cardTitle,
+                paymentMethod.cardLastFour,
+                paymentMethod.cardType,
+                paymentMethod.expiryMonth,
+                paymentMethod.expiryYear,
+                paymentMethod.holderName,
+                paymentMethod.isDefault,
+                paymentMethod.createdAt,
+                paymentMethod.updatedAt
+            ]);
+        });
     }
 
     async updateUserPaymentMethod(id, paymentMethod) {
-        // Eğer bu ödeme yöntemi default olarak işaretlendiyse, diğerlerini default olmaktan çıkar
-        if (paymentMethod.isDefault) {
-            const existingPaymentMethod = await this.get('SELECT user_id FROM user_payment_methods WHERE id = ?', [id]);
-            if (existingPaymentMethod) {
-                await this.run('UPDATE user_payment_methods SET is_default = 0 WHERE user_id = ?', [existingPaymentMethod.user_id]);
+        return this.runInTransaction(async () => {
+            if (paymentMethod.isDefault) {
+                const existingPaymentMethod = await this.get('SELECT user_id FROM user_payment_methods WHERE id = ?', [id]);
+                if (existingPaymentMethod) {
+                    await this.run('UPDATE user_payment_methods SET is_default = 0 WHERE user_id = ?', [existingPaymentMethod.user_id]);
+                }
             }
-        }
 
-        // Dinamik SQL oluştur (sadece gönderilen alanları güncelle)
-        const fields = [];
-        const values = [];
+            const fields = [];
+            const values = [];
 
-        if (paymentMethod.cardTitle !== undefined) {
-            fields.push('card_title = ?');
-            values.push(paymentMethod.cardTitle);
-        }
-        if (paymentMethod.cardLastFour !== undefined) {
-            fields.push('card_last_four = ?');
-            values.push(paymentMethod.cardLastFour);
-        }
-        if (paymentMethod.cardType !== undefined) {
-            fields.push('card_type = ?');
-            values.push(paymentMethod.cardType);
-        }
-        if (paymentMethod.expiryMonth !== undefined) {
-            fields.push('expiry_month = ?');
-            values.push(paymentMethod.expiryMonth);
-        }
-        if (paymentMethod.expiryYear !== undefined) {
-            fields.push('expiry_year = ?');
-            values.push(paymentMethod.expiryYear);
-        }
-        if (paymentMethod.holderName !== undefined) {
-            fields.push('holder_name = ?');
-            values.push(paymentMethod.holderName);
-        }
-        if (paymentMethod.isDefault !== undefined) {
-            fields.push('is_default = ?');
-            values.push(paymentMethod.isDefault);
-        }
-        if (paymentMethod.updatedAt !== undefined) {
-            fields.push('updated_at = ?');
-            values.push(paymentMethod.updatedAt);
-        }
+            if (paymentMethod.cardTitle !== undefined) {
+                fields.push('card_title = ?');
+                values.push(paymentMethod.cardTitle);
+            }
+            if (paymentMethod.cardLastFour !== undefined) {
+                fields.push('card_last_four = ?');
+                values.push(paymentMethod.cardLastFour);
+            }
+            if (paymentMethod.cardType !== undefined) {
+                fields.push('card_type = ?');
+                values.push(paymentMethod.cardType);
+            }
+            if (paymentMethod.expiryMonth !== undefined) {
+                fields.push('expiry_month = ?');
+                values.push(paymentMethod.expiryMonth);
+            }
+            if (paymentMethod.expiryYear !== undefined) {
+                fields.push('expiry_year = ?');
+                values.push(paymentMethod.expiryYear);
+            }
+            if (paymentMethod.holderName !== undefined) {
+                fields.push('holder_name = ?');
+                values.push(paymentMethod.holderName);
+            }
+            if (paymentMethod.isDefault !== undefined) {
+                fields.push('is_default = ?');
+                values.push(paymentMethod.isDefault);
+            }
+            if (paymentMethod.updatedAt !== undefined) {
+                fields.push('updated_at = ?');
+                values.push(paymentMethod.updatedAt);
+            }
 
-        if (fields.length === 0) {
-            throw new Error('No fields to update');
-        }
+            if (fields.length === 0) {
+                throw new Error('No fields to update');
+            }
 
-        values.push(id);
-        const sql = `UPDATE user_payment_methods SET ${fields.join(', ')} WHERE id = ?`;
-        return this.run(sql, values);
+            values.push(id);
+            const sql = `UPDATE user_payment_methods SET ${fields.join(', ')} WHERE id = ?`;
+            return this.run(sql, values);
+        });
     }
 
     async deleteUserPaymentMethod(id) {
@@ -1039,17 +1068,19 @@ async getAllEvents() {
     // === DEMO VERİ İŞLEMLERİ ===
 
     async clearAllData() {
-        await this.run('DELETE FROM order_items');
-        await this.run('DELETE FROM orders');
-        await this.run('DELETE FROM course_registrations');
-        await this.run('DELETE FROM contacts');
-        await this.run('DELETE FROM blog_posts');
-        await this.run('DELETE FROM press_releases');
-        await this.run('DELETE FROM media_coverage');
-        await this.run('DELETE FROM events');
-        await this.run('DELETE FROM user_addresses');
-        await this.run('DELETE FROM user_payment_methods');
-        await this.run('DELETE FROM users');
+        await this.runInTransaction(async () => {
+            await this.run('DELETE FROM order_items');
+            await this.run('DELETE FROM orders');
+            await this.run('DELETE FROM course_registrations');
+            await this.run('DELETE FROM contacts');
+            await this.run('DELETE FROM blog_posts');
+            await this.run('DELETE FROM press_releases');
+            await this.run('DELETE FROM media_coverage');
+            await this.run('DELETE FROM events');
+            await this.run('DELETE FROM user_addresses');
+            await this.run('DELETE FROM user_payment_methods');
+            await this.run('DELETE FROM users');
+        });
     }
 }
 
