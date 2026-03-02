@@ -450,7 +450,7 @@ description: 'Students used KIBO’s Sound/Record Playback Module to tell storie
             <p>This activity lasted 3 classes over 3 weeks (I see them for 45 minutes each week):
             <br><p><br>
             <ul>
-                <li>-The first week we researched different animals that live in the Amazon ​​rainforest and began creating our animals from construction paper.</li>
+                <li>-The first week we researched different animals that live in the Amazon rainforest and began creating our animals from construction paper.</li>
                 <li>-The second week we finished making our animals and explored how to most effectively code the KIBOS to show and tell about the animals.</li>
                 <li>-In the last week we finalized our recordings and created the code for the KIBOS and attached our rainforest animal creations to the stage. Students worked together in groups of 2 or 3 to program their KIBOS, make their voice recordings, and attach the animals to the stage module. We shared as a class.</li>
             </ul>

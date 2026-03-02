@@ -18,12 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useUserData } from '@/context/UserDataContext';
+import { useUserData, type Address } from '@/context/UserDataContext';
 
 const Addresses = () => {
   const { addresses, addAddress, updateAddress, deleteAddress } = useUserData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingAddress, setEditingAddress] = useState<any>(null);
+  const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     type: 'delivery',
@@ -51,7 +51,7 @@ const Addresses = () => {
     setEditingAddress(null);
   };
 
-  const handleEdit = (address: any) => {
+  const handleEdit = (address: Address) => {
     setEditingAddress(address);
     setFormData({
       title: address.title,
@@ -418,8 +418,8 @@ const Addresses = () => {
                         <p className="font-medium">{address.name}</p>
                         <p className="text-gray-600">{address.phone}</p>
                         <p className="text-gray-600">{address.address}</p>
-                        {(address as any).apartment && (
-                          <p className="text-gray-600">{(address as any).apartment}</p>
+                        {address.apartment && (
+                          <p className="text-gray-600">{address.apartment}</p>
                         )}
                         <p className="text-gray-600">
                           {address.district}, {address.city} {address.postalCode}

@@ -11,7 +11,6 @@ const AnimatedNumber = ({ target }: { target: string }) => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          let start = 0;
           const duration = 2000; // 2 seconds
           const startTime = Date.now();
 

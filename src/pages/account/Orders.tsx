@@ -28,8 +28,7 @@ const Orders = () => {
       if (user && !isInitializing) {
         setLoading(true);
         try {
-          const allOrders = await apiService.getAllOrders();
-          const userOrders = allOrders.filter(order => order.userId === user.id);
+          const userOrders = await apiService.getMyOrders();
           setOrders(userOrders);
         } catch (error) {
           console.error('Error loading orders:', error);

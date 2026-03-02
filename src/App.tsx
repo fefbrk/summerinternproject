@@ -194,7 +194,7 @@ const App = () => (
             {/* New route for Technical Support */}
             <Route path="/technical-support" element={<TechnicalSupport />} />
             {/* Admin Dashboard */}
-            <Route path="/admin" element={<SimpleAdminDashboard />} />
+            <Route path="/admin" element={<ProtectedRoute><SimpleAdminDashboard /></ProtectedRoute>} />
             {/* Footer Pages */}
             <Route path="/about" element={<About />} />
             <Route path="/testimonials" element={<Testimonials />} />

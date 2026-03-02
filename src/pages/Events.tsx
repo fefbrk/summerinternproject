@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { apiService, Event } from "@/services/apiService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { sanitizeRichContent } from "@/lib/sanitizeHtml";
 
 const Events = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -414,7 +415,10 @@ const Events = () => {
                       )}
 
                       <div className="space-y-4">
-                        <div className="text-gray-700" dangerouslySetInnerHTML={{ __html: activeEvent.description }} />
+                        <div
+                          className="text-gray-700"
+                          dangerouslySetInnerHTML={{ __html: sanitizeRichContent(activeEvent.description) }}
+                        />
                       </div>
                     </div>
 
@@ -481,10 +485,10 @@ const Events = () => {
                             )}
                             
                             {/* Google Maps Link */}
-                            {(activeEvent as any).googleMapsLink ? (
+                            {activeEvent.googleMapsLink ? (
                               <div className="mt-2">
                                 <a
-                                  href={(activeEvent as any).googleMapsLink}
+                                  href={activeEvent.googleMapsLink}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-kibo-orange hover:underline text-sm flex items-center"

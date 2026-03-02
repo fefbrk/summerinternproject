@@ -5,6 +5,7 @@ import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { apiService, PressRelease } from '../../services/apiService';
+import { sanitizeRichContent } from '../../lib/sanitizeHtml';
 
 const PressReleaseDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,7 +29,7 @@ const PressReleaseDetail: React.FC = () => {
         } else {
           setError('Press release not found');
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error fetching press release:', err);
         setError('Failed to load press release');
       } finally {
@@ -193,7 +194,9 @@ const PressReleaseDetail: React.FC = () => {
                 <div
                   className="text-gray-800 leading-relaxed"
                   dangerouslySetInnerHTML={{
-                    __html: pressRelease.content.replace(/<h1[^>]*>.*?<\/h1>/gi, '').replace(/<h2[^>]*>.*?<\/h2>/gi, '')
+                    __html: sanitizeRichContent(pressRelease.content)
+                      .replace(/<h1[^>]*>.*?<\/h1>/gi, '')
+                      .replace(/<h2[^>]*>.*?<\/h2>/gi, '')
                   }}
                 />
               </div>

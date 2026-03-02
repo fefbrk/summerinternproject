@@ -11,20 +11,55 @@ export interface User {
 export interface Order {
   id: string;
   userId: string;
-  items: any[];
+  items: OrderItem[];
   totalAmount: number;
   status: 'sipariş alındı' | 'hazırlanıyor' | 'yolda' | 'teslim edildi';
-  shippingAddress: any;
+  shippingAddress: OrderShippingAddress;
   customerName: string;
   customerEmail: string;
   createdAt: string;
+}
+
+export interface OrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number;
+  image?: string;
+}
+
+export interface OrderShippingAddress {
+  name: string;
+  phone?: string;
+  email?: string;
+  address: string;
+  city: string;
+  province?: string;
+  zipCode?: string;
+  country?: string;
+}
+
+export interface RegistrationContactInfo {
+  firstName?: string;
+  lastName?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  phone?: string;
+  email?: string;
+}
+
+export interface CourseRegistrationData {
+  shippingInfo?: RegistrationContactInfo;
+  billingInfo?: RegistrationContactInfo;
 }
 
 export interface CourseRegistration {
   id: string;
   userId: string;
   courseName: string;
-  registrationData: any;
+  registrationData: CourseRegistrationData;
   status: 'kayıt alındı' | 'aktif' | 'tamamlandı';
   customerName: string;
   customerEmail: string;
@@ -401,7 +436,14 @@ export const mockUserService = {
 // Order operations
 export const mockOrderService = {
   // Create new order
-  createOrder: (userId: string, items: any[], totalAmount: number, shippingAddress: any, customerName: string, customerEmail: string): Order => {
+  createOrder: (
+    userId: string,
+    items: OrderItem[],
+    totalAmount: number,
+    shippingAddress: OrderShippingAddress,
+    customerName: string,
+    customerEmail: string
+  ): Order => {
     const newOrder: Order = {
       id: generateId(),
       userId,
@@ -445,7 +487,13 @@ export const mockOrderService = {
 // Course registration operations
 export const mockCourseService = {
   // Register for course
-  registerForCourse: (userId: string, courseName: string, registrationData: any, customerName: string, customerEmail: string): CourseRegistration => {
+  registerForCourse: (
+    userId: string,
+    courseName: string,
+    registrationData: CourseRegistrationData,
+    customerName: string,
+    customerEmail: string
+  ): CourseRegistration => {
     // Check if already registered
     const existingRegistration = mockCourseRegistrations.find(
       reg => reg.userId === userId && reg.courseName === courseName

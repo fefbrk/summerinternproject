@@ -19,12 +19,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useUserData } from '@/context/UserDataContext';
+import { useUserData, type PaymentMethod } from '@/context/UserDataContext';
 
 const PaymentMethods = () => {
   const { paymentMethods, addPaymentMethod, updatePaymentMethod, deletePaymentMethod, setDefaultPaymentMethod } = useUserData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingMethod, setEditingMethod] = useState<any>(null);
+  const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(null);
   const [formData, setFormData] = useState({
     cardTitle: '',
     cardNumber: '',

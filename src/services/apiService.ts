@@ -2,6 +2,7 @@
 
 export const ROOT_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const API_BASE_URL = `${ROOT_URL}/api`;
+export const AUTH_TOKEN_STORAGE_KEY = 'auth_token';
 
 // Backend'den gelen kullanıcı verisi (şifre içermez)
 export interface User {
@@ -25,20 +26,39 @@ export interface UserWithPassword {
 export interface Order {
   id: string;
   userId: string;
-  items: any[];
+  items: OrderItem[];
   totalAmount: number;
   status: 'received' | 'preparing' | 'shipping' | 'delivered';
-  shippingAddress: any;
+  shippingAddress: ShippingAddress;
   customerName: string;
   customerEmail: string;
   createdAt: string;
+}
+
+export interface OrderItem {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number;
+  image?: string;
+}
+
+export interface ShippingAddress {
+  name: string;
+  phone?: string;
+  email?: string;
+  address: string;
+  city: string;
+  province?: string;
+  zipCode?: string;
+  country?: string;
 }
 
 export interface CourseRegistration {
   id: string;
   userId: string;
   courseName: string;
-  registrationData: any;
+  registrationData: Record<string, unknown>;
   status: 'registered' | 'active' | 'completed';
   customerName: string;
   customerEmail: string;
@@ -56,7 +76,7 @@ export interface CourseRegistration {
 
 export interface Contact {
   id: string;
-  type: 'general' | 'support' | 'feedback' | 'partnership';
+  type: 'general' | 'support' | 'training' | 'sales';
   name: string;
   email: string;
   subject: string;
@@ -136,13 +156,86 @@ export interface Event {
   updatedAt: string;
 }
 
+export type UserAddressType = 'delivery' | 'billing';
+
+export interface UserAddress {
+  id: string;
+  title: string;
+  type: UserAddressType;
+  address: string;
+  apartment?: string;
+  district: string;
+  city: string;
+  postal_code: string;
+  province?: string;
+  country?: string;
+  is_default: boolean;
+}
+
+export interface UserAddressPayload {
+  userId?: string;
+  title: string;
+  type: UserAddressType;
+  address: string;
+  apartment?: string;
+  district: string;
+  city: string;
+  postalCode: string;
+  province?: string;
+  country?: string;
+  isDefault?: boolean;
+}
+
+export interface UserPaymentMethod {
+  id: string;
+  card_title: string;
+  card_last_four: string;
+  expiry_month: string;
+  expiry_year: string;
+  holder_name: string;
+  is_default: boolean;
+}
+
+export interface UserPaymentMethodPayload {
+  userId?: string;
+  cardTitle: string;
+  cardNumber: string;
+  expiryMonth: string;
+  expiryYear: string;
+  holderName: string;
+  cvv?: string;
+  isDefault?: boolean;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
 class ApiService {
+  private getAuthToken(): string | null {
+    try {
+      return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  private getAuthHeaders(additionalHeaders: HeadersInit = {}): HeadersInit {
+    const token = this.getAuthToken();
+    return {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...additionalHeaders,
+    };
+  }
+
   private async request(endpoint: string, options: RequestInit = {}) {
     const url = `${API_BASE_URL}${endpoint}`;
+    const hasFormDataBody = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const config = {
       headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
+        ...(hasFormDataBody ? {} : { 'Content-Type': 'application/json' }),
+        ...this.getAuthHeaders(options.headers || {}),
       },
       ...options,
     };
@@ -163,11 +256,22 @@ class ApiService {
   }
 
   // Kullanıcı işlemleri
-  async login(email: string, password: string): Promise<User> {
+  async login(email: string, password: string): Promise<AuthResponse> {
     return this.request('/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+  }
+
+  async register(email: string, password: string, name: string): Promise<AuthResponse> {
+    return this.request('/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, name }),
+    });
+  }
+
+  async getCurrentUser(): Promise<User> {
+    return this.request('/me');
   }
 
   async getAllUsers(): Promise<User[]> {
@@ -193,7 +297,11 @@ class ApiService {
     return this.request('/orders');
   }
 
-  async createOrder(orderData: Omit<Order, 'id' | 'status' | 'createdAt'>): Promise<Order> {
+  async getMyOrders(): Promise<Order[]> {
+    return this.request('/orders/my');
+  }
+
+  async createOrder(orderData: Omit<Order, 'id' | 'status' | 'createdAt' | 'userId'> & { userId?: string }): Promise<Order> {
     return this.request('/orders', {
       method: 'POST',
       body: JSON.stringify(orderData),
@@ -210,6 +318,10 @@ class ApiService {
   // Kurs kayıt işlemleri
   async getAllRegistrations(): Promise<CourseRegistration[]> {
     return this.request('/registrations');
+  }
+
+  async getMyRegistrations(): Promise<CourseRegistration[]> {
+    return this.request('/registrations/my');
   }
 
   async createRegistration(registrationData: Omit<CourseRegistration, 'id' | 'status' | 'createdAt'>): Promise<CourseRegistration> {
@@ -318,6 +430,7 @@ class ApiService {
     
     const response = await fetch(`${API_BASE_URL}/blog/${blogPostId}/images`, {
       method: 'POST',
+      headers: this.getAuthHeaders(),
       body: formData,
     });
     
@@ -336,6 +449,7 @@ class ApiService {
     
     const response = await fetch(`${API_BASE_URL}/blog/temp/images`, {
       method: 'POST',
+      headers: this.getAuthHeaders(),
       body: formData,
     });
     
@@ -391,6 +505,7 @@ class ApiService {
     
     const response = await fetch(`${API_BASE_URL}/press-releases/${pressReleaseId}/images`, {
       method: 'POST',
+      headers: this.getAuthHeaders(),
       body: formData,
     });
     
@@ -409,6 +524,7 @@ class ApiService {
     
     const response = await fetch(`${API_BASE_URL}/press-releases/temp/images`, {
       method: 'POST',
+      headers: this.getAuthHeaders(),
       body: formData,
     });
     
@@ -464,6 +580,7 @@ class ApiService {
     
     const response = await fetch(`${API_BASE_URL}/media-coverage/${mediaCoverageId}/images`, {
       method: 'POST',
+      headers: this.getAuthHeaders(),
       body: formData,
     });
     
@@ -482,6 +599,7 @@ class ApiService {
     
     const response = await fetch(`${API_BASE_URL}/media-coverage/temp/images`, {
       method: 'POST',
+      headers: this.getAuthHeaders(),
       body: formData,
     });
     
@@ -538,6 +656,7 @@ class ApiService {
     
     const response = await fetch(`${API_BASE_URL}/events/${eventId}/images`, {
       method: 'POST',
+      headers: this.getAuthHeaders(),
       body: formData,
     });
     
@@ -556,6 +675,7 @@ class ApiService {
     
     const response = await fetch(`${API_BASE_URL}/events/temp/images`, {
       method: 'POST',
+      headers: this.getAuthHeaders(),
       body: formData,
     });
     
@@ -569,18 +689,18 @@ class ApiService {
   }
 
   // Kullanıcı adresleri
-  async getUserAddresses(userId: string): Promise<any[]> {
+  async getUserAddresses(userId: string): Promise<UserAddress[]> {
     return this.request(`/addresses/${userId}`);
   }
 
-  async createUserAddress(addressData: any): Promise<any> {
+  async createUserAddress(addressData: UserAddressPayload): Promise<UserAddress> {
     return this.request('/addresses', {
       method: 'POST',
       body: JSON.stringify(addressData),
     });
   }
 
-  async updateUserAddress(id: string, addressData: any): Promise<any> {
+  async updateUserAddress(id: string, addressData: Partial<UserAddressPayload>): Promise<UserAddress> {
     return this.request(`/addresses/${id}`, {
       method: 'PUT',
       body: JSON.stringify(addressData),
@@ -594,18 +714,18 @@ class ApiService {
   }
 
   // Kullanıcı ödeme yöntemleri
-  async getUserPaymentMethods(userId: string): Promise<any[]> {
+  async getUserPaymentMethods(userId: string): Promise<UserPaymentMethod[]> {
     return this.request(`/payment-methods/${userId}`);
   }
 
-  async createUserPaymentMethod(paymentMethodData: any): Promise<any> {
+  async createUserPaymentMethod(paymentMethodData: UserPaymentMethodPayload): Promise<UserPaymentMethod> {
     return this.request('/payment-methods', {
       method: 'POST',
       body: JSON.stringify(paymentMethodData),
     });
   }
 
-  async updateUserPaymentMethod(id: string, paymentMethodData: any): Promise<any> {
+  async updateUserPaymentMethod(id: string, paymentMethodData: Partial<UserPaymentMethodPayload>): Promise<UserPaymentMethod> {
     return this.request(`/payment-methods/${id}`, {
       method: 'PUT',
       body: JSON.stringify(paymentMethodData),

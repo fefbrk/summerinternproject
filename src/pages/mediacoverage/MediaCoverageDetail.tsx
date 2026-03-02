@@ -5,6 +5,7 @@ import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { apiService, type MediaCoverage } from '../../services/apiService';
+import { sanitizeRichContent } from '../../lib/sanitizeHtml';
 
 const MediaCoverageDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -28,7 +29,7 @@ const MediaCoverageDetail: React.FC = () => {
         } else {
           setError('Media coverage not found');
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error fetching media coverage:', err);
         setError('Failed to load media coverage');
       } finally {
@@ -193,7 +194,9 @@ const MediaCoverageDetail: React.FC = () => {
                 <div
                   className="text-gray-800 leading-relaxed"
                   dangerouslySetInnerHTML={{
-                    __html: mediaCoverage.content.replace(/<h1[^>]*>.*?<\/h1>/gi, '').replace(/<h2[^>]*>.*?<\/h2>/gi, '')
+                    __html: sanitizeRichContent(mediaCoverage.content)
+                      .replace(/<h1[^>]*>.*?<\/h1>/gi, '')
+                      .replace(/<h2[^>]*>.*?<\/h2>/gi, '')
                   }}
                 />
               </div>

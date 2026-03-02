@@ -245,9 +245,7 @@ const Shop = () => {
                         <div className="p-4 flex flex-col flex-grow">
                           <h3 className="text-lg font-semibold mb-2 flex-grow">{product.name}</h3>
                           <p className="text-xl font-bold text-kibo-purple mb-4">
-                            {typeof product.price === 'number'
-                              ? `$${product.price.toFixed(2)}`
-                              : `$${(product.price as any).min.toFixed(2)} - $${(product.price as any).max.toFixed(2)}`}
+                            {`$${product.price.toFixed(2)}`}
                           </p>
                           <Button 
                             className={`w-full transition-colors duration-100 focus:outline-none focus:ring-0 hover:shadow-none ${

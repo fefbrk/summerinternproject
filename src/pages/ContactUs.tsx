@@ -5,7 +5,7 @@ import apiService from "@/services/apiService";
 
 const ContactUs = () => {
   const [formData, setFormData] = useState({
-    type: 'general' as 'general' | 'support' | 'feedback' | 'partnership',
+    type: 'general' as 'general' | 'support' | 'training' | 'sales',
     name: '',
     email: '',
     subject: '',
@@ -33,7 +33,7 @@ const ContactUs = () => {
       
       setSubmitStatus('success');
       setFormData({
-        type: 'general' as 'general' | 'support' | 'feedback' | 'partnership',
+        type: 'general' as 'general' | 'support' | 'training' | 'sales',
         name: '',
         email: '',
         subject: '',
@@ -83,8 +83,8 @@ const ContactUs = () => {
                     >
                       <option value="general">General Inquiry</option>
                       <option value="support">Support</option>
-                      <option value="feedback">Feedback</option>
-                      <option value="partnership">Partnership</option>
+                      <option value="training">Training</option>
+                      <option value="sales">Sales</option>
                     </select>
                     <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
                       <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/use-toast';
-import apiService, { User } from '@/services/apiService';
+import apiService, { AUTH_TOKEN_STORAGE_KEY, User } from '@/services/apiService';
 
 interface AuthContextType {
   user: User | null;
@@ -13,52 +13,76 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  return error instanceof Error ? error.message : fallback;
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
+  const setAuthState = (nextUser: User, token: string) => {
+    const processedUser = {
+      ...nextUser,
+      isAdmin: Boolean(nextUser.isAdmin),
+    };
+
+    setUser(processedUser);
+    localStorage.setItem('auth_user', JSON.stringify(processedUser));
+    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+  };
+
+  const clearAuthState = () => {
+    setUser(null);
+    localStorage.removeItem('auth_user');
+    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+  };
+
   // Check for existing session on app load
   useEffect(() => {
-    try {
-      const savedUser = localStorage.getItem('auth_user');
-      if (savedUser) {
+    const initializeAuth = async () => {
+      try {
+        const savedUser = localStorage.getItem('auth_user');
+        const savedToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+
+        if (!savedUser || !savedToken) {
+          clearAuthState();
+          return;
+        }
+
         const parsedUser = JSON.parse(savedUser);
-        // isAdmin değerini boolean'a çevir
-        const processedUser = {
-          ...parsedUser,
-          isAdmin: Boolean(parsedUser.isAdmin)
-        };
-        setUser(processedUser);
+        const currentUser = await apiService.getCurrentUser();
+        setAuthState(
+          {
+            ...currentUser,
+            isAdmin: Boolean(currentUser.isAdmin),
+            id: currentUser.id || parsedUser.id,
+          },
+          savedToken
+        );
+      } catch (error) {
+        console.error('Error loading user from storage:', error);
+        clearAuthState();
+      } finally {
+        setIsInitializing(false);
       }
-    } catch (error) {
-      console.error('Error loading user from localStorage:', error);
-      localStorage.removeItem('auth_user');
-    } finally {
-      setIsInitializing(false);
-    }
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     
     try {
-      // Backend API login endpoint'ini kullan
-      const userData = await apiService.login(email, password);
-      
-      // isAdmin değerini boolean'a çevir
-      const processedUserData = {
-        ...userData,
-        isAdmin: Boolean(userData.isAdmin)
-      };
-      
-      setUser(processedUserData);
-      localStorage.setItem('auth_user', JSON.stringify(processedUserData));
+      const authResponse = await apiService.login(email, password);
+      setAuthState(authResponse.user, authResponse.token);
       toast({ title: 'Login successful', description: 'You are now logged in.' });
       setIsLoading(false);
       return true;
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Login failed', description: error.message || 'Login failed!' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Login failed', description: getErrorMessage(error, 'Login failed!') });
       setIsLoading(false);
       return false;
     }
@@ -68,38 +92,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
-      // Önce mevcut kullanıcıları kontrol et
-      const users = await apiService.getAllUsers();
-      const existingUser = users.find(u => u.email === email);
-      
-      if (existingUser) {
-        throw new Error('This email address is already in use');
-      }
-      
-      // Yeni kullanıcı oluştur
-      const userData = await apiService.createUser({ email, password, name, isAdmin: false });
-      
-      // isAdmin değerini boolean'a çevir
-      const processedUserData = {
-        ...userData,
-        isAdmin: Boolean(userData.isAdmin)
-      };
-      
-      setUser(processedUserData);
-      localStorage.setItem('auth_user', JSON.stringify(processedUserData));
+      const authResponse = await apiService.register(email, password, name);
+      setAuthState(authResponse.user, authResponse.token);
       toast({ title: 'Registration successful', description: 'Your account has been created.' });
       setIsLoading(false);
       return true;
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Registration failed', description: error.message || 'Registration failed!' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Registration failed', description: getErrorMessage(error, 'Registration failed!') });
       setIsLoading(false);
       return false;
     }
   };
 
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('auth_user');
+    clearAuthState();
     toast({ title: 'Logged out', description: 'You have been logged out.' });
   };
 

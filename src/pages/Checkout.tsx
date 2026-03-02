@@ -35,6 +35,12 @@ const Checkout = () => {
     info: (message: string) => uiToast({ title: 'Info', description: message }),
   };
 
+  const getErrorMessage = (error: unknown, fallback: string): string => {
+    return error instanceof Error ? error.message : fallback;
+  };
+
+  const profileFullName = `${profileInfo?.firstName || ''} ${profileInfo?.lastName || ''}`.trim();
+
   const handleAddressSelect = (addressId: string, type: 'billing' | 'shipping') => {
     const selectedAddress = addresses.find(addr => addr.id === addressId);
     if (selectedAddress) {
@@ -81,7 +87,7 @@ const Checkout = () => {
   };
 
   const [formData, setFormData] = useState({
-    fullName: (profileInfo as any)?.fullName || '',
+    fullName: profileFullName || user?.name || '',
     email: profileInfo?.email || user?.email || '',
     phone: profileInfo?.phone || '',
     address: '',
@@ -128,7 +134,7 @@ const Checkout = () => {
   };
 
 // Auto-fill form with saved address and payment data
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -233,9 +239,9 @@ const Checkout = () => {
       // Navigate to orders page
       navigate('/account/orders');
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Order creation failed:', error);
-      toast.error(error.message || 'An error occurred while creating the order.');
+      toast.error(getErrorMessage(error, 'An error occurred while creating the order.'));
     }
   };
 
@@ -244,7 +250,7 @@ const Checkout = () => {
     if (profileInfo) {
       setFormData(prev => ({
         ...prev,
-        fullName: (profileInfo as any)?.fullName || prev.fullName,
+        fullName: profileFullName || prev.fullName,
         email: profileInfo.email || prev.email,
         phone: profileInfo.phone || prev.phone,
         companyName: profileInfo.companyName || prev.companyName,
@@ -253,11 +259,11 @@ const Checkout = () => {
       // If no profile info but user is logged in, use user's name
       setFormData(prev => ({
         ...prev,
-        fullName: (user as any)?.fullName || user?.name || prev.fullName,
+        fullName: user.name || prev.fullName,
         email: user.email || prev.email,
       }));
     }
-  }, [profileInfo, user]);
+  }, [profileInfo, profileFullName, user]);
 
   // Auto-fill form with saved address and payment method on component mount
   useEffect(() => {
@@ -701,7 +707,7 @@ const Checkout = () => {
                       <select
                         name="hearAbout"
                         value={formData.hearAbout}
-                        onChange={(e) => handleInputChange(e as any)}
+                        onChange={handleInputChange}
                         required
                         className="w-full p-2 border border-orange-200 rounded-md focus:ring-2 focus:ring-kibo-orange focus:border-transparent h-10 bg-orange-50"
                       >

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,19 @@ import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import apiService, { Order, User, Contact, BlogPost, PressRelease, Event, MediaCoverage } from '@/services/apiService';
 import RichTextEditor from '@/components/RichTextEditor';
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  return error instanceof Error ? error.message : fallback;
+};
+
+const getErrorStatus = (error: unknown): number | null => {
+  if (typeof error !== 'object' || error === null || !('response' in error)) {
+    return null;
+  }
+
+  const response = (error as { response?: { status?: unknown } }).response;
+  return typeof response?.status === 'number' ? response.status : null;
+};
 
 const SimpleAdminDashboard = () => {
   const { user, isInitializing } = useAuth();
@@ -93,16 +106,16 @@ const SimpleAdminDashboard = () => {
       });
       setShowDeleteModal(false);
       setDeleteItem(null);
-    } catch (error: any) {
+    } catch (error) {
       uiToast({
         title: "Silme Hatası",
-        description: `Hata: ${error.message}`,
+        description: `Hata: ${getErrorMessage(error, 'Bilinmeyen hata')}`,
       });
     }
   };
 
   // Load data
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
       const allOrders = await apiService.getAllOrders();
@@ -121,16 +134,18 @@ const SimpleAdminDashboard = () => {
       setMediaCoverages(allMediaCoverages);
       setEvents(allEvents);
       setServerStatus('connected');
-
-      toast.success('Data loaded successfully!');
-    } catch (error: any) {
+      uiToast({ title: 'Success', description: 'Data loaded successfully!' });
+    } catch (error) {
       console.error('Data loading error:', error);
       setServerStatus('disconnected');
-      toast.error('Data loading error: ' + error.message);
+      uiToast({
+        title: 'Error',
+        description: 'Data loading error: ' + getErrorMessage(error, 'Unknown error'),
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [uiToast]);
   
   // Sort orders
   const sortOrders = (field: keyof Order) => {
@@ -145,8 +160,8 @@ const SimpleAdminDashboard = () => {
   // Get sorted orders
   const getSortedOrders = () => {
     return [...orders].sort((a, b) => {
-      let aValue = a[orderSortField];
-      let bValue = b[orderSortField];
+      const aValue = a[orderSortField];
+      const bValue = b[orderSortField];
       
       // Handle special cases for sorting
       if (orderSortField === 'totalAmount') {
@@ -179,8 +194,8 @@ const SimpleAdminDashboard = () => {
       await apiService.updateOrderStatus(orderId, status);
       await loadData(); // Refresh data
       toast.success('Order status updated!');
-    } catch (error: any) {
-      toast.error('Update error: ' + error.message);
+    } catch (error) {
+      toast.error('Update error: ' + getErrorMessage(error, 'Unknown error'));
     }
   };
 
@@ -192,8 +207,8 @@ const SimpleAdminDashboard = () => {
       await apiService.updateContactStatus(contactId, status);
       await loadData(); // Refresh data
       toast.success('Contact status updated!');
-    } catch (error: any) {
-      toast.error('Update error: ' + error.message);
+    } catch (error) {
+      toast.error('Update error: ' + getErrorMessage(error, 'Unknown error'));
     }
   };
 
@@ -250,9 +265,9 @@ const SimpleAdminDashboard = () => {
       
       setEventFormData({...eventFormData, imageUrl: response.imageUrl});
       toast.success('Image uploaded successfully!');
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error uploading image:', error);
-      toast.error('Failed to upload image: ' + (error.message || 'Unknown error'));
+      toast.error('Failed to upload image: ' + getErrorMessage(error, 'Unknown error'));
     }
   };
 
@@ -351,16 +366,15 @@ const SimpleAdminDashboard = () => {
         status: 'upcoming',
         imageUrl: ''
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Event save error:', error);
-      if (error.response?.status === 500) {
+      const status = getErrorStatus(error);
+      if (status === 500) {
         toast.error('Server error. Please try again.');
-      } else if (error.response?.status === 400) {
+      } else if (status === 400) {
         toast.error('Invalid data. Please check all fields.');
-      } else if (error.message) {
-        toast.error('Error: ' + error.message);
       } else {
-        toast.error('An unknown error occurred.');
+        toast.error('Error: ' + getErrorMessage(error, 'An unknown error occurred.'));
       }
     }
   };
@@ -375,7 +389,7 @@ const SimpleAdminDashboard = () => {
         startDate: event.startDate,
         endDate: event.endDate,
         venue: event.venueName, // Keep the original text with potential HTML
-        googleMapsLink: (event as any).googleMapsLink || '', // Using the googleMapsLink field
+        googleMapsLink: event.googleMapsLink || '',
         venueWebsite: event.venueWebsite || '',
         eventWebsite: event.eventWebsite || '',
         organizerName: event.organizerName || '',
@@ -459,17 +473,16 @@ const SimpleAdminDashboard = () => {
         status: 'draft',
         images: []
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Blog kaydetme hatası:', error);
       // More specific error handling
-      if (error.response?.status === 500) {
+      const status = getErrorStatus(error);
+      if (status === 500) {
         toast.error('Sunucu hatası. Lütfen tekrar deneyin.');
-      } else if (error.response?.status === 400) {
+      } else if (status === 400) {
         toast.error('Geçersiz veri. Lütfen tüm alanları kontrol edin.');
-      } else if (error.message) {
-        toast.error('Hata: ' + error.message);
       } else {
-        toast.error('Bilinmeyen bir hata oluştu.');
+        toast.error('Hata: ' + getErrorMessage(error, 'Bilinmeyen bir hata oluştu.'));
       }
     }
   };
@@ -499,8 +512,8 @@ const SimpleAdminDashboard = () => {
       });
       
       toast.success('Image uploaded successfully!');
-    } catch (error: any) {
-      toast.error('Image upload failed: ' + error.message);
+    } catch (error) {
+      toast.error('Image upload failed: ' + getErrorMessage(error, 'Unknown error'));
     } finally {
       setUploadingImage(false);
       // Reset the file input
@@ -584,16 +597,15 @@ const SimpleAdminDashboard = () => {
         status: 'draft',
         images: []
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Press release save error:', error);
-      if (error.response?.status === 500) {
+      const status = getErrorStatus(error);
+      if (status === 500) {
         toast.error('Server error. Please try again.');
-      } else if (error.response?.status === 400) {
+      } else if (status === 400) {
         toast.error('Invalid data. Please check all fields.');
-      } else if (error.message) {
-        toast.error('Error: ' + error.message);
       } else {
-        toast.error('An unknown error occurred.');
+        toast.error('Error: ' + getErrorMessage(error, 'An unknown error occurred.'));
       }
     }
   };
@@ -622,8 +634,8 @@ const SimpleAdminDashboard = () => {
       });
       
       toast.success('Image uploaded successfully!');
-    } catch (error: any) {
-      toast.error('Image upload failed: ' + error.message);
+    } catch (error) {
+      toast.error('Image upload failed: ' + getErrorMessage(error, 'Unknown error'));
     } finally {
       setUploadingPressReleaseImage(false);
       // Reset the file input
@@ -706,16 +718,15 @@ const SimpleAdminDashboard = () => {
         status: 'draft',
         images: []
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Media coverage save error:', error);
-      if (error.response?.status === 500) {
+      const status = getErrorStatus(error);
+      if (status === 500) {
         toast.error('Server error. Please try again.');
-      } else if (error.response?.status === 400) {
+      } else if (status === 400) {
         toast.error('Invalid data. Please check all fields.');
-      } else if (error.message) {
-        toast.error('Error: ' + error.message);
       } else {
-        toast.error('An unknown error occurred.');
+        toast.error('Error: ' + getErrorMessage(error, 'An unknown error occurred.'));
       }
     }
   };
@@ -744,8 +755,8 @@ const SimpleAdminDashboard = () => {
       });
       
       toast.success('Image uploaded successfully!');
-    } catch (error: any) {
-      toast.error('Image upload failed: ' + error.message);
+    } catch (error) {
+      toast.error('Image upload failed: ' + getErrorMessage(error, 'Unknown error'));
     } finally {
       setUploadingMediaCoverageImage(false);
       // Reset the file input
@@ -797,7 +808,7 @@ const SimpleAdminDashboard = () => {
     const interval = setInterval(checkServerConnection, 30000); // Her 30 saniyede bir kontrol et
 
     return () => clearInterval(interval);
-  }, []);
+  }, [loadData]);
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
 
@@ -1252,9 +1263,9 @@ const SimpleAdminDashboard = () => {
                               <button
                                 onClick={() => handleDeleteClick('user', user.id, user.name)}
                                 className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-                                disabled={user.email === 'admin@klr.com'}
+                                disabled={Boolean(user.isAdmin)}
                               >
-                                {user.email === 'admin@klr.com' ? 'Admin' : 'Delete'}
+                                {user.isAdmin ? 'Admin' : 'Delete'}
                               </button>
                             </td>
                           </tr>

@@ -23,7 +23,7 @@ const Header = () => {
   
   // Sepet sayısını güncellemek için useEffect
   useEffect(() => {
-    const count = cart.getCartItemCount();
+    const count = cart.cartItems.reduce((total, item) => total + item.quantity, 0);
     setItemCount(count);
     console.log('Header useEffect - Cart item count updated:', count);
     console.log('Header useEffect - Cart items:', cart.cartItems);

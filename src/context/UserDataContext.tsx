@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from './AuthContext';
-import apiService from '@/services/apiService';
+import apiService, { type UserAddress, type UserPaymentMethod } from '@/services/apiService';
 
 // --- TYPES ---
 export type OrderStatus = 'placed' | 'received' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
@@ -14,6 +14,7 @@ export interface Address {
   phone: string;
   email?: string;
   address: string;
+  apartment?: string;
   district: string;
   city: string;
   postalCode: string;
@@ -105,18 +106,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(() => loadFromLocalStorage('user_profile_info', null));
   const [isLoading, setIsLoading] = useState(false);
 
-  // Kullanıcı değiştiğinde verileri yükle
-  useEffect(() => {
-    if (user?.id) {
-      loadUserData();
-    } else {
-      // Kullanıcı çıkış yaptığında verileri temizle
-      setAddresses([]);
-      setPaymentMethods([]);
-    }
-  }, [user?.id]);
-
-  const loadUserData = async () => {
+  const loadUserData = useCallback(async () => {
     if (!user?.id) return;
     
     setIsLoading(true);
@@ -127,7 +117,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       ]);
       
       // Backend verilerini frontend formatına çevir
-      const formattedAddresses: Address[] = addressesData.map((addr: any) => ({
+      const formattedAddresses: Address[] = addressesData.map((addr: UserAddress) => ({
         id: addr.id,
         title: addr.title,
         type: (addr.type === 'delivery' ? 'home' : 'office') as 'home' | 'office',
@@ -135,6 +125,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         phone: '',
         email: user.email,
         address: addr.address,
+        apartment: addr.apartment,
         district: addr.district,
         city: addr.city,
         postalCode: addr.postal_code,
@@ -143,7 +134,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         isDefault: Boolean(addr.is_default)
       }));
 
-      const formattedPaymentMethods = paymentMethodsData.map((pm: any) => ({
+      const formattedPaymentMethods = paymentMethodsData.map((pm: UserPaymentMethod) => ({
         id: pm.id,
         type: 'card' as const,
         title: pm.card_title,
@@ -161,7 +152,18 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.email, user?.id, user?.name]);
+
+  // Kullanıcı değiştiğinde verileri yükle
+  useEffect(() => {
+    if (user?.id) {
+      loadUserData();
+    } else {
+      // Kullanıcı çıkış yaptığında verileri temizle
+      setAddresses([]);
+      setPaymentMethods([]);
+    }
+  }, [loadUserData, user?.id]);
 
   useEffect(() => {
     localStorage.setItem('user_orders', JSON.stringify(orders));

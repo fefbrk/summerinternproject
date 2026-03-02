@@ -43,6 +43,25 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - Node.js + Express.js
 - SQLite3 veritabanı
 
+## Güvenlik Notları
+
+- API endpoint'leri token tabanlı kimlik doğrulama ile korunur.
+- Admin işlemleri sunucu tarafında rol kontrolü ile sınırlandırılır.
+- Parolalar `scrypt` ile hashlenerek saklanır (plaintext saklanmaz).
+- Demo/sıfırlama endpoint'leri sadece `ENABLE_DEMO_ENDPOINTS=true` olduğunda açılır.
+- HTML içerikleri istemci ve sunucuda sanitize edilir (XSS koruması).
+
+### Backend Ortam Değişkenleri
+
+- `server/.env` dosyası `npm start` ve `npm run dev` ile otomatik yüklenir.
+
+- `AUTH_TOKEN_SECRET`: Üretimde güçlü bir gizli anahtar zorunlu.
+- `AUTH_TOKEN_TTL_MS`: Token süresi (ms), varsayılan 7 gün.
+- `CORS_ORIGINS`: İzin verilen origin listesi (virgülle ayrılmış).
+- `DEFAULT_ADMIN_EMAIL`: İlk admin hesabı e-posta adresi.
+- `DEFAULT_ADMIN_PASSWORD`: İlk admin hesabı şifresi (üretimde zorunlu).
+- `ENABLE_DEMO_ENDPOINTS`: `true` ise demo/temizleme endpoint'leri aktif olur.
+
 ## Proje Büyüklüğü
 
 **Toplam 129 Sayfa:**

@@ -363,7 +363,7 @@ const activities: ActivityCard[] = [
             <br>
             <p>Incorporating traditional children's stories, this curriculum integrates programming and robotics as the curricular theme and "powerful ideas". Using the story of the "3 Little Pigs", Maribel's learning objective is that children learn to program the KIBO robot, through the retelling of the story. This curriculum unit is linked to other subjects outside the STEM, because it starts with children's literature and goes through the construction of 3D scenarios using the work of artistic, plastic and musical expression, associated with the story.</p>
             <br>
-            <p>"I believe that programming the KIBO Robot to tell a story will meet the interests of pre-school age children because, 'Children love to tell stories; they talk about what happened over the weekend, about family events, and about different happenings in the classroom. Each of these stories can be broken down into a sequence of activities. Teachers can ask targeted questions to help children extend these ideas. For example, a teacher might ask, \"What happened last?\" \"What happened first?\" and \"What happened in the middle?\"' (CSTA, 2016, p. 194).</p>
+            <p>"I believe that programming the KIBO Robot to tell a story will meet the interests of pre-school age children because, 'Children love to tell stories; they talk about what happened over the weekend, about family events, and about different happenings in the classroom. Each of these stories can be broken down into a sequence of activities. Teachers can ask targeted questions to help children extend these ideas. For example, a teacher might ask, "What happened last?" "What happened first?" and "What happened in the middle?"' (CSTA, 2016, p. 194).</p>
             <br>
             <p>The curriculum includes:</p>
             <br>
@@ -374,7 +374,7 @@ const activities: ActivityCard[] = [
             Powerful Idea: What is the character of the story that can be programmed in the Robot? – Robotics with the KIBO Robot</p>
             <br>
             <p><strong>Lesson 3: What is a Program?</strong><br>
-            Powerful Idea: The 3 Little Pigs story, with The KIBO Robot (the \"Bad Wolf\") – Programming: Control Flow by Sequencing and Instructions to program</p>
+            Powerful Idea: The 3 Little Pigs story, with The KIBO Robot (the "Bad Wolf") – Programming: Control Flow by Sequencing and Instructions to program</p>
             <br>
             <p><strong>Lesson 4: What Are Sensors?</strong><br>
             Powerful Idea: What are the 3 Little Pigs' Moments of History? – Learning with Sensors and Actuators</p>
@@ -386,7 +386,7 @@ const activities: ActivityCard[] = [
             Powerful Idea: Where is the Bad Wolf going? – Ifs – Sensors & Branches</p>
             <br>
             <p><strong>Lesson 7: Culminating Project</strong><br>
-            Powerful Idea(s): \"The History and Dance of the 3 Little Pigs\" and Other Stories of Wolf in the Forest</p>
+            Powerful Idea(s): "The History and Dance of the 3 Little Pigs" and Other Stories of Wolf in the Forest</p>
             <br>
             <p><strong>Resource Files</strong></p>
             <p><a href="${traditionalStoriesPdf}" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Traditional Stories in Early Childhood Education - Teaching Stories through Robotics & Programming</a></p>

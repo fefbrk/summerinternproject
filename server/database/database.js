@@ -10,6 +10,14 @@ class Database {
         this.db = null;
     }
 
+    safeJsonParse(value, fallback) {
+        try {
+            return JSON.parse(value);
+        } catch (_error) {
+            return fallback;
+        }
+    }
+
     // Veritabanına bağlan
     connect() {
         return new Promise((resolve, reject) => {
@@ -192,6 +200,11 @@ class Database {
         return this.all(sql);
     }
 
+    async getAllUsersWithPasswords() {
+        const sql = 'SELECT id, email, name, password, is_admin as isAdmin, created_at as createdAt FROM users ORDER BY created_at DESC';
+        return this.all(sql);
+    }
+
     async getUserById(id) {
         const sql = 'SELECT id, email, name, password, is_admin as isAdmin, created_at as createdAt FROM users WHERE id = ?';
         return this.get(sql, [id]);
@@ -240,10 +253,34 @@ class Database {
             ORDER BY o.created_at DESC
         `;
         const orders = await this.all(sql);
-        // JSON string'i parse et
         return orders.map(order => ({
             ...order,
-            items: order.items ? JSON.parse(order.items) : []
+            shippingAddress: order.shippingAddress ? this.safeJsonParse(order.shippingAddress, {}) : {},
+            items: order.items ? this.safeJsonParse(order.items, []) : []
+        }));
+    }
+
+    async getOrdersByUserId(userId) {
+        const sql = `
+            SELECT o.id, o.user_id as userId, o.total_amount as totalAmount, o.status,
+                   o.customer_name as customerName, o.customer_email as customerEmail,
+                   o.shipping_address as shippingAddress, o.created_at as createdAt,
+                   json_group_array(
+                       json_object('id', oi.id, 'product_id', oi.product_id, 'product_name', oi.product_name,
+                                   'quantity', oi.quantity, 'price', oi.price, 'image', oi.image)
+                   ) as items
+            FROM orders o
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            WHERE o.user_id = ?
+            GROUP BY o.id
+            ORDER BY o.created_at DESC
+        `;
+
+        const orders = await this.all(sql, [userId]);
+        return orders.map(order => ({
+            ...order,
+            shippingAddress: order.shippingAddress ? this.safeJsonParse(order.shippingAddress, {}) : {},
+            items: order.items ? this.safeJsonParse(order.items, []) : []
         }));
     }
 
@@ -262,8 +299,9 @@ class Database {
             GROUP BY o.id
         `;
         const order = await this.get(sql, [id]);
-        if (order && order.items) {
-            order.items = JSON.parse(order.items);
+        if (order) {
+            order.items = order.items ? this.safeJsonParse(order.items, []) : [];
+            order.shippingAddress = order.shippingAddress ? this.safeJsonParse(order.shippingAddress, {}) : {};
         }
         return order;
     }
@@ -333,10 +371,28 @@ class Database {
             ORDER BY created_at DESC
         `;
         const registrations = await this.all(sql);
-        // JSON string'i parse et
         return registrations.map(registration => ({
             ...registration,
-            registrationData: registration.registrationData ? JSON.parse(registration.registrationData) : {}
+            registrationData: registration.registrationData ? this.safeJsonParse(registration.registrationData, {}) : {}
+        }));
+    }
+
+    async getRegistrationsByUserId(userId) {
+        const sql = `
+            SELECT id, user_id as userId, course_name as courseName, registration_data as registrationData,
+                   status, customer_name as customerName, customer_email as customerEmail,
+                   customer_phone as customerPhone, shipping_address as shippingAddress,
+                   shipping_city as shippingCity, shipping_state as shippingState, shipping_zip_code as shippingZipCode,
+                   billing_address as billingAddress, billing_city as billingCity, billing_state as billingState,
+                   billing_zip_code as billingZipCode, created_at as createdAt
+            FROM course_registrations
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+        `;
+        const registrations = await this.all(sql, [userId]);
+        return registrations.map(registration => ({
+            ...registration,
+            registrationData: registration.registrationData ? this.safeJsonParse(registration.registrationData, {}) : {}
         }));
     }
 
@@ -353,7 +409,7 @@ class Database {
         `;
         const registration = await this.get(sql, [id]);
         if (registration && registration.registrationData) {
-            registration.registrationData = JSON.parse(registration.registrationData);
+            registration.registrationData = this.safeJsonParse(registration.registrationData, {});
         }
         return registration;
     }
@@ -454,10 +510,9 @@ class Database {
             ORDER BY created_at DESC
         `;
         const posts = await this.all(sql);
-        // JSON string'i parse et
         return posts.map(post => ({
             ...post,
-            images: post.images ? JSON.parse(post.images) : []
+            images: post.images ? this.safeJsonParse(post.images, []) : []
         }));
     }
 
@@ -470,7 +525,7 @@ class Database {
         `;
         const post = await this.get(sql, [id]);
         if (post && post.images) {
-            post.images = JSON.parse(post.images);
+            post.images = this.safeJsonParse(post.images, []);
         }
         return post;
     }
@@ -528,10 +583,9 @@ async getAllPressReleases() {
         ORDER BY created_at DESC
     `;
     const releases = await this.all(sql);
-    // JSON string'i parse et
     return releases.map(release => ({
         ...release,
-        images: release.images ? JSON.parse(release.images) : []
+        images: release.images ? this.safeJsonParse(release.images, []) : []
     }));
 }
 
@@ -544,7 +598,7 @@ async getPressReleaseById(id) {
     `;
     const release = await this.get(sql, [id]);
     if (release && release.images) {
-        release.images = JSON.parse(release.images);
+        release.images = this.safeJsonParse(release.images, []);
     }
     return release;
 }
@@ -607,10 +661,9 @@ async getAllMediaCoverages() {
         ORDER BY created_at DESC
     `;
     const coverages = await this.all(sql);
-    // JSON string'i parse et
     return coverages.map(coverage => ({
         ...coverage,
-        images: coverage.images ? JSON.parse(coverage.images) : []
+        images: coverage.images ? this.safeJsonParse(coverage.images, []) : []
     }));
 }
 
@@ -623,7 +676,7 @@ async getMediaCoverageById(id) {
     `;
     const coverage = await this.get(sql, [id]);
     if (coverage && coverage.images) {
-        coverage.images = JSON.parse(coverage.images);
+        coverage.images = this.safeJsonParse(coverage.images, []);
     }
     return coverage;
 }
@@ -796,6 +849,11 @@ async getAllEvents() {
         return this.all(sql, [userId]);
     }
 
+    async getUserAddressById(id) {
+        const sql = 'SELECT * FROM user_addresses WHERE id = ?';
+        return this.get(sql, [id]);
+    }
+
     async createUserAddress(address) {
         // Eğer bu adres default olarak işaretlendiyse, diğer adresleri default olmaktan çıkar
         if (address.isDefault) {
@@ -867,6 +925,11 @@ async getAllEvents() {
     async getUserPaymentMethods(userId) {
         const sql = 'SELECT * FROM user_payment_methods WHERE user_id = ? ORDER BY is_default DESC, created_at DESC';
         return this.all(sql, [userId]);
+    }
+
+    async getUserPaymentMethodById(id) {
+        const sql = 'SELECT * FROM user_payment_methods WHERE id = ?';
+        return this.get(sql, [id]);
     }
 
     async createUserPaymentMethod(paymentMethod) {
@@ -964,21 +1027,12 @@ async getAllEvents() {
         await this.run('DELETE FROM course_registrations');
         await this.run('DELETE FROM contacts');
         await this.run('DELETE FROM blog_posts');
+        await this.run('DELETE FROM press_releases');
         await this.run('DELETE FROM media_coverage');
+        await this.run('DELETE FROM events');
         await this.run('DELETE FROM user_addresses');
         await this.run('DELETE FROM user_payment_methods');
         await this.run('DELETE FROM users');
-        
-        // Yeni admin kullanıcısını ekle
-        const newAdmin = {
-            id: '1',
-            email: 'admin@klr.com',
-            name: 'Admin User',
-            password: 'adminklr',
-            isAdmin: 1, // 1 = true (admin)
-            createdAt: new Date().toISOString()
-        };
-        await this.createUser(newAdmin);
     }
 }
 

@@ -4,6 +4,7 @@ import Header from '../../components/Header';
 import Footer from '../../components/Footer';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import apiService, { BlogPost } from '../../services/apiService';
+import { sanitizeRichContent } from '../../lib/sanitizeHtml';
 
 const BlogPostDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -27,7 +28,7 @@ const BlogPostDetail: React.FC = () => {
         } else {
           setError('Blog post not found');
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error('Error fetching blog post:', err);
         setError('Failed to load blog post');
       } finally {
@@ -188,7 +189,9 @@ const BlogPostDetail: React.FC = () => {
                 <div
                   className="text-gray-800 leading-relaxed"
                   dangerouslySetInnerHTML={{
-                    __html: blogPost.content.replace(/<h1[^>]*>.*?<\/h1>/gi, '').replace(/<h2[^>]*>.*?<\/h2>/gi, '')
+                    __html: sanitizeRichContent(blogPost.content)
+                      .replace(/<h1[^>]*>.*?<\/h1>/gi, '')
+                      .replace(/<h2[^>]*>.*?<\/h2>/gi, '')
                   }}
                 />
               </div>

@@ -10,6 +10,10 @@ import { useUserData } from '@/context/UserDataContext';
 import { useNavigate } from 'react-router-dom';
 import apiService from '@/services/apiService';
 
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  return error instanceof Error ? error.message : fallback;
+};
+
 const SettingsContent = () => {
   const { user, logout } = useAuth();
   const { profileInfo, updateProfileInfo } = useUserData();
@@ -77,8 +81,8 @@ const SettingsContent = () => {
       toast.error('New password is required');
       return;
     }
-    if (formData.newPassword.length < 6) {
-      toast.error('New password must be at least 6 characters');
+    if (formData.newPassword.length < 8) {
+      toast.error('New password must be at least 8 characters');
       return;
     }
     if (formData.newPassword !== formData.confirmPassword) {
@@ -105,9 +109,9 @@ const SettingsContent = () => {
         newPassword: '',
         confirmPassword: ''
       }));
-    } catch (error: any) {
+    } catch (error) {
       // Backend'den gelen hata mesajını göster
-      const errorMessage = error.message || 'Failed to change password';
+      const errorMessage = getErrorMessage(error, 'Failed to change password');
       toast.error(errorMessage);
     } finally {
       setIsChangingPassword(false);
@@ -126,7 +130,7 @@ const SettingsContent = () => {
     }
 
     // Admin kullanıcısını silmeyi engelle
-    if (user.email === 'admin@kinderlab.com') {
+    if (user.isAdmin) {
       toast.error('Admin account cannot be deleted');
       setShowDeleteConfirm(false);
       return;
@@ -142,9 +146,9 @@ const SettingsContent = () => {
       // Log out the user and redirect to home page
       logout();
       navigate('/');
-    } catch (error: any) {
+    } catch (error) {
       // Backend'den gelen hata mesajını göster
-      const errorMessage = error.message || 'Failed to delete account';
+      const errorMessage = getErrorMessage(error, 'Failed to delete account');
       toast.error(errorMessage);
       setShowDeleteConfirm(false);
     } finally {
