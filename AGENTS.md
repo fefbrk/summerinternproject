@@ -7,6 +7,7 @@ Bu dokuman, proje icinde calisan insan/AI agentlari icin tek noktadan hizli oper
 - Frontend: React 18 + TypeScript + Vite + Tailwind CSS
 - Backend: Node.js + Express + SQLite
 - Auth: Token tabanli (Bearer), role bazli admin kontrolu
+- CI: GitHub Actions (`.github/workflows/ci.yml`) -> lint + test + build
 - Icerik alanlari: blog, press releases, media coverage, events
 - Is alanlari: e-commerce orders, course registrations, contacts, user account data
 
@@ -14,6 +15,9 @@ Ana dizinler:
 
 - `src/` -> frontend sayfalari, context, servisler
 - `server/` -> API, auth middleware, SQLite islemleri
+- `server/routes/` -> endpoint gruplari (auth, commerce, account, content, demo)
+- `server/middleware/` -> authz/rate-limit middleware
+- `server/services/` -> bootstrap/is kurallari servisi
 - `server/database/` -> schema ve DB islemleri
 
 ## 2) Agent Rolleri
@@ -25,7 +29,7 @@ Asagidaki roller mantiksal ayrimdir; tek agent birden fazla rol ustlenebilir.
 - Cikti: net TODO, kabul kriterleri, durum raporu.
 
 2. Backend Agent
-- `server/server.js` ve `server/database/*` uzerinde API, authz, validation, data consistency calisir.
+- `server/server.js`, `server/routes/*`, `server/middleware/*`, `server/services/*`, `server/database/*` uzerinde API, authz, validation, data consistency calisir.
 - Cikti: endpoint degisikligi, DB uyumlulugu, backward compatibility notu.
 
 3. Frontend Agent
@@ -56,6 +60,9 @@ Asagidaki roller mantiksal ayrimdir; tek agent birden fazla rol ustlenebilir.
 
 - ESLint (`npm run lint`)
 - Vite build (`npm run build`)
+- Backend test (`npm run test:backend`)
+- Frontend smoke test (`npm run test:frontend`)
+- Full test (`npm test`)
 - Nodemon (`server` icinde `npm run dev`)
 
 ### 3.3 Agent Operasyon Araçlari
@@ -96,6 +103,7 @@ Asagidaki roller mantiksal ayrimdir; tek agent birden fazla rol ustlenebilir.
 
 4. Verify
 - Minimum: `npm run lint` + `npm run build` + `npm test`
+- Backend odakli degisiklikte ek olarak: `npm run test:backend`
 - Gerekirse backend smoke (`server` icinde `npm start`) ve login testi
 
 5. Security Gate
@@ -114,7 +122,7 @@ Frontend API base:
 - Auth token storage key: `auth_token` (localStorage)
 - Auth header: `Authorization: Bearer <token>`
 
-Temel endpoint gruplari (`server/server.js`):
+Temel endpoint gruplari (`server/routes/*`):
 
 - Auth: `/api/login`, `/api/register`, `/api/me`
 - Users: `/api/users`, `/api/users/:id/password`
@@ -225,6 +233,25 @@ cd server && npm start
 
 - Frontend API servis dosyasi: `src/services/apiService.ts`
 - Auth context: `src/context/AuthContext.tsx`
-- Backend API ve guardlar: `server/server.js`
+- User data context: `src/context/UserDataContext.tsx`
+- Backend app composition: `server/server.js`
+- Auth middleware: `server/middleware/authMiddleware.js`
+- Route modulleri: `server/routes/*.js`
+- Bootstrap service: `server/services/bootstrapService.js`
 - DB adapter: `server/database/database.js`
 - DB schema: `server/database/schema.sql`
+
+## 11) Yeni Session Hizli Baslangic
+
+1. Once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` dosyalarini oku.
+2. Ardindan `git status -sb` ile calisma alanini kontrol et.
+3. Degisiklik yapmadan once ilgili modulu oku (`server/routes/*` veya `src/pages/*`).
+4. Degisiklikten sonra minimum dogrulama: `npm run lint && npm test && npm run build -- --logLevel error`.
+
+## 12) Bilinen Kritik Notlar
+
+- `server/.env` repoya dahil edilmez; prod secretlar sadece ortam degiskeni ile yonetilir.
+- `server/database/kinderlab.db` su an repoda takipte olabilir; veri dosyasi oldugu unutulmamali.
+- Auth token middleware DB'den kullaniciyi yeniden dogrular (token tek basina yeterli degil).
+- Node test scripti CI uyumu icin explicit dosya listesi kullanir (`server/package.json` test scripti).
+- Address tipi frontendde `home|office`, backendde `delivery|billing` maplenir; bu donusumde regression testi bulunur.

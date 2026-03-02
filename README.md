@@ -2,6 +2,12 @@
 
 Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-ticaret, içerik yönetimi ve eğitim özelliklerini içeren kapsamlı bir uygulama.
 
+## Agent / Session Dokumanlari
+
+- `AGENT.md`: Yeni session icin 60 saniyelik hizli giris.
+- `AGENTS.md`: Detayli operasyon rehberi (roller, workflow, prompt, config).
+- `HANDOFF.md`: Son teknik durum, acik teknik borclar ve sonraki adimlar.
+
 ## Özellikler
 
 **E-Ticaret Sistemi**
