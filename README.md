@@ -43,6 +43,12 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - Node.js + Express.js
 - SQLite3 veritabanı
 
+## Test Komutları
+
+- `npm run test:backend`: Backend entegrasyon testleri
+- `npm run test:frontend`: Frontend smoke testleri (Vitest + RTL)
+- `npm test`: Tüm testleri ardışık çalıştırır
+
 ## Güvenlik Notları
 
 - API endpoint'leri token tabanlı kimlik doğrulama ile korunur.
@@ -61,6 +67,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - `DEFAULT_ADMIN_EMAIL`: İlk admin hesabı e-posta adresi.
 - `DEFAULT_ADMIN_PASSWORD`: İlk admin hesabı şifresi (üretimde zorunlu).
 - `ENABLE_DEMO_ENDPOINTS`: `true` ise demo/temizleme endpoint'leri aktif olur.
+- `SQLITE_DB_PATH`: Opsiyonel veritabanı yolu (test ortamları için geçici DB tanımlamakta kullanılır).
 
 ## Proje Büyüklüğü
 

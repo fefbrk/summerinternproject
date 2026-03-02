@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server.js",
     "dev": "nodemon --exec \"node --env-file-if-exists=.env\" server.js",
-    "migrate": "node migrate-data.js"
+    "migrate": "node migrate-data.js",
+    "test": "node --test \"tests/**/*.test.js\""
   },
   "dependencies": {
     "cors": "^2.8.5",

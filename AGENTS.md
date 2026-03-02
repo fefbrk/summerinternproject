@@ -95,7 +95,7 @@ Asagidaki roller mantiksal ayrimdir; tek agent birden fazla rol ustlenebilir.
 - Backend/Frontend degisiklikleri mevcut patternlere uygun yapilir.
 
 4. Verify
-- Minimum: `npm run lint` + `npm run build`
+- Minimum: `npm run lint` + `npm run build` + `npm test`
 - Gerekirse backend smoke (`server` icinde `npm start`) ve login testi
 
 5. Security Gate
@@ -144,6 +144,7 @@ CORS_ORIGINS=http://localhost:8080,http://localhost:5173
 DEFAULT_ADMIN_EMAIL=admin@example.com
 DEFAULT_ADMIN_PASSWORD=<strong-password>
 ENABLE_DEMO_ENDPOINTS=false
+SQLITE_DB_PATH=./database/kinderlab.db
 ```
 
 Production notlari:
@@ -152,6 +153,7 @@ Production notlari:
 - `DEFAULT_ADMIN_EMAIL` gecerli e-posta olmali
 - `DEFAULT_ADMIN_PASSWORD` zorunlu
 - `ENABLE_DEMO_ENDPOINTS=false` kalmali
+- `SQLITE_DB_PATH` opsiyoneldir (test ortaminda gecici DB vermek icin kullanilir)
 
 ## 8) Kurulum ve Kullanim
 
@@ -198,6 +200,10 @@ npm run lint
 
 ```bash
 npm run build
+```
+
+```bash
+npm test
 ```
 
 Opsiyonel backend smoke:

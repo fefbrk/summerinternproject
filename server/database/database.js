@@ -3,7 +3,24 @@ const path = require('path');
 const fs = require('fs');
 
 // Veritabanı dosya yolu
-const DB_PATH = path.join(__dirname, 'kinderlab.db');
+const resolveDatabasePath = () => {
+    const configuredPath = typeof process.env.SQLITE_DB_PATH === 'string'
+        ? process.env.SQLITE_DB_PATH.trim()
+        : '';
+
+    if (configuredPath) {
+        return path.resolve(configuredPath);
+    }
+
+    return path.join(__dirname, 'kinderlab.db');
+};
+
+const DB_PATH = resolveDatabasePath();
+const DB_DIR = path.dirname(DB_PATH);
+
+if (!fs.existsSync(DB_DIR)) {
+    fs.mkdirSync(DB_DIR, { recursive: true });
+}
 
 class Database {
     constructor() {
