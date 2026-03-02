@@ -70,8 +70,14 @@ const registerAccountRoutes = (app, deps) => {
         updatedAt: new Date().toISOString(),
       };
 
-      const result = await database.createUserAddress(newAddress);
-      res.status(201).json(result);
+      await database.createUserAddress(newAddress);
+
+      const createdAddress = await database.getUserAddressById(newAddress.id);
+      if (!createdAddress) {
+        return res.status(500).json({ error: 'Address created but could not be loaded' });
+      }
+
+      res.status(201).json(createdAddress);
     } catch (error) {
       console.error('Error creating address:', error);
       res.status(500).json({ error: 'Failed to create address' });
@@ -99,16 +105,21 @@ const registerAccountRoutes = (app, deps) => {
       const postalCode = sanitizePlainText(req.body?.postalCode, 32);
       const province = sanitizePlainText(req.body?.province, 120);
       const country = sanitizePlainText(req.body?.country, 120) || 'Turkey';
-      const isDefault = Boolean(req.body?.isDefault);
+      const hasIsDefault = typeof req.body?.isDefault === 'boolean';
+      const isDefault = hasIsDefault ? Boolean(req.body.isDefault) : undefined;
 
       if (!title || !address || !district || !city || !postalCode || !['delivery', 'billing'].includes(type)) {
         return res.status(400).json({ error: 'Invalid address payload' });
       }
 
+      const finalIsDefault = isDefault === undefined
+        ? Number(existingAddress.is_default)
+        : (isDefault ? 1 : 0);
+
       const updatedAddress = {
         title,
         type,
-        isDefault: isDefault ? 1 : 0,
+        isDefault: finalIsDefault,
         address,
         apartment,
         district,
@@ -119,8 +130,14 @@ const registerAccountRoutes = (app, deps) => {
         updatedAt: new Date().toISOString(),
       };
 
-      const result = await database.updateUserAddress(id, updatedAddress);
-      res.json(result);
+      await database.updateUserAddress(id, updatedAddress);
+
+      const refreshedAddress = await database.getUserAddressById(id);
+      if (!refreshedAddress) {
+        return res.status(404).json({ error: 'Address not found after update' });
+      }
+
+      res.json(refreshedAddress);
     } catch (error) {
       console.error('Error updating address:', error);
       res.status(500).json({ error: 'Failed to update address' });
@@ -196,8 +213,14 @@ const registerAccountRoutes = (app, deps) => {
         updatedAt: new Date().toISOString(),
       };
 
-      const result = await database.createUserPaymentMethod(newPaymentMethod);
-      res.status(201).json(result);
+      await database.createUserPaymentMethod(newPaymentMethod);
+
+      const createdPaymentMethod = await database.getUserPaymentMethodById(newPaymentMethod.id);
+      if (!createdPaymentMethod) {
+        return res.status(500).json({ error: 'Payment method created but could not be loaded' });
+      }
+
+      res.status(201).json(createdPaymentMethod);
     } catch (error) {
       console.error('Error creating payment method:', error);
       res.status(500).json({ error: 'Failed to create payment method' });
@@ -221,7 +244,8 @@ const registerAccountRoutes = (app, deps) => {
       const expiryMonth = sanitizePlainText(req.body?.expiryMonth, 2);
       const expiryYear = sanitizePlainText(req.body?.expiryYear, 4);
       const holderName = sanitizePlainText(req.body?.holderName, 120);
-      const isDefault = Boolean(req.body?.isDefault);
+      const hasIsDefault = typeof req.body?.isDefault === 'boolean';
+      const isDefault = hasIsDefault ? Boolean(req.body.isDefault) : undefined;
 
       const updatedPaymentMethod = {
         cardTitle: cardTitle || undefined,
@@ -240,8 +264,14 @@ const registerAccountRoutes = (app, deps) => {
         }
       });
 
-      const result = await database.updateUserPaymentMethod(id, updatedPaymentMethod);
-      res.json(result);
+      await database.updateUserPaymentMethod(id, updatedPaymentMethod);
+
+      const refreshedPaymentMethod = await database.getUserPaymentMethodById(id);
+      if (!refreshedPaymentMethod) {
+        return res.status(404).json({ error: 'Payment method not found after update' });
+      }
+
+      res.json(refreshedPaymentMethod);
     } catch (error) {
       console.error('Error updating payment method:', error);
       res.status(500).json({ error: 'Failed to update payment method' });

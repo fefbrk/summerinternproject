@@ -158,11 +158,63 @@ test('critical auth and authorization flow works end-to-end', async () => {
   });
 
   assert.equal(createAddress.status, 201);
+  assert.ok(createAddress.data && typeof createAddress.data.id === 'string');
+  assert.equal(createAddress.data.user_id, firstUserId);
+  assert.equal(createAddress.data.is_default, 1);
+
+  const updatedAddressWithoutDefaultPayload = await requestJson(`/api/addresses/${createAddress.data.id}`, {
+    method: 'PUT',
+    token: firstUserToken,
+    body: {
+      title: 'Home Updated',
+      type: 'delivery',
+      address: 'Example Street 43',
+      apartment: '3A',
+      district: 'Kadikoy',
+      city: 'Istanbul',
+      postalCode: '34710',
+      province: 'Istanbul',
+      country: 'Turkey',
+    },
+  });
+
+  assert.equal(updatedAddressWithoutDefaultPayload.status, 200);
+  assert.equal(updatedAddressWithoutDefaultPayload.data.is_default, 1);
 
   const ownAddresses = await requestJson(`/api/addresses/${firstUserId}`, { token: firstUserToken });
   assert.equal(ownAddresses.status, 200);
   assert.ok(Array.isArray(ownAddresses.data));
   assert.equal(ownAddresses.data.length, 1);
+
+  const createPaymentMethod = await requestJson('/api/payment-methods', {
+    method: 'POST',
+    token: firstUserToken,
+    body: {
+      userId: firstUserId,
+      cardTitle: 'Main Card',
+      cardNumber: '4242424242424242',
+      expiryMonth: '10',
+      expiryYear: '2030',
+      holderName: 'Integration User One',
+      isDefault: true,
+    },
+  });
+
+  assert.equal(createPaymentMethod.status, 201);
+  assert.ok(createPaymentMethod.data && typeof createPaymentMethod.data.id === 'string');
+  assert.equal(createPaymentMethod.data.user_id, firstUserId);
+  assert.equal(createPaymentMethod.data.is_default, 1);
+
+  const updatePaymentWithoutDefaultPayload = await requestJson(`/api/payment-methods/${createPaymentMethod.data.id}`, {
+    method: 'PUT',
+    token: firstUserToken,
+    body: {
+      cardTitle: 'Main Card Updated',
+    },
+  });
+
+  assert.equal(updatePaymentWithoutDefaultPayload.status, 200);
+  assert.equal(updatePaymentWithoutDefaultPayload.data.is_default, 1);
 
   const secondUserRegister = await requestJson('/api/register', {
     method: 'POST',
@@ -180,6 +232,11 @@ test('critical auth and authorization flow works end-to-end', async () => {
     token: secondUserToken,
   });
   assert.equal(firstUserAddressesAsOtherUser.status, 403);
+
+  const firstUserPaymentMethodsAsOtherUser = await requestJson(`/api/payment-methods/${firstUserId}`, {
+    token: secondUserToken,
+  });
+  assert.equal(firstUserPaymentMethodsAsOtherUser.status, 403);
 
   const usersAsAdmin = await requestJson('/api/users', { token: adminToken });
   assert.equal(usersAsAdmin.status, 200);

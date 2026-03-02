@@ -26,7 +26,7 @@ const Addresses = () => {
   const [editingAddress, setEditingAddress] = useState<Address | null>(null);
   const [formData, setFormData] = useState({
     title: '',
-    type: 'delivery',
+    type: 'home' as Address['type'],
     address: '',
     apartment: '',
     district: '',
@@ -39,7 +39,7 @@ const Addresses = () => {
   const resetForm = () => {
     setFormData({
       title: '',
-      type: 'delivery',
+      type: 'home',
       address: '',
       apartment: '',
       district: '',
@@ -77,7 +77,7 @@ const Addresses = () => {
         district: formData.district || formData.city,
         country: formData.country,
         province: formData.province,
-        type: 'home' as const,
+        type: formData.type,
       });
     } else {
       // Add new address
@@ -89,7 +89,7 @@ const Addresses = () => {
         country: formData.country,
         province: formData.province,
         isDefault: false,
-        type: 'home' as const,
+        type: formData.type,
       });
     }
     
@@ -104,7 +104,7 @@ const Addresses = () => {
 
 
   const getAddressIcon = (type: string) => {
-    return type === 'delivery' ? Home : Building;
+    return type === 'home' ? Home : Building;
   };
 
   return (
@@ -142,13 +142,13 @@ const Addresses = () => {
 
                   <div>
                     <Label htmlFor="type">Address Type</Label>
-                    <Select value={formData.type} onValueChange={(value) => setFormData({...formData, type: value})}>
+                    <Select value={formData.type} onValueChange={(value) => setFormData({...formData, type: value as Address['type']})}>
                       <SelectTrigger className="bg-orange-50">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-orange-50">
-                        <SelectItem value="delivery">Delivery Address</SelectItem>
-                        <SelectItem value="billing">Billing Address</SelectItem>
+                        <SelectItem value="home">Home Address</SelectItem>
+                        <SelectItem value="office">Office/Billing Address</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
