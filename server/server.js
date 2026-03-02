@@ -27,6 +27,7 @@ const REGISTRATION_STATUSES = new Set(['registered', 'active', 'completed']);
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
 const loginAttempts = new Map();
+const LEGACY_DEFAULT_ADMIN_EMAIL = 'admin@klr.com';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const configuredAdminEmail = typeof process.env.DEFAULT_ADMIN_EMAIL === 'string'
   ? process.env.DEFAULT_ADMIN_EMAIL.trim().toLowerCase()
@@ -376,12 +377,37 @@ const migrateLegacyPasswords = async () => {
   }
 };
 
+const removeLegacyDefaultAdminUser = async () => {
+  if (adminEmail === LEGACY_DEFAULT_ADMIN_EMAIL) {
+    return;
+  }
+
+  const legacyAdmin = await database.getUserByEmail(LEGACY_DEFAULT_ADMIN_EMAIL);
+  if (!legacyAdmin) {
+    return;
+  }
+
+  const currentAdmin = await database.getUserByEmail(adminEmail);
+  if (!currentAdmin || currentAdmin.id === legacyAdmin.id) {
+    return;
+  }
+
+  await database.run('UPDATE orders SET user_id = ? WHERE user_id = ?', [currentAdmin.id, legacyAdmin.id]);
+  await database.run('UPDATE course_registrations SET user_id = ? WHERE user_id = ?', [currentAdmin.id, legacyAdmin.id]);
+  await database.run('UPDATE user_addresses SET user_id = ? WHERE user_id = ?', [currentAdmin.id, legacyAdmin.id]);
+  await database.run('UPDATE user_payment_methods SET user_id = ? WHERE user_id = ?', [currentAdmin.id, legacyAdmin.id]);
+  await database.deleteUser(legacyAdmin.id);
+
+  console.log('Legacy default admin account removed');
+};
+
 const initializeDatabase = async () => {
   try {
     await database.connect();
     await database.runSchema();
     await migrateLegacyPasswords();
     await ensureDefaultAdminUser();
+    await removeLegacyDefaultAdminUser();
     console.log('Database initialized successfully');
   } catch (error) {
     console.error('Database initialization error:', error);
