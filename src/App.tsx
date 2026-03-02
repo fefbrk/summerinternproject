@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Routes, Route } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Shop from "./pages/Shop";
@@ -17,125 +18,129 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
-import ProductDetail from "./pages/ProductDetail";
-import HelpMeChoose from "./pages/HelpMeChoose";
-import ComparePackages from "./pages/ComparePackages";
-import CompareKits from "./pages/CompareKits";
-import Checkout from "./pages/Checkout";
-import AccountPage from "./pages/account/AccountPage";
-import WhyKibo from "./pages/WhyKibo";
-import WhichKibo from "./pages/WhichKibo";
-import Kibo from "./pages/Kibo";
-import KiboInAction from "./pages/KiboInAction";
-import KiboInTheClassroom from "./pages/KiboInTheClassroom";
-import SteamLessons from "./pages/SteamLessons";
-import KiboAtHome from "./pages/KiboAtHome";
-import SignUpKiboHomeCourse from "./pages/SignUpKiboHomeCourse";
-import KiboUse from "./pages/KiboUse";
-import StemCurriculum from "./pages/StemCurriculum";
-import KiboResearch from "./pages/KiboResearch";
-import ProfessionalDevelopment from "./pages/ProfessionalDevelopment";
-import Grants from "./pages/Grants";
-import SteamGrants from "./pages/SteamGrants";
-import Tutorials from "./pages/Tutorials";
-import Activities from "./pages/Activities";
-import Experiences from "./pages/Experiences";
-import WhitePapersWebinars from "./pages/WhitePapersWebinars";
-import TechnicalSupport from "./pages/TechnicalSupport";
-import SimpleAdminDashboard from "./pages/SimpleAdminDashboard";
-import About from "./pages/About";
-import Testimonials from "./pages/Testimonials";
-import Awards from "./pages/Awards";
-import Events from "./pages/Events";
-import ContactUs from "./pages/ContactUs";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import Kibo10Kit from "./pages/products/kibokits/Kibo10Kit";
-import Kibo15Kit from "./pages/products/kibokits/Kibo15Kit";
-import Kibo18Kit from "./pages/products/kibokits/Kibo18Kit";
-import Kibo21Kit from "./pages/products/kibokits/Kibo21Kit";
-import Kibo10HomeEdition from "./pages/products/kibohomeedition/Kibo10HomeEdition";
-import Kibo15HomeEdition from "./pages/products/kibohomeedition/Kibo15HomeEdition";
-import ActivityCenterKibo21SteamExplorer from "./pages/products/classroompackages/ActivityCenterKibo21SteamExplorer";
-import SmallClassroomKibo21SteamExplorer from "./pages/products/classroompackages/SmallClassroomKibo21SteamExplorer";
-import FullClassroomKibo21SteamExplorer from "./pages/products/classroompackages/FullClassroomKibo21SteamExplorer";
-import ActivityCenterKibo21 from "./pages/products/classroompackages/ActivityCenterKibo21";
-import SmallClassroomKibo21 from "./pages/products/classroompackages/SmallClassroomKibo21";
-import FullClassroomKibo21 from "./pages/products/classroompackages/FullClassroomKibo21";
-import ActivityCenterKibo18 from "./pages/products/classroompackages/ActivityCenterKibo18";
-import SmallClassroomKibo18 from "./pages/products/classroompackages/SmallClassroomKibo18";
-import FullClassroomKibo18 from "./pages/products/classroompackages/FullClassroomKibo18";
-import AdvancedCodingExtensionSet from "./pages/products/funextensionsets/AdvancedCodingExtensionSet";
-import BuildingBrickExtensionSetBasic from "./pages/products/funextensionsets/BuildingBrickExtensionSetBasic";
-import BuildingBrickExtensionSetDeluxe from "./pages/products/funextensionsets/BuildingBrickExtensionSetDeluxe";
-import BundleOfFunExtensionPackage from "./pages/products/funextensionsets/BundleOfFunExtensionPackage";
-import ExpressionModule from "./pages/products/funextensionsets/ExpressionModule";
-import FreeThrowExtensionSet from "./pages/products/funextensionsets/FreeThrowExtensionSet";
-import Kibo18ToKibo21UpgradePackage from "./pages/products/funextensionsets/Kibo18ToKibo21UpgradePackage";
-import KiboCostumes from "./pages/products/funextensionsets/KiboCostumes";
-import MarkerExtensionSet from "./pages/products/funextensionsets/MarkerExtensionSet";
-import MarkerExtensionSetExtras from "./pages/products/funextensionsets/MarkerExtensionSetExtras";
-import SoundRecordPlaybackModule from "./pages/products/funextensionsets/SoundRecordPlaybackModule";
-import BeepBlock from "./pages/products/partsandreplacements/BEEPBlock";
-import BeginAndEndBlocks from "./pages/products/partsandreplacements/BeginAndEndBlocks";
-import BlockStickerUpgrade from "./pages/products/partsandreplacements/BlockStickerUpgrade";
-import BlockStickerUpgradeForKIBO18 from "./pages/products/partsandreplacements/BlockStickerUpgradeForKIBO18";
-import BlockStickerUpgradeForKIBO21 from "./pages/products/partsandreplacements/BlockStickerUpgradeForKIBO21";
-import ClapSoundSensorEar from "./pages/products/partsandreplacements/ClapSoundSensorEar";
-import ConditionalBlocks from "./pages/products/partsandreplacements/ConditionalBlocks";
-import DistanceSensorTelescope from "./pages/products/partsandreplacements/DistanceSensorTelescope";
-import FirmwareUpdateCable from "./pages/products/partsandreplacements/FirmwareUpdateCable";
-import FORWARDBlock from "./pages/products/partsandreplacements/FORWARDBlock";
-import IFAndENDIFBlocks from "./pages/products/partsandreplacements/IFAndENDIFBlocks";
-import LIGHTONBlocks from "./pages/products/partsandreplacements/LIGHTONBlocks";
-import LightOutputSensorLightbulb from "./pages/products/partsandreplacements/LightOutputSensorLightbulb";
-import LightSensorEye from "./pages/products/partsandreplacements/LightSensorEye";
-import MotionBlocks from "./pages/products/partsandreplacements/MotionBlocks";
-import MotorModule from "./pages/products/partsandreplacements/MotorModule";
-import ParametersForIFTHENBlocks from "./pages/products/partsandreplacements/ParametersForIFTHENBlocks";
-import ParametersForREPEATBlocks from "./pages/products/partsandreplacements/ParametersForREPEATBlocks";
-import ParametersForRepeatNumbersOnly from "./pages/products/partsandreplacements/ParametersForRepeatNumbersOnly";
-import SINGBlock from "./pages/products/partsandreplacements/SINGBlock";
-import SPINBlock from "./pages/products/partsandreplacements/SPINBlock";
-import StageArtPlatform from "./pages/products/partsandreplacements/StageArtPlatform";
-import StagePedestal from "./pages/products/partsandreplacements/StagePedestal";
-import StageSupport from "./pages/products/partsandreplacements/StageSupport";
-import TurntableArtPlatform from "./pages/products/partsandreplacements/TurntableArtPlatform";
-import WAITFORCLAPBlock from "./pages/products/partsandreplacements/WAITFORCLAPBlock";
-import Wheel from "./pages/products/partsandreplacements/Wheel";
-import GrowingWithKIBO from "./pages/products/teachingmaterials/GrowingWithKIBO";
-import ExploringWithKIBO from "./pages/products/teachingmaterials/ExploringWithKIBO";
-import KiboCodingCards from "./pages/products/teachingmaterials/KiboCodingCards";
-import ActivityCenterGuidebook from "./pages/products/teachingmaterials/ActivityCenterGuidebook";
-import CreatingWithKiboGuide from "./pages/products/teachingmaterials/CreatingWithKiboGuide";
-import KiboActivityCards from "./pages/products/teachingmaterials/KiboActivityCards";
-import KiboSaysGame from "./pages/products/teachingmaterials/KiboSaysGame";
-import AskAndImagineGuide from "./pages/products/teachingmaterials/AskAndImagineGuide";
-import AssessmentWorkbook from "./pages/products/teachingmaterials/AssessmentWorkbook";
-import BlendedLearningBundle from "./pages/products/teachingmaterials/BlendedLearningBundle";
-import BuildItBetterGuide from "./pages/products/teachingmaterials/BuildItBetterGuide";
-import EngineeringDesignJournals from "./pages/products/teachingmaterials/EngineeringDesignJournals";
-import ExpressYourselfGuide from "./pages/products/teachingmaterials/ExpressYourselfGuide";
-import MakeLearningVisibleGuide from "./pages/products/teachingmaterials/MakeLearningVisibleGuide";
-import ModuleCurriculumGuidesBundle from "./pages/products/teachingmaterials/ModuleCurriculumGuidesBundle";
-import ShowtimeWithKiboGuide from "./pages/products/teachingmaterials/ShowtimeWithKiboGuide";
-import TeachingMaterialsPackage from "./pages/products/teachingmaterials/TeachingMaterialsPackage";
-import TwoPosters from "./pages/products/teachingmaterials/TwoPosters";
-import TrainingOneHourWebConference from "./pages/products/training/TrainingOneHourWebConference";
-import ActivityCards1stEditionClearance from "./pages/products/clearance/ActivityCards1stEditionClearance";
-import AssessmentWorkbook1stEditionClearance from "./pages/products/clearance/AssessmentWorkbook1stEditionClearance";
-import BuildItBetterClearance from "./pages/products/clearance/BuildItBetterClearance";
-import ExpressYourselfClearance from "./pages/products/clearance/ExpressYourselfClearance";
-import MakeLearningVisibleClearance from "./pages/products/clearance/MakeLearningVisibleClearance";
-import ShowtimeWithKiboClearance from "./pages/products/clearance/ShowtimeWithKiboClearance";
-import KiboRepairService from "./pages/products/service/KiboRepairService";
-import Blog from "./pages/blog/Blog";
-import BlogPostDetail from "./pages/blog/BlogPostDetail";
-import MediaCoverage from "./pages/mediacoverage/MediaCoverage";
-import MediaCoverageDetail from "./pages/mediacoverage/MediaCoverageDetail";
-import PressReleases from "./pages/pressreleases/PressReleases";
-import PressReleaseDetail from "./pages/pressreleases/PressReleaseDetail";
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const HelpMeChoose = lazy(() => import("./pages/HelpMeChoose"));
+const ComparePackages = lazy(() => import("./pages/ComparePackages"));
+const CompareKits = lazy(() => import("./pages/CompareKits"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+const AccountPage = lazy(() => import("./pages/account/AccountPage"));
+const WhyKibo = lazy(() => import("./pages/WhyKibo"));
+const WhichKibo = lazy(() => import("./pages/WhichKibo"));
+const Kibo = lazy(() => import("./pages/Kibo"));
+const KiboInAction = lazy(() => import("./pages/KiboInAction"));
+const KiboInTheClassroom = lazy(() => import("./pages/KiboInTheClassroom"));
+const SteamLessons = lazy(() => import("./pages/SteamLessons"));
+const KiboAtHome = lazy(() => import("./pages/KiboAtHome"));
+const SignUpKiboHomeCourse = lazy(() => import("./pages/SignUpKiboHomeCourse"));
+const KiboUse = lazy(() => import("./pages/KiboUse"));
+const StemCurriculum = lazy(() => import("./pages/StemCurriculum"));
+const KiboResearch = lazy(() => import("./pages/KiboResearch"));
+const ProfessionalDevelopment = lazy(() => import("./pages/ProfessionalDevelopment"));
+const Grants = lazy(() => import("./pages/Grants"));
+const SteamGrants = lazy(() => import("./pages/SteamGrants"));
+const Tutorials = lazy(() => import("./pages/Tutorials"));
+const Activities = lazy(() => import("./pages/Activities"));
+const Experiences = lazy(() => import("./pages/Experiences"));
+const WhitePapersWebinars = lazy(() => import("./pages/WhitePapersWebinars"));
+const TechnicalSupport = lazy(() => import("./pages/TechnicalSupport"));
+const SimpleAdminDashboard = lazy(() => import("./pages/SimpleAdminDashboard"));
+const About = lazy(() => import("./pages/About"));
+const Testimonials = lazy(() => import("./pages/Testimonials"));
+const Awards = lazy(() => import("./pages/Awards"));
+const Events = lazy(() => import("./pages/Events"));
+const ContactUs = lazy(() => import("./pages/ContactUs"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const Kibo10Kit = lazy(() => import("./pages/products/kibokits/Kibo10Kit"));
+const Kibo15Kit = lazy(() => import("./pages/products/kibokits/Kibo15Kit"));
+const Kibo18Kit = lazy(() => import("./pages/products/kibokits/Kibo18Kit"));
+const Kibo21Kit = lazy(() => import("./pages/products/kibokits/Kibo21Kit"));
+const Kibo10HomeEdition = lazy(() => import("./pages/products/kibohomeedition/Kibo10HomeEdition"));
+const Kibo15HomeEdition = lazy(() => import("./pages/products/kibohomeedition/Kibo15HomeEdition"));
+const ActivityCenterKibo21SteamExplorer = lazy(() => import("./pages/products/classroompackages/ActivityCenterKibo21SteamExplorer"));
+const SmallClassroomKibo21SteamExplorer = lazy(() => import("./pages/products/classroompackages/SmallClassroomKibo21SteamExplorer"));
+const FullClassroomKibo21SteamExplorer = lazy(() => import("./pages/products/classroompackages/FullClassroomKibo21SteamExplorer"));
+const ActivityCenterKibo21 = lazy(() => import("./pages/products/classroompackages/ActivityCenterKibo21"));
+const SmallClassroomKibo21 = lazy(() => import("./pages/products/classroompackages/SmallClassroomKibo21"));
+const FullClassroomKibo21 = lazy(() => import("./pages/products/classroompackages/FullClassroomKibo21"));
+const ActivityCenterKibo18 = lazy(() => import("./pages/products/classroompackages/ActivityCenterKibo18"));
+const SmallClassroomKibo18 = lazy(() => import("./pages/products/classroompackages/SmallClassroomKibo18"));
+const FullClassroomKibo18 = lazy(() => import("./pages/products/classroompackages/FullClassroomKibo18"));
+const AdvancedCodingExtensionSet = lazy(() => import("./pages/products/funextensionsets/AdvancedCodingExtensionSet"));
+const BuildingBrickExtensionSetBasic = lazy(() => import("./pages/products/funextensionsets/BuildingBrickExtensionSetBasic"));
+const BuildingBrickExtensionSetDeluxe = lazy(() => import("./pages/products/funextensionsets/BuildingBrickExtensionSetDeluxe"));
+const BundleOfFunExtensionPackage = lazy(() => import("./pages/products/funextensionsets/BundleOfFunExtensionPackage"));
+const ExpressionModule = lazy(() => import("./pages/products/funextensionsets/ExpressionModule"));
+const FreeThrowExtensionSet = lazy(() => import("./pages/products/funextensionsets/FreeThrowExtensionSet"));
+const Kibo18ToKibo21UpgradePackage = lazy(() => import("./pages/products/funextensionsets/Kibo18ToKibo21UpgradePackage"));
+const KiboCostumes = lazy(() => import("./pages/products/funextensionsets/KiboCostumes"));
+const MarkerExtensionSet = lazy(() => import("./pages/products/funextensionsets/MarkerExtensionSet"));
+const MarkerExtensionSetExtras = lazy(() => import("./pages/products/funextensionsets/MarkerExtensionSetExtras"));
+const SoundRecordPlaybackModule = lazy(() => import("./pages/products/funextensionsets/SoundRecordPlaybackModule"));
+const BeepBlock = lazy(() => import("./pages/products/partsandreplacements/BEEPBlock"));
+const BeginAndEndBlocks = lazy(() => import("./pages/products/partsandreplacements/BeginAndEndBlocks"));
+const BlockStickerUpgrade = lazy(() => import("./pages/products/partsandreplacements/BlockStickerUpgrade"));
+const BlockStickerUpgradeForKIBO18 = lazy(() => import("./pages/products/partsandreplacements/BlockStickerUpgradeForKIBO18"));
+const BlockStickerUpgradeForKIBO21 = lazy(() => import("./pages/products/partsandreplacements/BlockStickerUpgradeForKIBO21"));
+const ClapSoundSensorEar = lazy(() => import("./pages/products/partsandreplacements/ClapSoundSensorEar"));
+const ConditionalBlocks = lazy(() => import("./pages/products/partsandreplacements/ConditionalBlocks"));
+const DistanceSensorTelescope = lazy(() => import("./pages/products/partsandreplacements/DistanceSensorTelescope"));
+const FirmwareUpdateCable = lazy(() => import("./pages/products/partsandreplacements/FirmwareUpdateCable"));
+const FORWARDBlock = lazy(() => import("./pages/products/partsandreplacements/FORWARDBlock"));
+const IFAndENDIFBlocks = lazy(() => import("./pages/products/partsandreplacements/IFAndENDIFBlocks"));
+const LIGHTONBlocks = lazy(() => import("./pages/products/partsandreplacements/LIGHTONBlocks"));
+const LightOutputSensorLightbulb = lazy(() => import("./pages/products/partsandreplacements/LightOutputSensorLightbulb"));
+const LightSensorEye = lazy(() => import("./pages/products/partsandreplacements/LightSensorEye"));
+const MotionBlocks = lazy(() => import("./pages/products/partsandreplacements/MotionBlocks"));
+const MotorModule = lazy(() => import("./pages/products/partsandreplacements/MotorModule"));
+const ParametersForIFTHENBlocks = lazy(() => import("./pages/products/partsandreplacements/ParametersForIFTHENBlocks"));
+const ParametersForREPEATBlocks = lazy(() => import("./pages/products/partsandreplacements/ParametersForREPEATBlocks"));
+const ParametersForRepeatNumbersOnly = lazy(() => import("./pages/products/partsandreplacements/ParametersForRepeatNumbersOnly"));
+const SINGBlock = lazy(() => import("./pages/products/partsandreplacements/SINGBlock"));
+const SPINBlock = lazy(() => import("./pages/products/partsandreplacements/SPINBlock"));
+const StageArtPlatform = lazy(() => import("./pages/products/partsandreplacements/StageArtPlatform"));
+const StagePedestal = lazy(() => import("./pages/products/partsandreplacements/StagePedestal"));
+const StageSupport = lazy(() => import("./pages/products/partsandreplacements/StageSupport"));
+const TurntableArtPlatform = lazy(() => import("./pages/products/partsandreplacements/TurntableArtPlatform"));
+const WAITFORCLAPBlock = lazy(() => import("./pages/products/partsandreplacements/WAITFORCLAPBlock"));
+const Wheel = lazy(() => import("./pages/products/partsandreplacements/Wheel"));
+const GrowingWithKIBO = lazy(() => import("./pages/products/teachingmaterials/GrowingWithKIBO"));
+const ExploringWithKIBO = lazy(() => import("./pages/products/teachingmaterials/ExploringWithKIBO"));
+const KiboCodingCards = lazy(() => import("./pages/products/teachingmaterials/KiboCodingCards"));
+const ActivityCenterGuidebook = lazy(() => import("./pages/products/teachingmaterials/ActivityCenterGuidebook"));
+const CreatingWithKiboGuide = lazy(() => import("./pages/products/teachingmaterials/CreatingWithKiboGuide"));
+const KiboActivityCards = lazy(() => import("./pages/products/teachingmaterials/KiboActivityCards"));
+const KiboSaysGame = lazy(() => import("./pages/products/teachingmaterials/KiboSaysGame"));
+const AskAndImagineGuide = lazy(() => import("./pages/products/teachingmaterials/AskAndImagineGuide"));
+const AssessmentWorkbook = lazy(() => import("./pages/products/teachingmaterials/AssessmentWorkbook"));
+const BlendedLearningBundle = lazy(() => import("./pages/products/teachingmaterials/BlendedLearningBundle"));
+const BuildItBetterGuide = lazy(() => import("./pages/products/teachingmaterials/BuildItBetterGuide"));
+const EngineeringDesignJournals = lazy(() => import("./pages/products/teachingmaterials/EngineeringDesignJournals"));
+const ExpressYourselfGuide = lazy(() => import("./pages/products/teachingmaterials/ExpressYourselfGuide"));
+const MakeLearningVisibleGuide = lazy(() => import("./pages/products/teachingmaterials/MakeLearningVisibleGuide"));
+const ModuleCurriculumGuidesBundle = lazy(() => import("./pages/products/teachingmaterials/ModuleCurriculumGuidesBundle"));
+const ShowtimeWithKiboGuide = lazy(() => import("./pages/products/teachingmaterials/ShowtimeWithKiboGuide"));
+const TeachingMaterialsPackage = lazy(() => import("./pages/products/teachingmaterials/TeachingMaterialsPackage"));
+const TwoPosters = lazy(() => import("./pages/products/teachingmaterials/TwoPosters"));
+const TrainingOneHourWebConference = lazy(() => import("./pages/products/training/TrainingOneHourWebConference"));
+const ActivityCards1stEditionClearance = lazy(() => import("./pages/products/clearance/ActivityCards1stEditionClearance"));
+const AssessmentWorkbook1stEditionClearance = lazy(() => import("./pages/products/clearance/AssessmentWorkbook1stEditionClearance"));
+const BuildItBetterClearance = lazy(() => import("./pages/products/clearance/BuildItBetterClearance"));
+const ExpressYourselfClearance = lazy(() => import("./pages/products/clearance/ExpressYourselfClearance"));
+const MakeLearningVisibleClearance = lazy(() => import("./pages/products/clearance/MakeLearningVisibleClearance"));
+const ShowtimeWithKiboClearance = lazy(() => import("./pages/products/clearance/ShowtimeWithKiboClearance"));
+const KiboRepairService = lazy(() => import("./pages/products/service/KiboRepairService"));
+const Blog = lazy(() => import("./pages/blog/Blog"));
+const BlogPostDetail = lazy(() => import("./pages/blog/BlogPostDetail"));
+const MediaCoverage = lazy(() => import("./pages/mediacoverage/MediaCoverage"));
+const MediaCoverageDetail = lazy(() => import("./pages/mediacoverage/MediaCoverageDetail"));
+const PressReleases = lazy(() => import("./pages/pressreleases/PressReleases"));
+const PressReleaseDetail = lazy(() => import("./pages/pressreleases/PressReleaseDetail"));
 
-// ... (other imports)
+const RouteFallback = () => (
+  <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+    Loading...
+  </div>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -146,7 +151,8 @@ const App = () => (
           <ScrollToTop />
           <Toaster />
           <Sonner />
-          <Routes>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/shop" element={<Shop />} />
             <Route path="/shop/:category" element={<Shop />} />
@@ -283,7 +289,6 @@ const App = () => (
             <Route path="/products/showtime-with-kibo-guide" element={<ShowtimeWithKiboGuide />} />
             <Route path="/products/teaching-materials-package" element={<TeachingMaterialsPackage />} />
             <Route path="/products/two-posters" element={<TwoPosters />} />
-            <Route path="/products/training-one-hour-web-conference" element={<TrainingOneHourWebConference />} />
             <Route path="/products/kibo-repair-service" element={<KiboRepairService />} />
             
             {/* Blog, Media Coverage and Press Releases Routes */}
@@ -296,7 +301,8 @@ const App = () => (
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
-          </Routes>
+            </Routes>
+          </Suspense>
           </TooltipProvider>
         </CartProvider>
       </UserDataProvider>
