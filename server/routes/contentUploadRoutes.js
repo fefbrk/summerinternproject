@@ -5,217 +5,83 @@ const registerContentUploadRoutes = (app, deps) => {
     sanitizeResourceId,
   } = deps;
 
-// Blog image upload endpoint
-app.post('/api/blog/:blogPostId/images', upload.single('image'), async (req, res) => {
-  try {
-    const blogPostId = sanitizeResourceId(req.params.blogPostId);
-    if (!blogPostId) {
-      return res.status(400).json({ error: 'Invalid blog post id' });
-    }
-    
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
-    // Check if blog post exists
-    const blogPost = await database.getBlogPostById(blogPostId);
-    if (!blogPost) {
-      return res.status(404).json({ error: 'Blog post not found' });
-    }
-    
-    // Create the image URL
-    const imageUrl = `/postimages/blog/${blogPostId}/images/${req.file.filename}`;
-    
-    res.json({
-      message: 'Image uploaded successfully',
-      imageUrl: imageUrl,
-      filename: req.file.filename
-    });
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  // Factory: creates an image upload handler for a specific entity type
+  const createEntityImageUploadHandler = (entityType, getEntityById, pathPrefix) => {
+    return async (req, res) => {
+      try {
+        const entityId = sanitizeResourceId(req.params.entityId);
+        if (!entityId) {
+          return res.status(400).json({ error: `Invalid ${entityType} id` });
+        }
 
-// Temporary image upload endpoint (for new blog posts)
-app.post('/api/blog/temp/images', upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
-    // Create the image URL
-    const imageUrl = `/postimages/blog/temp/images/${req.file.filename}`;
-    
-    res.json({
-      message: 'Image uploaded successfully',
-      imageUrl: imageUrl,
-      filename: req.file.filename
-    });
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+        if (!req.file) {
+          return res.status(400).json({ error: 'No file uploaded' });
+        }
 
-// Press Release image upload endpoint
-app.post('/api/press-releases/:pressReleaseId/images', upload.single('image'), async (req, res) => {
-  try {
-    const pressReleaseId = sanitizeResourceId(req.params.pressReleaseId);
-    if (!pressReleaseId) {
-      return res.status(400).json({ error: 'Invalid press release id' });
-    }
-    
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
-    // Check if press release exists
-    const pressRelease = await database.getPressReleaseById(pressReleaseId);
-    if (!pressRelease) {
-      return res.status(404).json({ error: 'Press release not found' });
-    }
-    
-    // Create the image URL
-    const imageUrl = `/postimages/press/${pressReleaseId}/images/${req.file.filename}`;
-    
-    res.json({
-      message: 'Image uploaded successfully',
-      imageUrl: imageUrl,
-      filename: req.file.filename
-    });
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+        const entity = await getEntityById(entityId);
+        if (!entity) {
+          return res.status(404).json({ error: `${entityType} not found` });
+        }
 
-// Temporary press release image upload endpoint
-app.post('/api/press-releases/temp/images', upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
-    // Create the image URL
-    const imageUrl = `/postimages/press/temp/images/${req.file.filename}`;
-    
-    res.json({
-      message: 'Image uploaded successfully',
-      imageUrl: imageUrl,
-      filename: req.file.filename
-    });
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+        const imageUrl = `/postimages/${pathPrefix}/${entityId}/images/${req.file.filename}`;
 
-// Media Coverage image upload endpoint
-app.post('/api/media-coverage/:mediaCoverageId/images', upload.single('image'), async (req, res) => {
-  try {
-    const mediaCoverageId = sanitizeResourceId(req.params.mediaCoverageId);
-    if (!mediaCoverageId) {
-      return res.status(400).json({ error: 'Invalid media coverage id' });
-    }
-    
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
-    // Check if media coverage exists
-    const mediaCoverage = await database.getMediaCoverageById(mediaCoverageId);
-    if (!mediaCoverage) {
-      return res.status(404).json({ error: 'Media coverage not found' });
-    }
-    
-    // Create the image URL
-    const imageUrl = `/postimages/media/${mediaCoverageId}/images/${req.file.filename}`;
-    
-    res.json({
-      message: 'Image uploaded successfully',
-      imageUrl: imageUrl,
-      filename: req.file.filename
-    });
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+        res.json({
+          message: 'Image uploaded successfully',
+          imageUrl,
+          filename: req.file.filename,
+        });
+      } catch (error) {
+        console.error(`Error uploading ${entityType} image:`, error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    };
+  };
 
-// Temporary media coverage image upload endpoint
-app.post('/api/media-coverage/temp/images', upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
-    // Create the image URL
-    const imageUrl = `/postimages/media/temp/images/${req.file.filename}`;
-    
-    res.json({
-      message: 'Image uploaded successfully',
-      imageUrl: imageUrl,
-      filename: req.file.filename
-    });
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  // Factory: creates a temp image upload handler for a specific entity type
+  const createTempImageUploadHandler = (pathPrefix) => {
+    return async (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ error: 'No file uploaded' });
+        }
 
-// Event image upload endpoint
-app.post('/api/events/:eventId/images', upload.single('image'), async (req, res) => {
-  try {
-    const eventId = sanitizeResourceId(req.params.eventId);
-    if (!eventId) {
-      return res.status(400).json({ error: 'Invalid event id' });
-    }
-    
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
-    // Check if event exists
-    const event = await database.getEventById(eventId);
-    if (!event) {
-      return res.status(404).json({ error: 'Event not found' });
-    }
-    
-    // Create the image URL
-    const imageUrl = `/postimages/events/${eventId}/images/${req.file.filename}`;
-    
-    res.json({
-      message: 'Image uploaded successfully',
-      imageUrl: imageUrl,
-      filename: req.file.filename
-    });
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+        const imageUrl = `/postimages/${pathPrefix}/temp/images/${req.file.filename}`;
 
-// Temporary event image upload endpoint
-app.post('/api/events/temp/images', upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-    
-    // Create the image URL
-    const imageUrl = `/postimages/events/temp/images/${req.file.filename}`;
-    
-    res.json({
-      message: 'Image uploaded successfully',
-      imageUrl: imageUrl,
-      filename: req.file.filename
-    });
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+        res.json({
+          message: 'Image uploaded successfully',
+          imageUrl,
+          filename: req.file.filename,
+        });
+      } catch (error) {
+        console.error(`Error uploading temp ${pathPrefix} image:`, error);
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    };
+  };
+
+  // Blog image endpoints
+  app.post('/api/blog/:entityId/images', upload.single('image'),
+    createEntityImageUploadHandler('Blog post', (id) => database.getBlogPostById(id), 'blog'));
+  app.post('/api/blog/temp/images', upload.single('image'),
+    createTempImageUploadHandler('blog'));
+
+  // Press Release image endpoints
+  app.post('/api/press-releases/:entityId/images', upload.single('image'),
+    createEntityImageUploadHandler('Press release', (id) => database.getPressReleaseById(id), 'press'));
+  app.post('/api/press-releases/temp/images', upload.single('image'),
+    createTempImageUploadHandler('press'));
+
+  // Media Coverage image endpoints
+  app.post('/api/media-coverage/:entityId/images', upload.single('image'),
+    createEntityImageUploadHandler('Media coverage', (id) => database.getMediaCoverageById(id), 'media'));
+  app.post('/api/media-coverage/temp/images', upload.single('image'),
+    createTempImageUploadHandler('media'));
+
+  // Event image endpoints
+  app.post('/api/events/:entityId/images', upload.single('image'),
+    createEntityImageUploadHandler('Event', (id) => database.getEventById(id), 'events'));
+  app.post('/api/events/temp/images', upload.single('image'),
+    createTempImageUploadHandler('events'));
 };
 
 module.exports = registerContentUploadRoutes;

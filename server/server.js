@@ -254,24 +254,24 @@ const storage = multer.diskStorage({
     try {
       let uploadPath;
       const resourceMappings = [
-        { paramKey: 'blogPostId', folderName: 'blog', urlSegment: '/blog/' },
-        { paramKey: 'pressReleaseId', folderName: 'press', urlSegment: '/press-releases/' },
-        { paramKey: 'mediaCoverageId', folderName: 'media', urlSegment: '/media-coverage/' },
-        { paramKey: 'eventId', folderName: 'events', urlSegment: '/events/' },
+        { folderName: 'blog', urlSegment: '/blog/' },
+        { folderName: 'press', urlSegment: '/press-releases/' },
+        { folderName: 'media', urlSegment: '/media-coverage/' },
+        { folderName: 'events', urlSegment: '/events/' },
       ];
 
       let resolved = false;
-      for (const mapping of resourceMappings) {
-        const rawId = req.params[mapping.paramKey] || req.body[mapping.paramKey];
-        if (rawId) {
-          const resourceId = sanitizeResourceId(rawId);
-          if (!resourceId) {
-            cb(new Error(`Invalid ${mapping.paramKey}`));
-            return;
-          }
-          uploadPath = resolveUploadPath(mapping.folderName, resourceId, 'images');
+      const rawEntityId = req.params.entityId;
+      if (rawEntityId) {
+        const resourceId = sanitizeResourceId(rawEntityId);
+        if (!resourceId) {
+          cb(new Error('Invalid entity id'));
+          return;
+        }
+        const matchedMapping = resourceMappings.find((m) => req.originalUrl.includes(m.urlSegment));
+        if (matchedMapping) {
+          uploadPath = resolveUploadPath(matchedMapping.folderName, resourceId, 'images');
           resolved = true;
-          break;
         }
       }
 

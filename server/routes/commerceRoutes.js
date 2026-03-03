@@ -641,11 +641,35 @@ const registerCommerceRoutes = (app, deps) => {
         return res.status(400).json({ error: 'Invalid registration payload' });
       }
 
+      // Sanitize registrationData: validate type, sanitize string values, enforce size limit
+      let sanitizedRegistrationData = {};
+      if (registrationData && typeof registrationData === 'object' && !Array.isArray(registrationData)) {
+        const MAX_REGISTRATION_DATA_KEYS = 50;
+        const entries = Object.entries(registrationData).slice(0, MAX_REGISTRATION_DATA_KEYS);
+        for (const [key, value] of entries) {
+          const safeKey = sanitizePlainText(key, 64);
+          if (!safeKey) continue;
+          if (typeof value === 'string') {
+            sanitizedRegistrationData[safeKey] = sanitizePlainText(value, 1000);
+          } else if (typeof value === 'number' && Number.isFinite(value)) {
+            sanitizedRegistrationData[safeKey] = value;
+          } else if (typeof value === 'boolean') {
+            sanitizedRegistrationData[safeKey] = value;
+          }
+          // Skip non-primitive values (nested objects, arrays, null, etc.)
+        }
+      }
+
+      const registrationDataJson = JSON.stringify(sanitizedRegistrationData);
+      if (registrationDataJson.length > 10240) {
+        return res.status(400).json({ error: 'Registration data too large' });
+      }
+
       const newRegistration = {
         id: uuidv4(),
         userId: req.user.id,
         courseName: sanitizedCourseName,
-        registrationData,
+        registrationData: sanitizedRegistrationData,
         status: 'registered',
         customerName: sanitizedCustomerName,
         customerEmail: sanitizedCustomerEmail,
