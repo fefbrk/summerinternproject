@@ -43,10 +43,10 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
   - Backend: `server/tests/api.integration.test.js`, `server/tests/database.transaction.test.js`
   - Frontend smoke: `src/test/smoke/auth-pages.smoke.test.tsx`
   - CI: `.github/workflows/ci.yml` (`lint + test + build`).
-- Admin dashboard sadeletme (phase-2) uygulandi:
-  - Orders + Payment tab'i `src/components/admin/AdminOrdersTab.tsx`'e tasindi,
-  - Order modal'i `src/components/admin/OrderEditModal.tsx` ile ayrildi,
-  - Contacts tab/detail/edit modallari `src/components/admin/*` altina parcali yapiya alindi.
+- Admin dashboard sadeletme (phase-3) uygulandi:
+  - Orders + Payment, users, contacts, blog, press, media, events tablari `src/components/admin/*` altina tasindi,
+  - Order/contact/content/event modallari component bazli parcali yapiya alindi,
+  - Delete confirmation modal'i `src/components/admin/ConfirmDeleteModal.tsx` ile ortaklastirildi.
 
 ## 2) Hala Acik Olan Teknik Borc (Oncelik Sirasi)
 
@@ -56,11 +56,11 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
    - idempotent event isleme (`payment_events`).
 2. Payment UI entegrasyonu:
    - checkout redirect/return akisi,
-   - account ekranlarinda payment status/attempt gorunurlugu,
-   - kalan admin tablarinin benzer sekilde parcali yapiya alinmasi.
+   - account ekranlarinda payment status/attempt gorunurlugu.
 3. Test kapsami artisi:
    - upload/content CRUD unhappy-path testleri,
    - account UI integration testleri,
+   - admin dashboard kritik akislari icin frontend testleri (payment update, fulfillment update, content CRUD),
    - payment webhook replay/failure testleri.
 
 ## 3) Hemen Calistirilacak Komutlar (Yeni Session)

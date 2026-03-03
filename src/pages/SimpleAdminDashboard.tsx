@@ -3,18 +3,27 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ROOT_URL } from '@/services/apiService';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import apiService, { Order, User, Contact, BlogPost, PressRelease, Event, MediaCoverage, OrderPaymentStatus } from '@/services/apiService';
-import RichTextEditor from '@/components/RichTextEditor';
 import AdminOrdersTab from '@/components/admin/AdminOrdersTab';
 import OrderEditModal from '@/components/admin/OrderEditModal';
 import AdminContactsTab from '@/components/admin/AdminContactsTab';
 import ContactDetailModal from '@/components/admin/ContactDetailModal';
 import ContactEditModal from '@/components/admin/ContactEditModal';
 import { createInitialOrderPaymentForm, type OrderPaymentFormState } from '@/components/admin/orderAdminShared';
+import { createInitialContentForm, createInitialEventForm, type ContentFormState, type EventFormState } from '@/components/admin/contentAdminShared';
+import AdminUsersTab from '@/components/admin/AdminUsersTab';
+import AdminBlogTab from '@/components/admin/AdminBlogTab';
+import AdminPressReleasesTab from '@/components/admin/AdminPressReleasesTab';
+import AdminMediaCoverageTab from '@/components/admin/AdminMediaCoverageTab';
+import AdminEventsTab from '@/components/admin/AdminEventsTab';
+import BlogEditModal from '@/components/admin/BlogEditModal';
+import PressReleaseEditModal from '@/components/admin/PressReleaseEditModal';
+import MediaCoverageEditModal from '@/components/admin/MediaCoverageEditModal';
+import EventEditModal from '@/components/admin/EventEditModal';
+import ConfirmDeleteModal, { type DeleteItem } from '@/components/admin/ConfirmDeleteModal';
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   return error instanceof Error ? error.message : fallback;
@@ -74,7 +83,7 @@ const SimpleAdminDashboard = () => {
   
   // Delete confirmation state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteItem, setDeleteItem] = useState<{type: string, id: string, name: string} | null>(null);
+  const [deleteItem, setDeleteItem] = useState<DeleteItem | null>(null);
 
   // Delete confirmation handler
   const handleDeleteClick = (type: string, id: string, name: string) => {
@@ -420,22 +429,7 @@ const SimpleAdminDashboard = () => {
   // Event creation/editing state
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
-  const [eventFormData, setEventFormData] = useState({
-    title: '',
-    description: '',
-    excerpt: '',
-    startDate: '',
-    endDate: '',
-    venue: '',
-    googleMapsLink: '',
-    venueWebsite: '',
-    eventWebsite: '',
-    organizerName: '',
-    organizerWebsite: '',
-    category: 'conference',
-    status: 'upcoming' as 'upcoming' | 'ongoing' | 'completed' | 'cancelled',
-    imageUrl: ''
-  });
+  const [eventFormData, setEventFormData] = useState<EventFormState>(createInitialEventForm());
 
   const handleEventImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -539,22 +533,7 @@ const SimpleAdminDashboard = () => {
       await loadData();
       setShowEventModal(false);
       setEditingEvent(null);
-      setEventFormData({
-        title: '',
-        description: '',
-        excerpt: '',
-        startDate: '',
-        endDate: '',
-        venue: '',
-        googleMapsLink: '',
-        venueWebsite: '',
-        eventWebsite: '',
-        organizerName: '',
-        organizerWebsite: '',
-        category: 'conference',
-        status: 'upcoming',
-        imageUrl: ''
-      });
+      setEventFormData(createInitialEventForm());
     } catch (error) {
       console.error('Event save error:', error);
       const status = getErrorStatus(error);
@@ -589,22 +568,7 @@ const SimpleAdminDashboard = () => {
       });
     } else {
       setEditingEvent(null);
-      setEventFormData({
-        title: '',
-        description: '',
-        excerpt: '',
-        startDate: '',
-        endDate: '',
-        venue: '',
-        googleMapsLink: '',
-        venueWebsite: '',
-        eventWebsite: '',
-        organizerName: '',
-        organizerWebsite: '',
-        category: 'conference',
-        status: 'upcoming',
-        imageUrl: ''
-      });
+      setEventFormData(createInitialEventForm());
     }
     setShowEventModal(true);
   };
@@ -612,15 +576,7 @@ const SimpleAdminDashboard = () => {
   // Blog post creation/editing state
   const [showBlogModal, setShowBlogModal] = useState(false);
   const [editingBlogPost, setEditingBlogPost] = useState<BlogPost | null>(null);
-  const [blogFormData, setBlogFormData] = useState({
-    title: '',
-    content: '',
-    excerpt: '',
-    author: user?.name || '',
-    publishDate: new Date().toISOString(),
-    status: 'draft' as 'draft' | 'published',
-    images: [] as { src: string; alt: string }[]
-  });
+  const [blogFormData, setBlogFormData] = useState<ContentFormState>(createInitialContentForm(user?.name || ''));
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const handleBlogSubmit = async () => {
@@ -653,15 +609,7 @@ const SimpleAdminDashboard = () => {
       await loadData();
       setShowBlogModal(false);
       setEditingBlogPost(null);
-      setBlogFormData({
-        title: '',
-        content: '',
-        excerpt: '',
-        author: user?.name || '',
-        publishDate: new Date().toISOString(),
-        status: 'draft',
-        images: []
-      });
+      setBlogFormData(createInitialContentForm(user?.name || ''));
     } catch (error) {
       console.error('Blog kaydetme hatası:', error);
       // More specific error handling
@@ -724,15 +672,7 @@ const SimpleAdminDashboard = () => {
       });
     } else {
       setEditingBlogPost(null);
-      setBlogFormData({
-        title: '',
-        content: '',
-        excerpt: '',
-        author: user?.name || '',
-        publishDate: new Date().toISOString(),
-        status: 'draft',
-        images: []
-      });
+      setBlogFormData(createInitialContentForm(user?.name || ''));
     }
     setShowBlogModal(true);
   };
@@ -740,15 +680,7 @@ const SimpleAdminDashboard = () => {
   // Press release creation/editing state
   const [showPressReleaseModal, setShowPressReleaseModal] = useState(false);
   const [editingPressRelease, setEditingPressRelease] = useState<PressRelease | null>(null);
-  const [pressReleaseFormData, setPressReleaseFormData] = useState({
-    title: '',
-    content: '',
-    excerpt: '',
-    author: user?.name || '',
-    publishDate: new Date().toISOString(),
-    status: 'draft' as 'draft' | 'published',
-    images: [] as { src: string; alt: string }[]
-  });
+  const [pressReleaseFormData, setPressReleaseFormData] = useState<ContentFormState>(createInitialContentForm(user?.name || ''));
   const [uploadingPressReleaseImage, setUploadingPressReleaseImage] = useState(false);
 
   const handlePressReleaseSubmit = async () => {
@@ -775,15 +707,7 @@ const SimpleAdminDashboard = () => {
       await loadData();
       setShowPressReleaseModal(false);
       setEditingPressRelease(null);
-      setPressReleaseFormData({
-        title: '',
-        content: '',
-        excerpt: '',
-        author: user?.name || '',
-        publishDate: new Date().toISOString(),
-        status: 'draft',
-        images: []
-      });
+      setPressReleaseFormData(createInitialContentForm(user?.name || ''));
     } catch (error) {
       console.error('Press release save error:', error);
       const status = getErrorStatus(error);
@@ -844,15 +768,7 @@ const SimpleAdminDashboard = () => {
       });
     } else {
       setEditingPressRelease(null);
-      setPressReleaseFormData({
-        title: '',
-        content: '',
-        excerpt: '',
-        author: user?.name || '',
-        publishDate: new Date().toISOString(),
-        status: 'draft',
-        images: []
-      });
+      setPressReleaseFormData(createInitialContentForm(user?.name || ''));
     }
     setShowPressReleaseModal(true);
   };
@@ -860,15 +776,7 @@ const SimpleAdminDashboard = () => {
   // Media coverage creation/editing state
   const [showMediaCoverageModal, setShowMediaCoverageModal] = useState(false);
   const [editingMediaCoverage, setEditingMediaCoverage] = useState<MediaCoverage | null>(null);
-  const [mediaCoverageFormData, setMediaCoverageFormData] = useState({
-    title: '',
-    content: '',
-    excerpt: '',
-    author: user?.name || '',
-    publishDate: new Date().toISOString(),
-    status: 'draft' as 'draft' | 'published',
-    images: [] as { src: string; alt: string }[]
-  });
+  const [mediaCoverageFormData, setMediaCoverageFormData] = useState<ContentFormState>(createInitialContentForm(user?.name || ''));
   const [uploadingMediaCoverageImage, setUploadingMediaCoverageImage] = useState(false);
 
   const handleMediaCoverageSubmit = async () => {
@@ -895,15 +803,7 @@ const SimpleAdminDashboard = () => {
       await loadData();
       setShowMediaCoverageModal(false);
       setEditingMediaCoverage(null);
-      setMediaCoverageFormData({
-        title: '',
-        content: '',
-        excerpt: '',
-        author: user?.name || '',
-        publishDate: new Date().toISOString(),
-        status: 'draft',
-        images: []
-      });
+      setMediaCoverageFormData(createInitialContentForm(user?.name || ''));
     } catch (error) {
       console.error('Media coverage save error:', error);
       const status = getErrorStatus(error);
@@ -964,15 +864,7 @@ const SimpleAdminDashboard = () => {
       });
     } else {
       setEditingMediaCoverage(null);
-      setMediaCoverageFormData({
-        title: '',
-        content: '',
-        excerpt: '',
-        author: user?.name || '',
-        publishDate: new Date().toISOString(),
-        status: 'draft',
-        images: []
-      });
+      setMediaCoverageFormData(createInitialContentForm(user?.name || ''));
     }
     setShowMediaCoverageModal(true);
   };
@@ -1329,51 +1221,10 @@ const SimpleAdminDashboard = () => {
 
           {/* Users Tab */}
           <TabsContent value="users" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>User List</CardTitle>
-              </CardHeader>
-              <CardContent className="p-2">
-                <div className="overflow-x-auto w-full">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border p-2 text-left">ID</th>
-                        <th className="border p-2 text-left">Full Name</th>
-                        <th className="border p-2 text-left">Email</th>
-                        <th className="border p-2 text-left">Registration Date</th>
-                        <th className="border p-2 text-left">Delete</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="border p-4 text-center text-gray-500">No users found yet</td>
-                        </tr>
-                      ) : (
-                        users.map(user => (
-                          <tr key={user.id} className="hover:bg-gray-50">
-                            <td className="border p-2">{user.id}</td>
-                            <td className="border p-2">{user.name}</td>
-                            <td className="border p-2">{user.email}</td>
-                            <td className="border p-2">{new Date(user.createdAt).toLocaleDateString('en-US')}</td>
-                            <td className="border p-2">
-                              <button
-                                onClick={() => handleDeleteClick('user', user.id, user.name)}
-                                className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-                                disabled={Boolean(user.isAdmin)}
-                              >
-                                {user.isAdmin ? 'Admin' : 'Delete'}
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <AdminUsersTab
+              users={users}
+              onDeleteUser={(adminUser) => handleDeleteClick('user', adminUser.id, adminUser.name)}
+            />
           </TabsContent>
 
           {/* Contacts Tab */}
@@ -1391,321 +1242,42 @@ const SimpleAdminDashboard = () => {
 
           {/* Blog Tab */}
           <TabsContent value="blog" className="mt-6">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Blog Posts</CardTitle>
-                  <button
-                    onClick={() => openBlogModal()}
-                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                  >
-                    + New Blog Post
-                  </button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-2">
-                <div className="overflow-x-auto w-full">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border p-2 text-left">ID</th>
-                        <th className="border p-2 text-left">Title</th>
-                        <th className="border p-2 text-left">Author</th>
-                        <th className="border p-2 text-left">Status</th>
-                        <th className="border p-2 text-left">Publish Date</th>
-                        <th className="border p-2 text-left">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {blogPosts.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="border p-4 text-center text-gray-500">No blog posts found yet</td>
-                        </tr>
-                      ) : (
-                        blogPosts.map(post => (
-                          <tr key={post.id} className="hover:bg-gray-50">
-                            <td className="border p-2">{post.id}</td>
-                            <td className="border p-2">
-                              <div className="max-w-xs truncate" title={post.title}>
-                                {post.title}
-                              </div>
-                            </td>
-                            <td className="border p-2">{post.author}</td>
-                            <td className="border p-2">
-                              <span className={
-                                post.status === 'draft' ? 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs' :
-                                  'bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs'
-                              }>
-                                {post.status}
-                              </span>
-                            </td>
-                            <td className="border p-2">{new Date(post.publishDate).toLocaleDateString('en-US')}</td>
-                            <td className="border p-2">
-                              <div className="flex space-x-2">
-                                <button
-                                  onClick={() => openBlogModal(post)}
-                                  className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteClick('blog', post.id, post.title)}
-                                  className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <AdminBlogTab
+              blogPosts={blogPosts}
+              onCreateBlogPost={() => openBlogModal()}
+              onEditBlogPost={openBlogModal}
+              onDeleteBlogPost={(post) => handleDeleteClick('blog', post.id, post.title)}
+            />
           </TabsContent>
 
           {/* Press Releases Tab */}
           <TabsContent value="press-releases" className="mt-6">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Press Releases</CardTitle>
-                  <button
-                    onClick={() => openPressReleaseModal()}
-                    className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition-colors"
-                  >
-                    + New Press Release
-                  </button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-2">
-                <div className="overflow-x-auto w-full">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border p-2 text-left">ID</th>
-                        <th className="border p-2 text-left">Title</th>
-                        <th className="border p-2 text-left">Status</th>
-                        <th className="border p-2 text-left">Publish Date</th>
-                        <th className="border p-2 text-left">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pressReleases.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="border p-4 text-center text-gray-500">No press releases found yet</td>
-                        </tr>
-                      ) : (
-                        pressReleases.map(release => (
-                          <tr key={release.id} className="hover:bg-gray-50">
-                            <td className="border p-2">{release.id}</td>
-                            <td className="border p-2">
-                              <div className="max-w-xs truncate" title={release.title}>
-                                {release.title}
-                              </div>
-                            </td>
-                            <td className="border p-2">
-                              <span className={
-                                release.status === 'draft' ? 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs' :
-                                  'bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs'
-                              }>
-                                {release.status}
-                              </span>
-                            </td>
-                            <td className="border p-2">{new Date(release.publishDate).toLocaleDateString('en-US')}</td>
-                            <td className="border p-2">
-                              <div className="flex space-x-2">
-                                <button
-                                  onClick={() => openPressReleaseModal(release)}
-                                  className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteClick('press', release.id, release.title)}
-                                  className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <AdminPressReleasesTab
+              pressReleases={pressReleases}
+              onCreatePressRelease={() => openPressReleaseModal()}
+              onEditPressRelease={openPressReleaseModal}
+              onDeletePressRelease={(release) => handleDeleteClick('press', release.id, release.title)}
+            />
           </TabsContent>
 
           {/* Media Coverage Tab */}
           <TabsContent value="media-coverage" className="mt-6">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Media Coverage</CardTitle>
-                  <button
-                    onClick={() => openMediaCoverageModal()}
-                    className="px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 transition-colors"
-                  >
-                    + New Media Coverage
-                  </button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-2">
-                <div className="overflow-x-auto w-full">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border p-2 text-left">ID</th>
-                        <th className="border p-2 text-left">Title</th>
-                        <th className="border p-2 text-left">Status</th>
-                        <th className="border p-2 text-left">Publish Date</th>
-                        <th className="border p-2 text-left">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {mediaCoverages.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="border p-4 text-center text-gray-500">No media coverage found yet</td>
-                        </tr>
-                      ) : (
-                        mediaCoverages.map(coverage => (
-                          <tr key={coverage.id} className="hover:bg-gray-50">
-                            <td className="border p-2">{coverage.id}</td>
-                            <td className="border p-2">
-                              <div className="max-w-xs truncate" title={coverage.title}>
-                                {coverage.title}
-                              </div>
-                            </td>
-                            <td className="border p-2">
-                              <span className={
-                                coverage.status === 'draft' ? 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs' :
-                                  'bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs'
-                              }>
-                                {coverage.status}
-                              </span>
-                            </td>
-                            <td className="border p-2">{new Date(coverage.publishDate).toLocaleDateString('en-US')}</td>
-                            <td className="border p-2">
-                              <div className="flex space-x-2">
-                                <button
-                                  onClick={() => openMediaCoverageModal(coverage)}
-                                  className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteClick('media', coverage.id, coverage.title)}
-                                  className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <AdminMediaCoverageTab
+              mediaCoverages={mediaCoverages}
+              onCreateMediaCoverage={() => openMediaCoverageModal()}
+              onEditMediaCoverage={openMediaCoverageModal}
+              onDeleteMediaCoverage={(coverage) => handleDeleteClick('media', coverage.id, coverage.title)}
+            />
           </TabsContent>
 
           {/* Events Tab */}
           <TabsContent value="events" className="mt-6">
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Events</CardTitle>
-                  <button
-                    onClick={() => openEventModal()}
-                    className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
-                  >
-                    + New Event
-                  </button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-2">
-                <div className="overflow-x-auto w-full">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border p-2 text-left">ID</th>
-                        <th className="border p-2 text-left">Title</th>
-                        <th className="border p-2 text-left">Start Date</th>
-                        <th className="border p-2 text-left">End Date</th>
-                        <th className="border p-2 text-left">Venue</th>
-                        <th className="border p-2 text-left">Status</th>
-                        <th className="border p-2 text-left">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {events.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="border p-4 text-center text-gray-500">No events found yet</td>
-                        </tr>
-                      ) : (
-                        events.map(event => (
-                          <tr key={event.id} className="hover:bg-gray-50">
-                            <td className="border p-2">{event.id}</td>
-                            <td className="border p-2">
-                              <div className="max-w-xs truncate" title={event.title}>
-                                {event.title}
-                              </div>
-                            </td>
-                            <td className="border p-2">{new Date(event.startDate).toLocaleDateString('en-US')}</td>
-                            <td className="border p-2">{new Date(event.endDate).toLocaleDateString('en-US')}</td>
-                            <td className="border p-2">
-                              <div className="max-w-xs truncate" title={event.venueName}>
-                                {event.venueName}
-                                {event.venueWebsite && (
-                                  <div className="text-sm text-blue-600">
-                                    <a href={event.venueWebsite} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                                      Venue Website
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="border p-2">
-                              <span className={
-                                event.status === 'upcoming' ? 'bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs' :
-                                event.status === 'ongoing' ? 'bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs' :
-                                event.status === 'completed' ? 'bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs' :
-                                'bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs'
-                              }>
-                                {event.status}
-                              </span>
-                            </td>
-                            <td className="border p-2">
-                              <div className="flex space-x-2">
-                                <button
-                                  onClick={() => openEventModal(event)}
-                                  className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteClick('event', event.id, event.title)}
-                                  className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <AdminEventsTab
+              events={events}
+              onCreateEvent={() => openEventModal()}
+              onEditEvent={openEventModal}
+              onDeleteEvent={(event) => handleDeleteClick('event', event.id, event.title)}
+            />
           </TabsContent>
         </Tabs>
 
@@ -1722,528 +1294,40 @@ const SimpleAdminDashboard = () => {
       />
 
       {/* Blog Post Modal */}
-      {showBlogModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-7xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-900">
-                  {editingBlogPost ? 'Edit Blog Post' : 'Create New Blog Post'}
-                </h3>
-                <button
-                  onClick={() => setShowBlogModal(false)}
-                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                  <input
-                    type="text"
-                    value={blogFormData.title}
-                    onChange={(e) => setBlogFormData({...blogFormData, title: e.target.value})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter blog post title"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Publish Date</label>
-                  <input
-                    type="datetime-local"
-                    value={blogFormData.publishDate ? new Date(blogFormData.publishDate).toISOString().slice(0, 16) : ''}
-                    onChange={(e) => setBlogFormData({...blogFormData, publishDate: new Date(e.target.value).toISOString()})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Excerpt</label>
-                  <textarea
-                    value={blogFormData.excerpt}
-                    onChange={(e) => setBlogFormData({...blogFormData, excerpt: e.target.value})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={3}
-                    placeholder="Enter a short excerpt for the blog post"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
-                  <RichTextEditor
-                    value={blogFormData.content}
-                    onChange={(content: string) => setBlogFormData({...blogFormData, content})}
-                    placeholder="Write your blog content..."
-                    height={400}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={blogFormData.status}
-                    onChange={(e) => setBlogFormData({...blogFormData, status: e.target.value as 'draft' | 'published'})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="draft">Taslak</option>
-                    <option value="published">Yayınlandı</option>
-                  </select>
-                </div>
-                
-                {/* Images Section */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Images</label>
-                  <div className="space-y-2">
-                    {blogFormData.images.map((image, index) => (
-                      <div key={index} className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
-                        <img
-                          src={image.src.startsWith('http') ? image.src : `${ROOT_URL}${image.src}`}
-                          alt={image.alt}
-                          className="w-16 h-16 object-cover rounded"
-                          onError={(e) => {
-                            e.currentTarget.src = '';
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                        <div className="flex-1">
-                          <input
-                            type="text"
-                            value={image.src}
-                            onChange={(e) => {
-                              const newImages = [...blogFormData.images];
-                              newImages[index] = {...newImages[index], src: e.target.value};
-                              setBlogFormData({...blogFormData, images: newImages});
-                            }}
-                            className="w-full p-1 border border-gray-300 rounded text-sm"
-                            placeholder="Image URL"
-                            readOnly={image.src.startsWith('/postimages/')}
-                          />
-                          <input
-                            type="text"
-                            value={image.alt}
-                            onChange={(e) => {
-                              const newImages = [...blogFormData.images];
-                              newImages[index] = {...newImages[index], alt: e.target.value};
-                              setBlogFormData({...blogFormData, images: newImages});
-                            }}
-                            className="w-full p-1 border border-gray-300 rounded text-sm mt-1"
-                            placeholder="Alt text"
-                          />
-                        </div>
-                        <button
-                          onClick={() => {
-                            const newImages = blogFormData.images.filter((_, i) => i !== index);
-                            setBlogFormData({...blogFormData, images: newImages});
-                          }}
-                          className="px-2 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                    
-                    <div className="flex space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newImages = [...blogFormData.images, {
-                            src: '',
-                            alt: ''
-                          }];
-                          setBlogFormData({...blogFormData, images: newImages});
-                        }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                      >
-                        + Add Image URL
-                      </button>
-                      
-                      <div className="relative">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          disabled={uploadingImage}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        />
-                        <button
-                          type="button"
-                          disabled={uploadingImage}
-                          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {uploadingImage ? 'Uploading...' : '+ Upload Image'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end space-x-2">
-                <button
-                  onClick={() => setShowBlogModal(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleBlogSubmit}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                >
-                  {editingBlogPost ? 'Update Blog Post' : 'Create Blog Post'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <BlogEditModal
+        isOpen={showBlogModal}
+        editingBlogPost={editingBlogPost}
+        formData={blogFormData}
+        setFormData={setBlogFormData}
+        isUploadingImage={uploadingImage}
+        onClose={() => setShowBlogModal(false)}
+        onUploadImage={handleImageUpload}
+        onSubmit={handleBlogSubmit}
+      />
 
       {/* Press Release Modal */}
-      {showPressReleaseModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-900">
-                  {editingPressRelease ? 'Edit Press Release' : 'Create New Press Release'}
-                </h3>
-                <button 
-                  onClick={() => setShowPressReleaseModal(false)}
-                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                  <input
-                    type="text"
-                    value={pressReleaseFormData.title}
-                    onChange={(e) => setPressReleaseFormData({...pressReleaseFormData, title: e.target.value})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter press release title"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Publish Date</label>
-                  <input
-                    type="datetime-local"
-                    value={pressReleaseFormData.publishDate ? new Date(pressReleaseFormData.publishDate).toISOString().slice(0, 16) : ''}
-                    onChange={(e) => setPressReleaseFormData({...pressReleaseFormData, publishDate: new Date(e.target.value).toISOString()})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Excerpt</label>
-                  <textarea
-                    value={pressReleaseFormData.excerpt}
-                    onChange={(e) => setPressReleaseFormData({...pressReleaseFormData, excerpt: e.target.value})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={3}
-                    placeholder="Enter a short excerpt for the press release"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
-                  <RichTextEditor
-                    value={pressReleaseFormData.content}
-                    onChange={(content: string) => setPressReleaseFormData({...pressReleaseFormData, content})}
-                    placeholder="Write your press release content..."
-                    height={400}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={pressReleaseFormData.status}
-                    onChange={(e) => setPressReleaseFormData({...pressReleaseFormData, status: e.target.value as 'draft' | 'published'})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="published">Published</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Images</label>
-                  <div className="space-y-2">
-                    {pressReleaseFormData.images.map((image, index) => (
-                      <div key={index} className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
-                        <img src={image.src} alt={image.alt} className="w-16 h-16 object-cover rounded" />
-                        <div className="flex-1">
-                          <input
-                            type="text"
-                            value={image.src}
-                            onChange={(e) => {
-                              const newImages = [...pressReleaseFormData.images];
-                              newImages[index] = {...newImages[index], src: e.target.value};
-                              setPressReleaseFormData({...pressReleaseFormData, images: newImages});
-                            }}
-                            className="w-full p-1 border border-gray-300 rounded text-sm"
-                            placeholder="Image URL"
-                          />
-                          <input
-                            type="text"
-                            value={image.alt}
-                            onChange={(e) => {
-                              const newImages = [...pressReleaseFormData.images];
-                              newImages[index] = {...newImages[index], alt: e.target.value};
-                              setPressReleaseFormData({...pressReleaseFormData, images: newImages});
-                            }}
-                            className="w-full p-1 border border-gray-300 rounded text-sm mt-1"
-                            placeholder="Alt text"
-                          />
-                        </div>
-                        <button
-                          onClick={() => {
-                            const newImages = pressReleaseFormData.images.filter((_, i) => i !== index);
-                            setPressReleaseFormData({...pressReleaseFormData, images: newImages});
-                          }}
-                          className="px-2 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                    
-                    <div className="flex space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newImages = [...pressReleaseFormData.images, {
-                            src: '',
-                            alt: ''
-                          }];
-                          setPressReleaseFormData({...pressReleaseFormData, images: newImages});
-                        }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                      >
-                        + Add Image URL
-                      </button>
-                      
-                      <div className="relative">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handlePressReleaseImageUpload}
-                          disabled={uploadingPressReleaseImage}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        />
-                        <button
-                          type="button"
-                          disabled={uploadingPressReleaseImage}
-                          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {uploadingPressReleaseImage ? 'Uploading...' : '+ Upload Image'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end space-x-2">
-                <button
-                  onClick={() => setShowPressReleaseModal(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handlePressReleaseSubmit}
-                  className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 transition-colors"
-                >
-                  {editingPressRelease ? 'Update Press Release' : 'Create Press Release'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <PressReleaseEditModal
+        isOpen={showPressReleaseModal}
+        editingPressRelease={editingPressRelease}
+        formData={pressReleaseFormData}
+        setFormData={setPressReleaseFormData}
+        isUploadingImage={uploadingPressReleaseImage}
+        onClose={() => setShowPressReleaseModal(false)}
+        onUploadImage={handlePressReleaseImageUpload}
+        onSubmit={handlePressReleaseSubmit}
+      />
 
       {/* Media Coverage Modal */}
-      {showMediaCoverageModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-900">
-                  {editingMediaCoverage ? 'Edit Media Coverage' : 'Create New Media Coverage'}
-                </h3>
-                <button
-                  onClick={() => setShowMediaCoverageModal(false)}
-                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                  <input
-                    type="text"
-                    value={mediaCoverageFormData.title}
-                    onChange={(e) => setMediaCoverageFormData({...mediaCoverageFormData, title: e.target.value})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter media coverage title"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Publish Date</label>
-                  <input
-                    type="datetime-local"
-                    value={mediaCoverageFormData.publishDate ? new Date(mediaCoverageFormData.publishDate).toISOString().slice(0, 16) : ''}
-                    onChange={(e) => setMediaCoverageFormData({...mediaCoverageFormData, publishDate: new Date(e.target.value).toISOString()})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Excerpt</label>
-                  <textarea
-                    value={mediaCoverageFormData.excerpt}
-                    onChange={(e) => setMediaCoverageFormData({...mediaCoverageFormData, excerpt: e.target.value})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={3}
-                    placeholder="Enter a short excerpt for the media coverage"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Content</label>
-                  <RichTextEditor
-                    value={mediaCoverageFormData.content}
-                    onChange={(content: string) => setMediaCoverageFormData({...mediaCoverageFormData, content})}
-                    placeholder="Write your media coverage content..."
-                    height={400}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={mediaCoverageFormData.status}
-                    onChange={(e) => setMediaCoverageFormData({...mediaCoverageFormData, status: e.target.value as 'draft' | 'published'})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="published">Published</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Images</label>
-                  <div className="space-y-2">
-                    {mediaCoverageFormData.images.map((image, index) => (
-                      <div key={index} className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
-                        <img src={image.src} alt={image.alt} className="w-16 h-16 object-cover rounded" />
-                        <div className="flex-1">
-                          <input
-                            type="text"
-                            value={image.src}
-                            onChange={(e) => {
-                              const newImages = [...mediaCoverageFormData.images];
-                              newImages[index] = {...newImages[index], src: e.target.value};
-                              setMediaCoverageFormData({...mediaCoverageFormData, images: newImages});
-                            }}
-                            className="w-full p-1 border border-gray-300 rounded text-sm"
-                            placeholder="Image URL"
-                          />
-                          <input
-                            type="text"
-                            value={image.alt}
-                            onChange={(e) => {
-                              const newImages = [...mediaCoverageFormData.images];
-                              newImages[index] = {...newImages[index], alt: e.target.value};
-                              setMediaCoverageFormData({...mediaCoverageFormData, images: newImages});
-                            }}
-                            className="w-full p-1 border border-gray-300 rounded text-sm mt-1"
-                            placeholder="Alt text"
-                          />
-                        </div>
-                        <button
-                          onClick={() => {
-                            const newImages = mediaCoverageFormData.images.filter((_, i) => i !== index);
-                            setMediaCoverageFormData({...mediaCoverageFormData, images: newImages});
-                          }}
-                          className="px-2 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                    
-                    <div className="flex space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const newImages = [...mediaCoverageFormData.images, {
-                            src: '',
-                            alt: ''
-                          }];
-                          setMediaCoverageFormData({...mediaCoverageFormData, images: newImages});
-                        }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                      >
-                        + Add Image URL
-                      </button>
-                      
-                      <div className="relative">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleMediaCoverageImageUpload}
-                          disabled={uploadingMediaCoverageImage}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        />
-                        <button
-                          type="button"
-                          disabled={uploadingMediaCoverageImage}
-                          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {uploadingMediaCoverageImage ? 'Uploading...' : '+ Upload Image'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end space-x-2">
-                <button
-                  onClick={() => setShowMediaCoverageModal(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleMediaCoverageSubmit}
-                  className="px-4 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 transition-colors"
-                >
-                  {editingMediaCoverage ? 'Update Media Coverage' : 'Create Media Coverage'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <MediaCoverageEditModal
+        isOpen={showMediaCoverageModal}
+        editingMediaCoverage={editingMediaCoverage}
+        formData={mediaCoverageFormData}
+        setFormData={setMediaCoverageFormData}
+        isUploadingImage={uploadingMediaCoverageImage}
+        onClose={() => setShowMediaCoverageModal(false)}
+        onUploadImage={handleMediaCoverageImageUpload}
+        onSubmit={handleMediaCoverageSubmit}
+      />
 
       {/* Loading Overlay */}
       {isLoading && (
@@ -2256,280 +1340,15 @@ const SimpleAdminDashboard = () => {
       )}
 
       {/* Event Modal */}
-      {showEventModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-900">
-                  {editingEvent ? 'Edit Event' : 'Create New Event'}
-                </h3>
-                <button
-                  onClick={() => setShowEventModal(false)}
-                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-                    <input
-                      type="text"
-                      value={eventFormData.title}
-                      onChange={(e) => setEventFormData({...eventFormData, title: e.target.value})}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter event title"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                    <select
-                      value={eventFormData.category}
-                      onChange={(e) => setEventFormData({...eventFormData, category: e.target.value as Event['category']})}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="conference">Conference</option>
-                      <option value="workshop">Workshop</option>
-                      <option value="webinar">Webinar</option>
-                      <option value="exhibition">Exhibition</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Excerpt</label>
-                  <textarea
-                    value={eventFormData.excerpt}
-                    onChange={(e) => setEventFormData({...eventFormData, excerpt: e.target.value})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    rows={2}
-                    placeholder="Enter a short excerpt for the event"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
-                  <RichTextEditor
-                    value={eventFormData.description}
-                    onChange={(content: string) => setEventFormData({...eventFormData, description: content})}
-                    placeholder="Write event description..."
-                    height={300}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date *</label>
-                    <input
-                      type="datetime-local"
-                      value={eventFormData.startDate}
-                      onChange={(e) => setEventFormData({...eventFormData, startDate: e.target.value})}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date *</label>
-                    <input
-                      type="datetime-local"
-                      value={eventFormData.endDate}
-                      onChange={(e) => setEventFormData({...eventFormData, endDate: e.target.value})}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={eventFormData.status}
-                    onChange={(e) => setEventFormData({...eventFormData, status: e.target.value as Event['status']})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="upcoming">Upcoming</option>
-                    <option value="ongoing">Ongoing</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Images</label>
-                  <div className="space-y-2">
-                    {eventFormData.imageUrl && (
-                      <div className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
-                        <img
-                          src={eventFormData.imageUrl.startsWith('http') ? eventFormData.imageUrl : `${ROOT_URL}${eventFormData.imageUrl}`}
-                          alt="Event image"
-                          className="w-16 h-16 object-cover rounded"
-                          onError={(e) => {
-                            e.currentTarget.src = '';
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
-                        <div className="flex-1">
-                          <input
-                            type="text"
-                            value={eventFormData.imageUrl}
-                            onChange={(e) => setEventFormData({...eventFormData, imageUrl: e.target.value})}
-                            className="w-full p-1 border border-gray-300 rounded text-sm"
-                            placeholder="Image URL"
-                            readOnly={eventFormData.imageUrl.startsWith('/postimages/')}
-                          />
-                          <input
-                            type="text"
-                            value="Event image"
-                            className="w-full p-1 border border-gray-300 rounded text-sm mt-1"
-                            placeholder="Alt text"
-                            readOnly
-                          />
-                        </div>
-                        <button
-                          onClick={() => setEventFormData({...eventFormData, imageUrl: ''})}
-                          className="px-2 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    )}
-                    
-                    <div className="flex space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEventFormData({...eventFormData, imageUrl: ''});
-                        }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                      >
-                        + Add Image URL
-                      </button>
-                      
-                      <div className="relative">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleEventImageUpload}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                        />
-                        <button
-                          type="button"
-                          className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                        >
-                          + Upload Image
-                        </button>
-                      </div>
-                    </div>
-                    
-                    {!eventFormData.imageUrl && (
-                      <div className="mt-2">
-                        <input
-                          type="text"
-                          value={eventFormData.imageUrl}
-                          onChange={(e) => setEventFormData({...eventFormData, imageUrl: e.target.value})}
-                          className="w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Enter image URL"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Venue</label>
-                  <input
-                    type="text"
-                    value={eventFormData.venue}
-                    onChange={(e) => setEventFormData({...eventFormData, venue: e.target.value})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
-                    placeholder="Enter venue name and address"
-                  />
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Google Maps Link</label>
-                    <input
-                      type="text"
-                      value={eventFormData.googleMapsLink}
-                      onChange={(e) => setEventFormData({...eventFormData, googleMapsLink: e.target.value})}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter Google Maps link"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Venue Website</label>
-                    <input
-                      type="text"
-                      value={eventFormData.venueWebsite}
-                      onChange={(e) => setEventFormData({...eventFormData, venueWebsite: e.target.value})}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter venue website URL"
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Event Website</label>
-                    <input
-                      type="text"
-                      value={eventFormData.eventWebsite}
-                      onChange={(e) => setEventFormData({...eventFormData, eventWebsite: e.target.value})}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter event website URL"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Organizer Name</label>
-                    <input
-                      type="text"
-                      value={eventFormData.organizerName}
-                      onChange={(e) => setEventFormData({...eventFormData, organizerName: e.target.value})}
-                      className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter organizer name"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Organizer Website</label>
-                  <input
-                    type="text"
-                    value={eventFormData.organizerWebsite}
-                    onChange={(e) => setEventFormData({...eventFormData, organizerWebsite: e.target.value})}
-                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter organizer website URL"
-                  />
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end space-x-2">
-                <button
-                  onClick={() => setShowEventModal(false)}
-                  className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleEventSubmit}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors"
-                >
-                  {editingEvent ? 'Update Event' : 'Create Event'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <EventEditModal
+        isOpen={showEventModal}
+        editingEvent={editingEvent}
+        formData={eventFormData}
+        setFormData={setEventFormData}
+        onClose={() => setShowEventModal(false)}
+        onUploadImage={handleEventImageUpload}
+        onSubmit={handleEventSubmit}
+      />
 
       {/* Order Edit Modal */}
       <OrderEditModal
@@ -2547,51 +1366,15 @@ const SimpleAdminDashboard = () => {
       />
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && deleteItem && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-red-600">Silme Onayı</h2>
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeleteItem(null);
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="mb-6">
-              <p className="text-gray-700">
-                <strong>{deleteItem.name}</strong> öğesini silmek istediğinizden emin misiniz?
-              </p>
-              <p className="text-sm text-gray-500 mt-2">
-                Bu işlem geri alınamaz.
-              </p>
-            </div>
-            
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeleteItem(null);
-                }}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
-              >
-                İptal
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-              >
-                Sil
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDeleteModal
+        isOpen={showDeleteModal}
+        item={deleteItem}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setDeleteItem(null);
+        }}
+        onConfirm={confirmDelete}
+      />
 
       {/* Contact Edit Modal */}
       <ContactEditModal

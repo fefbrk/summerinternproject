@@ -10,7 +10,7 @@ Bu dokuman, proje icinde calisan insan/AI agentlari icin tek noktadan hizli oper
 - CI: GitHub Actions (`.github/workflows/ci.yml`) -> lint + test + build
 - Icerik alanlari: blog, press releases, media coverage, events
 - Is alanlari: e-commerce orders, course registrations, contacts, user account data, payment domain hazirligi
-- Admin dashboard: order/payment ve contact operasyonlari `src/components/admin/*` altinda parcali yapiya alinmistir
+- Admin dashboard: orders/users/contacts/blog/press/media/events tablari ve ana modallar `src/components/admin/*` altinda parcali yapiya alinmistir
 
 Ana dizinler:
 
@@ -254,6 +254,12 @@ cd server && npm start
 - Admin order modal: `src/components/admin/OrderEditModal.tsx`
 - Admin contact tab: `src/components/admin/AdminContactsTab.tsx`
 - Admin contact modallari: `src/components/admin/ContactDetailModal.tsx`, `src/components/admin/ContactEditModal.tsx`
+- Admin users tab: `src/components/admin/AdminUsersTab.tsx`
+- Admin blog tab/modal: `src/components/admin/AdminBlogTab.tsx`, `src/components/admin/BlogEditModal.tsx`
+- Admin press tab/modal: `src/components/admin/AdminPressReleasesTab.tsx`, `src/components/admin/PressReleaseEditModal.tsx`
+- Admin media tab/modal: `src/components/admin/AdminMediaCoverageTab.tsx`, `src/components/admin/MediaCoverageEditModal.tsx`
+- Admin events tab/modal: `src/components/admin/AdminEventsTab.tsx`, `src/components/admin/EventEditModal.tsx`
+- Admin delete confirm modal: `src/components/admin/ConfirmDeleteModal.tsx`
 
 ## 11) Yeni Session Hizli Baslangic
 

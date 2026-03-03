@@ -17,7 +17,7 @@ Bu dosya, proje hakkinda teknik mulakat, devir ve sunum sorularina hizli ve dogr
 **C:** Ogretmenler, veliler, egitim kurumlari ve kurum ici admin ekibi.
 
 ### S3: Projenin su anki durumu ne?
-**C:** Guvenlik ve veri butunlugu tarafi guclendirildi. Payment gateway (iyzico/stripe/paytr vb.) henuz bagli degil, ama payment domain altyapisi hazir. Admin dashboardda orders/contacts bolumleri parcali bilesenlere ayrildi.
+**C:** Guvenlik ve veri butunlugu tarafi guclendirildi. Payment gateway (iyzico/stripe/paytr vb.) henuz bagli degil, ama payment domain altyapisi hazir. Admin dashboardda orders/users/contacts/blog/press/media/events bolumleri parcali bilesenlere ayrildi.
 
 ### S4: Neden bu kadar moduler yapi tercih edildi?
 **C:** Monolit route dosyasi yerine moduler route/middleware/service yapisi ile degisiklik etkisi azaltildi ve test/yayina alma riski dusuruldu.
@@ -237,7 +237,7 @@ npm run lint && npm test && npm run build -- --logLevel error
 **C:**
 - PSP sandbox entegrasyonu (provider secimi bekleniyor)
 - Payment UI akisi (checkout return + hesap gosterimleri)
-- Kalan admin tablarinin da orders/contacts gibi parcali yapiya alinmasi
+- Admin dashboard kritik akislari icin frontend test kapsami artisi
 - Upload/content unhappy-path testlerinin daha da artirilmasi
 - Account UI integration testlerinin artirilmasi
 

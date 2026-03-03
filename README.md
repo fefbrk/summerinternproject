@@ -24,7 +24,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 **Admin Paneli**
 - Kapsamlı dashboard ve CRUD işlemleri
 - Kullanıcı, sipariş ve odeme durumu yonetimi
-- Orders/contacts panelleri parcali admin bilesenlerine ayrilmistir (`src/components/admin/*`)
+- Orders/users/contacts/blog/press/media/events panelleri ve ana modallar parcali admin bilesenlerine ayrilmistir (`src/components/admin/*`)
 - İstatistik kartları ve raporlama
 
 **Eğitim Platformu**

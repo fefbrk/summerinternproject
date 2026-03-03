@@ -24,4 +24,4 @@ npm run lint && npm test && npm run build -- --logLevel error
 - Auth token tek basina yeterli degildir; middleware DB re-validation yapar.
 - Siparislerde odeme alani ayridir (`payment_status`); odeme `paid` olmadan fulfillment status'lerine gecis engellenir.
 - PSP (iyzico/stripe/paytr) henuz bagli degil; payment domain hazirligi (`payment_attempts`, `payment_events`, payment-status endpointleri) aktiftir.
-- Admin panelinde order/contact bloklari `src/components/admin/*` altina parcali yapiya alinmistir.
+- Admin panelinde orders/users/contacts/blog/press/media/events tablari ve ana modallar `src/components/admin/*` altina parcali yapiya alinmistir.
