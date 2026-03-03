@@ -2,7 +2,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Routes } from "react-router-dom";
 import { Suspense } from "react";
 import ScrollToTop from "./components/ScrollToTop";
 import { CartProvider } from "./context/CartContext";
@@ -28,9 +27,7 @@ const App = () => (
             <Toaster />
             <Sonner />
             <Suspense fallback={<RouteFallback />}>
-              <Routes>
-                <AppRoutes />
-              </Routes>
+              <AppRoutes />
             </Suspense>
           </TooltipProvider>
         </CartProvider>

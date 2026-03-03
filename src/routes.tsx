@@ -1,4 +1,4 @@
-import { Route } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import { lazy } from "react";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -148,7 +148,7 @@ const PressReleaseDetail = lazy(() => import("./pages/pressreleases/PressRelease
  * Extracted from App.tsx for better organization.
  */
 const AppRoutes = () => (
-    <>
+    <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/shop" element={<Shop />} />
         <Route path="/shop/:category" element={<Shop />} />
@@ -287,7 +287,7 @@ const AppRoutes = () => (
 
         {/* Catch-all */}
         <Route path="*" element={<NotFound />} />
-    </>
+    </Routes>
 );
 
 export default AppRoutes;
