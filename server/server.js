@@ -12,6 +12,7 @@ const { createAuthToken, verifyAuthToken } = require('./security/token');
 const createAuthMiddleware = require('./middleware/authMiddleware');
 const createBootstrapService = require('./services/bootstrapService');
 const createProductCatalogService = require('./services/productCatalogService');
+const createPaymentService = require('./services/paymentService');
 const registerAuthUserRoutes = require('./routes/authUserRoutes');
 const registerCommerceRoutes = require('./routes/commerceRoutes');
 const registerAccountRoutes = require('./routes/accountRoutes');
@@ -34,6 +35,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BLOG_STATUSES = new Set(['draft', 'published']);
 const EVENT_STATUSES = new Set(['upcoming', 'ongoing', 'completed', 'cancelled']);
 const ORDER_STATUSES = new Set(['received', 'preparing', 'shipping', 'delivered']);
+const PAYMENT_STATUSES = new Set(['pending', 'paid', 'failed', 'refunded']);
 const REGISTRATION_STATUSES = new Set(['registered', 'active', 'completed']);
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
@@ -321,6 +323,7 @@ const { ensureDefaultAdminUser, initializeDatabase } = createBootstrapService({
 });
 
 const productCatalogService = createProductCatalogService();
+const paymentService = createPaymentService({ database, uuidv4 });
 
 const {
   authenticateApiRequest,
@@ -363,11 +366,13 @@ registerCommerceRoutes(app, {
   database,
   uuidv4,
   productCatalogService,
+  paymentService,
   sanitizePlainText,
   sanitizeEmail,
   isValidEmail,
   checkContactRateLimit,
   orderStatuses: ORDER_STATUSES,
+  paymentStatuses: PAYMENT_STATUSES,
   registrationStatuses: REGISTRATION_STATUSES,
 });
 

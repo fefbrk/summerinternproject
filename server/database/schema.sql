@@ -21,6 +21,13 @@ CREATE TABLE IF NOT EXISTS orders (
     customer_email TEXT NOT NULL,
     shipping_address TEXT NOT NULL, -- JSON string
     created_at TEXT NOT NULL,
+    payment_status TEXT NOT NULL DEFAULT 'pending' CHECK (payment_status IN ('pending', 'paid', 'failed', 'refunded')),
+    payment_provider TEXT,
+    payment_reference TEXT,
+    payment_amount REAL NOT NULL DEFAULT 0,
+    payment_currency TEXT NOT NULL DEFAULT 'USD',
+    payment_failed_reason TEXT,
+    paid_at TEXT,
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
@@ -35,6 +42,39 @@ CREATE TABLE IF NOT EXISTS order_items (
     image TEXT NOT NULL,
     FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
 );
+
+-- Payment Attempts Table
+CREATE TABLE IF NOT EXISTS payment_attempts (
+    id TEXT PRIMARY KEY,
+    order_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    provider_reference TEXT,
+    amount REAL NOT NULL,
+    currency TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('created', 'pending', 'succeeded', 'failed', 'cancelled')),
+    failure_reason TEXT,
+    metadata TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
+);
+
+-- Payment Webhook/Event Log Table
+CREATE TABLE IF NOT EXISTS payment_events (
+    id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    provider_event_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    order_id TEXT,
+    payload TEXT NOT NULL,
+    processed_at TEXT NOT NULL,
+    UNIQUE(provider, provider_event_id),
+    FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_payment_attempts_order_id ON payment_attempts(order_id);
+CREATE INDEX IF NOT EXISTS idx_payment_attempts_status ON payment_attempts(status);
+CREATE INDEX IF NOT EXISTS idx_payment_events_order_id ON payment_events(order_id);
 
 -- Course Registrations Table
 CREATE TABLE IF NOT EXISTS course_registrations (

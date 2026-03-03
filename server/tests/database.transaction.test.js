@@ -137,3 +137,91 @@ test('createOrder commits order and all items when payload is valid', async () =
   assert.equal(Array.isArray(persistedOrder.items), true);
   assert.equal(persistedOrder.items.length, 2);
 });
+
+test('payment attempts and events are persisted with idempotent event logging', async () => {
+  const orderId = uuidv4();
+
+  const createdOrder = await database.createOrder({
+    id: orderId,
+    userId: testUser.id,
+    totalAmount: 84,
+    status: 'received',
+    paymentStatus: 'pending',
+    paymentAmount: 84,
+    paymentCurrency: 'USD',
+    customerName: 'Transaction User',
+    customerEmail: testUser.email,
+    shippingAddress: {
+      name: 'Transaction User',
+      phone: '+90-500-000-0000',
+      address: 'Payment Street 99',
+      city: 'Istanbul',
+      province: 'Istanbul',
+      zipCode: '34000',
+      country: 'Turkey',
+    },
+    createdAt: new Date().toISOString(),
+    items: [
+      {
+        id: 'learning-card',
+        name: 'KIBO Coding Cards',
+        quantity: 1,
+        price: 84,
+        image: '/image-5.png',
+      },
+    ],
+  });
+
+  assert.ok(createdOrder);
+  assert.equal(createdOrder.paymentStatus, 'pending');
+
+  const attemptId = uuidv4();
+  const createdAttempt = await database.createPaymentAttempt({
+    id: attemptId,
+    orderId,
+    provider: 'sandbox',
+    providerReference: 'sandbox-ref-1',
+    amount: 84,
+    currency: 'USD',
+    status: 'pending',
+    failureReason: null,
+    metadata: { source: 'test' },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+
+  assert.ok(createdAttempt);
+  assert.equal(createdAttempt.id, attemptId);
+  assert.equal(createdAttempt.status, 'pending');
+
+  const orderAttempts = await database.getPaymentAttemptsByOrderId(orderId);
+  assert.equal(orderAttempts.length, 1);
+  assert.equal(orderAttempts[0].id, attemptId);
+
+  const firstEventSave = await database.savePaymentEvent({
+    id: uuidv4(),
+    provider: 'sandbox',
+    providerEventId: 'event-123',
+    eventType: 'payment.succeeded',
+    orderId,
+    payload: { paid: true },
+    processedAt: new Date().toISOString(),
+  });
+
+  assert.equal(firstEventSave.created, true);
+  assert.ok(firstEventSave.event);
+
+  const duplicateEventSave = await database.savePaymentEvent({
+    id: uuidv4(),
+    provider: 'sandbox',
+    providerEventId: 'event-123',
+    eventType: 'payment.succeeded',
+    orderId,
+    payload: { paid: true },
+    processedAt: new Date().toISOString(),
+  });
+
+  assert.equal(duplicateEventSave.created, false);
+  assert.ok(duplicateEventSave.event);
+  assert.equal(duplicateEventSave.event.providerEventId, 'event-123');
+});

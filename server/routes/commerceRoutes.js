@@ -3,12 +3,14 @@ const registerCommerceRoutes = (app, deps) => {
     database,
     uuidv4,
     productCatalogService,
+    paymentService,
     sanitizePlainText,
     sanitizeEmail,
     isValidEmail,
     checkContactRateLimit,
     orderStatuses,
     registrationStatuses,
+    paymentStatuses,
   } = deps;
 
   if (!productCatalogService || typeof productCatalogService.getProductById !== 'function') {
@@ -17,6 +19,9 @@ const registerCommerceRoutes = (app, deps) => {
 
   const MAX_PAGE_SIZE = 1000;
   const DEFAULT_PAGE_SIZE = 1000;
+  const effectivePaymentStatuses = paymentStatuses instanceof Set
+    ? paymentStatuses
+    : new Set(['pending', 'paid', 'failed', 'refunded']);
 
   const resolvePagination = (query, defaultLimit = DEFAULT_PAGE_SIZE) => {
     const rawLimit = Number(query?.limit);
@@ -41,6 +46,7 @@ const registerCommerceRoutes = (app, deps) => {
 
   const toCents = (amount) => Math.round(Number(amount) * 100);
   const fromCents = (amountInCents) => amountInCents / 100;
+  const fulfillmentStatusesRequiringPaid = new Set(['preparing', 'shipping', 'delivered']);
 
   const calculateOrderTotalCents = (items) => {
     return items.reduce((sum, item) => {
@@ -163,6 +169,13 @@ const registerCommerceRoutes = (app, deps) => {
         items: normalizedItems,
         totalAmount: fromCents(calculatedTotalCents),
         status: 'received',
+        paymentStatus: 'pending',
+        paymentProvider: null,
+        paymentReference: null,
+        paymentAmount: fromCents(calculatedTotalCents),
+        paymentCurrency: 'USD',
+        paymentFailedReason: null,
+        paidAt: null,
         shippingAddress: normalizedShippingAddress,
         customerName,
         customerEmail,
@@ -170,6 +183,24 @@ const registerCommerceRoutes = (app, deps) => {
       };
 
       const order = await database.createOrder(newOrder);
+
+      if (paymentService && typeof paymentService.createPendingAttempt === 'function') {
+        try {
+          await paymentService.createPendingAttempt({
+            orderId: order.id,
+            provider: 'unassigned',
+            amount: order.paymentAmount,
+            currency: order.paymentCurrency,
+            metadata: {
+              source: 'order-create',
+              actorUserId: req.user.id,
+            },
+          });
+        } catch (paymentAttemptError) {
+          console.error('Error creating pending payment attempt:', paymentAttemptError);
+        }
+      }
+
       res.json(order);
     } catch (error) {
       console.error('Error creating order:', error);
@@ -186,6 +217,15 @@ const registerCommerceRoutes = (app, deps) => {
         return res.status(400).json({ error: 'Invalid order status' });
       }
 
+      const existingOrder = await database.getOrderById(id);
+      if (!existingOrder) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      if (fulfillmentStatusesRequiringPaid.has(status) && existingOrder.paymentStatus !== 'paid') {
+        return res.status(400).json({ error: 'Order payment must be completed before fulfillment' });
+      }
+
       const order = await database.updateOrderStatus(id, status);
       if (!order) {
         return res.status(404).json({ error: 'Order not found' });
@@ -194,6 +234,143 @@ const registerCommerceRoutes = (app, deps) => {
       res.json(order);
     } catch (error) {
       console.error('Error updating order status:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/orders/:id/payment-status', async (req, res) => {
+    try {
+      const id = sanitizePlainText(req.params.id, 64);
+      const order = await database.getOrderById(id);
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      if (!req.user.isAdmin && req.user.id !== order.userId) {
+        return res.status(403).json({ error: 'Not authorized for this action' });
+      }
+
+      const attempts = await database.getPaymentAttemptsByOrderId(id);
+      res.json({
+        orderId: order.id,
+        paymentStatus: order.paymentStatus,
+        paymentProvider: order.paymentProvider,
+        paymentReference: order.paymentReference,
+        paymentAmount: order.paymentAmount,
+        paymentCurrency: order.paymentCurrency,
+        paymentFailedReason: order.paymentFailedReason,
+        paidAt: order.paidAt,
+        attempts,
+      });
+    } catch (error) {
+      console.error('Error getting order payment status:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.put('/api/orders/:id/payment-status', async (req, res) => {
+    try {
+      if (!req.user.isAdmin) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      const id = sanitizePlainText(req.params.id, 64);
+      const paymentStatus = sanitizePlainText(req.body?.paymentStatus, 40);
+
+      if (!effectivePaymentStatuses.has(paymentStatus)) {
+        return res.status(400).json({ error: 'Invalid payment status' });
+      }
+
+      const order = await database.getOrderById(id);
+      if (!order) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      const paymentProvider = sanitizePlainText(req.body?.paymentProvider, 120) || order.paymentProvider || 'manual';
+      const paymentReference = sanitizePlainText(req.body?.paymentReference, 200) || null;
+      const paymentCurrency = sanitizePlainText(req.body?.paymentCurrency, 16).toUpperCase() || order.paymentCurrency || 'USD';
+
+      const rawPaymentAmount = req.body?.paymentAmount;
+      const paymentAmount = rawPaymentAmount === undefined
+        ? Number(order.paymentAmount || order.totalAmount)
+        : Number(rawPaymentAmount);
+
+      if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
+        return res.status(400).json({ error: 'Invalid payment amount' });
+      }
+
+      if (paymentStatus === 'paid' && Math.abs(toCents(paymentAmount) - toCents(order.totalAmount)) > 1) {
+        return res.status(400).json({ error: 'Paid amount must match order total' });
+      }
+
+      const paymentFailedReason = paymentStatus === 'failed'
+        ? sanitizePlainText(req.body?.paymentFailedReason, 500) || 'manual-update'
+        : null;
+
+      const paidAt = paymentStatus === 'paid'
+        ? (sanitizePlainText(req.body?.paidAt, 64) || new Date().toISOString())
+        : null;
+
+      let updatedOrder = null;
+
+      if (paymentService && typeof paymentService.markOrderAsPaid === 'function' && paymentStatus === 'paid') {
+        updatedOrder = await paymentService.markOrderAsPaid({
+          orderId: id,
+          provider: paymentProvider,
+          providerReference: paymentReference,
+          amount: paymentAmount,
+          currency: paymentCurrency,
+        });
+      } else if (paymentService && typeof paymentService.markOrderAsFailed === 'function' && paymentStatus === 'failed') {
+        updatedOrder = await paymentService.markOrderAsFailed({
+          orderId: id,
+          provider: paymentProvider,
+          providerReference: paymentReference,
+          amount: paymentAmount,
+          currency: paymentCurrency,
+          failureReason: paymentFailedReason,
+        });
+      } else {
+        updatedOrder = await database.updateOrderPayment(id, {
+          paymentStatus,
+          paymentProvider,
+          paymentReference,
+          paymentAmount,
+          paymentCurrency,
+          paymentFailedReason,
+          paidAt,
+        });
+
+        const attemptStatusByPaymentStatus = {
+          pending: 'pending',
+          refunded: 'cancelled',
+        };
+
+        await database.createPaymentAttempt({
+          id: uuidv4(),
+          orderId: id,
+          provider: paymentProvider,
+          providerReference: paymentReference,
+          amount: paymentAmount,
+          currency: paymentCurrency,
+          status: attemptStatusByPaymentStatus[paymentStatus] || 'pending',
+          failureReason: paymentFailedReason,
+          metadata: {
+            source: 'manual-admin-update',
+            actorUserId: req.user.id,
+          },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }
+
+      if (!updatedOrder) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      res.json(updatedOrder);
+    } catch (error) {
+      console.error('Error updating order payment status:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });

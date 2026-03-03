@@ -449,10 +449,103 @@ test('order creation enforces backend catalog prices and totals', async () => {
 
   assert.equal(validTotalResponse.status, 200);
   assert.equal(validTotalResponse.data.totalAmount, 544);
+  assert.equal(validTotalResponse.data.paymentStatus, 'pending');
+  assert.equal(validTotalResponse.data.paymentAmount, 544);
+  assert.equal(validTotalResponse.data.paymentCurrency, 'USD');
   assert.equal(validTotalResponse.data.items[0].name, 'KIBO 15 Kit');
   assert.equal(validTotalResponse.data.items[0].price, 495);
   assert.equal(validTotalResponse.data.items[1].name, 'Marker Extension Set');
   assert.equal(validTotalResponse.data.items[1].price, 49);
+
+  const adminLogin = await requestJson('/api/login', {
+    method: 'POST',
+    body: {
+      email: process.env.DEFAULT_ADMIN_EMAIL,
+      password: process.env.DEFAULT_ADMIN_PASSWORD,
+    },
+  });
+
+  assert.equal(adminLogin.status, 200);
+  const adminToken = adminLogin.data.token;
+
+  const unpaidFulfillmentUpdate = await requestJson(`/api/orders/${validTotalResponse.data.id}/status`, {
+    method: 'PUT',
+    token: adminToken,
+    body: {
+      status: 'preparing',
+    },
+  });
+
+  assert.equal(unpaidFulfillmentUpdate.status, 400);
+  assert.equal(unpaidFulfillmentUpdate.data.error, 'Order payment must be completed before fulfillment');
+
+  const updatePaymentStatusAsAdmin = await requestJson(`/api/orders/${validTotalResponse.data.id}/payment-status`, {
+    method: 'PUT',
+    token: adminToken,
+    body: {
+      paymentStatus: 'paid',
+      paymentProvider: 'manual-test',
+      paymentReference: 'manual-ref-1',
+      paymentAmount: 544,
+      paymentCurrency: 'USD',
+    },
+  });
+  assert.equal(updatePaymentStatusAsAdmin.status, 200);
+  assert.equal(updatePaymentStatusAsAdmin.data.paymentStatus, 'paid');
+
+  const invalidPaymentStatusUpdate = await requestJson(`/api/orders/${validTotalResponse.data.id}/payment-status`, {
+    method: 'PUT',
+    token: adminToken,
+    body: {
+      paymentStatus: 'invalid-status',
+    },
+  });
+  assert.equal(invalidPaymentStatusUpdate.status, 400);
+
+  const paymentStatusAsOwner = await requestJson(`/api/orders/${validTotalResponse.data.id}/payment-status`, {
+    token: userToken,
+  });
+  assert.equal(paymentStatusAsOwner.status, 200);
+  assert.equal(paymentStatusAsOwner.data.paymentStatus, 'paid');
+  assert.ok(Array.isArray(paymentStatusAsOwner.data.attempts));
+  assert.ok(paymentStatusAsOwner.data.attempts.length >= 1);
+
+  const anotherUserRegister = await requestJson('/api/register', {
+    method: 'POST',
+    body: {
+      name: 'Another Payment User',
+      email: `another_payment_user_${Date.now()}@example.com`,
+      password: 'AnotherPass123A',
+    },
+  });
+
+  assert.equal(anotherUserRegister.status, 201);
+  const anotherUserToken = anotherUserRegister.data.token;
+
+  const paymentStatusAsOtherUser = await requestJson(`/api/orders/${validTotalResponse.data.id}/payment-status`, {
+    token: anotherUserToken,
+  });
+  assert.equal(paymentStatusAsOtherUser.status, 403);
+
+  const updatePaymentStatusAsUser = await requestJson(`/api/orders/${validTotalResponse.data.id}/payment-status`, {
+    method: 'PUT',
+    token: userToken,
+    body: {
+      paymentStatus: 'paid',
+    },
+  });
+  assert.equal(updatePaymentStatusAsUser.status, 403);
+
+  const paidFulfillmentUpdate = await requestJson(`/api/orders/${validTotalResponse.data.id}/status`, {
+    method: 'PUT',
+    token: adminToken,
+    body: {
+      status: 'preparing',
+    },
+  });
+
+  assert.equal(paidFulfillmentUpdate.status, 200);
+  assert.equal(paidFulfillmentUpdate.data.status, 'preparing');
 
   const unknownProductResponse = await requestJson('/api/orders', {
     method: 'POST',

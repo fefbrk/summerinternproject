@@ -29,6 +29,13 @@ export interface Order {
   items: OrderItem[];
   totalAmount: number;
   status: 'received' | 'preparing' | 'shipping' | 'delivered';
+  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentProvider?: string | null;
+  paymentReference?: string | null;
+  paymentAmount: number;
+  paymentCurrency: string;
+  paymentFailedReason?: string | null;
+  paidAt?: string | null;
   shippingAddress: ShippingAddress;
   customerName: string;
   customerEmail: string;
@@ -52,6 +59,32 @@ export interface ShippingAddress {
   province?: string;
   zipCode?: string;
   country?: string;
+}
+
+export interface PaymentAttempt {
+  id: string;
+  orderId: string;
+  provider: string;
+  providerReference?: string | null;
+  amount: number;
+  currency: string;
+  status: 'created' | 'pending' | 'succeeded' | 'failed' | 'cancelled';
+  failureReason?: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrderPaymentStatus {
+  orderId: string;
+  paymentStatus: Order['paymentStatus'];
+  paymentProvider?: string | null;
+  paymentReference?: string | null;
+  paymentAmount: number;
+  paymentCurrency: string;
+  paymentFailedReason?: string | null;
+  paidAt?: string | null;
+  attempts: PaymentAttempt[];
 }
 
 export interface CourseRegistration {
@@ -326,7 +359,7 @@ class ApiService {
     return this.request(`/orders/my${this.buildQueryString(options)}`);
   }
 
-  async createOrder(orderData: Omit<Order, 'id' | 'status' | 'createdAt' | 'userId'> & { userId?: string }): Promise<Order> {
+  async createOrder(orderData: Omit<Order, 'id' | 'status' | 'createdAt' | 'userId' | 'paymentStatus' | 'paymentProvider' | 'paymentReference' | 'paymentAmount' | 'paymentCurrency' | 'paymentFailedReason' | 'paidAt'> & { userId?: string }): Promise<Order> {
     return this.request('/orders', {
       method: 'POST',
       body: JSON.stringify(orderData),
@@ -337,6 +370,28 @@ class ApiService {
     return this.request(`/orders/${orderId}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
+    });
+  }
+
+  async getOrderPaymentStatus(orderId: string): Promise<OrderPaymentStatus> {
+    return this.request(`/orders/${orderId}/payment-status`);
+  }
+
+  async updateOrderPaymentStatus(
+    orderId: string,
+    payload: {
+      paymentStatus: Order['paymentStatus'];
+      paymentProvider?: string;
+      paymentReference?: string;
+      paymentAmount?: number;
+      paymentCurrency?: string;
+      paymentFailedReason?: string;
+      paidAt?: string;
+    }
+  ): Promise<Order> {
+    return this.request(`/orders/${orderId}/payment-status`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
     });
   }
 

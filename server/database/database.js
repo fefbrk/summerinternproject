@@ -72,8 +72,16 @@ class Database {
         }
 
         const parsedItems = order.items ? this.safeJsonParse(order.items, []) : [];
+        const parsedPaymentAmount = Number(order.paymentAmount);
         return {
             ...order,
+            paymentStatus: typeof order.paymentStatus === 'string' ? order.paymentStatus : 'pending',
+            paymentProvider: typeof order.paymentProvider === 'string' ? order.paymentProvider : null,
+            paymentReference: typeof order.paymentReference === 'string' ? order.paymentReference : null,
+            paymentAmount: Number.isFinite(parsedPaymentAmount) ? parsedPaymentAmount : Number(order.totalAmount || 0),
+            paymentCurrency: typeof order.paymentCurrency === 'string' && order.paymentCurrency.trim().length > 0 ? order.paymentCurrency : 'USD',
+            paymentFailedReason: typeof order.paymentFailedReason === 'string' ? order.paymentFailedReason : null,
+            paidAt: typeof order.paidAt === 'string' ? order.paidAt : null,
             shippingAddress: order.shippingAddress ? this.safeJsonParse(order.shippingAddress, {}) : {},
             items: this.normalizeOrderItems(parsedItems)
         };
@@ -153,6 +161,10 @@ class Database {
             await this.addGoogleMapsLinkColumnToEvents();
             // Media coverage tablosuna source kolonlarini ekle
             await this.addSourceColumnsToMediaCoverage();
+            // Orders tablosuna odeme kolonlarini ekle
+            await this.addPaymentColumnsToOrders();
+            // Odeme deneme/event tablolarini olustur
+            await this.ensurePaymentTables();
             console.log('Veritabanı migrasyonları başarıyla çalıştırıldı');
         } catch (error) {
             console.error('Migrasyon hatası:', error);
@@ -254,6 +266,137 @@ class Database {
             }
         } catch (error) {
             console.error('Media coverage source kolon migrasyonu hatası:', error);
+            throw error;
+        }
+    }
+
+    async addPaymentColumnsToOrders() {
+        try {
+            const tableExists = await this.get(`
+                SELECT name FROM sqlite_master
+                WHERE type='table' AND name='orders'
+            `);
+
+            if (!tableExists) {
+                return;
+            }
+
+            const columnInfo = await this.all('PRAGMA table_info(orders)');
+            const hasColumn = (columnName) => columnInfo.some((column) => column.name === columnName);
+
+            if (!hasColumn('payment_status')) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'pending'
+                    CHECK (payment_status IN ('pending', 'paid', 'failed', 'refunded'))
+                `);
+                console.log('Orders tablosuna payment_status kolonu eklendi');
+            }
+
+            if (!hasColumn('payment_provider')) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN payment_provider TEXT
+                `);
+                console.log('Orders tablosuna payment_provider kolonu eklendi');
+            }
+
+            if (!hasColumn('payment_reference')) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN payment_reference TEXT
+                `);
+                console.log('Orders tablosuna payment_reference kolonu eklendi');
+            }
+
+            if (!hasColumn('payment_amount')) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN payment_amount REAL NOT NULL DEFAULT 0
+                `);
+                console.log('Orders tablosuna payment_amount kolonu eklendi');
+            }
+
+            if (!hasColumn('payment_currency')) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN payment_currency TEXT NOT NULL DEFAULT 'USD'
+                `);
+                console.log('Orders tablosuna payment_currency kolonu eklendi');
+            }
+
+            if (!hasColumn('payment_failed_reason')) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN payment_failed_reason TEXT
+                `);
+                console.log('Orders tablosuna payment_failed_reason kolonu eklendi');
+            }
+
+            if (!hasColumn('paid_at')) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN paid_at TEXT
+                `);
+                console.log('Orders tablosuna paid_at kolonu eklendi');
+            }
+
+            await this.run(`
+                UPDATE orders
+                SET payment_amount = total_amount
+                WHERE payment_amount IS NULL OR payment_amount <= 0
+            `);
+
+            await this.run(`
+                UPDATE orders
+                SET payment_status = 'paid'
+                WHERE status IN ('preparing', 'shipping', 'delivered')
+                  AND (payment_status IS NULL OR payment_status = 'pending')
+            `);
+        } catch (error) {
+            console.error('Orders payment kolon migrasyonu hatası:', error);
+            throw error;
+        }
+    }
+
+    async ensurePaymentTables() {
+        try {
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS payment_attempts (
+                    id TEXT PRIMARY KEY,
+                    order_id TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    provider_reference TEXT,
+                    amount REAL NOT NULL,
+                    currency TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK (status IN ('created', 'pending', 'succeeded', 'failed', 'cancelled')),
+                    failure_reason TEXT,
+                    metadata TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
+                )
+            `);
+
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS payment_events (
+                    id TEXT PRIMARY KEY,
+                    provider TEXT NOT NULL,
+                    provider_event_id TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    order_id TEXT,
+                    payload TEXT NOT NULL,
+                    processed_at TEXT NOT NULL,
+                    UNIQUE(provider, provider_event_id),
+                    FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE SET NULL
+                )
+            `);
+
+            await this.run('CREATE INDEX IF NOT EXISTS idx_payment_attempts_order_id ON payment_attempts(order_id)');
+            await this.run('CREATE INDEX IF NOT EXISTS idx_payment_attempts_status ON payment_attempts(status)');
+            await this.run('CREATE INDEX IF NOT EXISTS idx_payment_events_order_id ON payment_events(order_id)');
+        } catch (error) {
+            console.error('Payment tablo migrasyonu hatası:', error);
             throw error;
         }
     }
@@ -366,9 +509,13 @@ class Database {
     async getAllOrders() {
         const sql = `
             SELECT o.id, o.user_id as userId, o.total_amount as totalAmount, o.status,
+                   o.payment_status as paymentStatus, o.payment_provider as paymentProvider,
+                   o.payment_reference as paymentReference, o.payment_amount as paymentAmount,
+                   o.payment_currency as paymentCurrency, o.payment_failed_reason as paymentFailedReason,
+                   o.paid_at as paidAt,
                    o.customer_name as customerName, o.customer_email as customerEmail,
                    o.shipping_address as shippingAddress, o.created_at as createdAt,
-                   json_group_array(
+                    json_group_array(
                         json_object('id', oi.product_id, 'name', oi.product_name, 'productId', oi.product_id, 'productName', oi.product_name,
                                     'quantity', oi.quantity, 'price', oi.price, 'image', oi.image)
                     ) as items
@@ -384,9 +531,13 @@ class Database {
     async getOrdersByUserId(userId) {
         const sql = `
             SELECT o.id, o.user_id as userId, o.total_amount as totalAmount, o.status,
+                   o.payment_status as paymentStatus, o.payment_provider as paymentProvider,
+                   o.payment_reference as paymentReference, o.payment_amount as paymentAmount,
+                   o.payment_currency as paymentCurrency, o.payment_failed_reason as paymentFailedReason,
+                   o.paid_at as paidAt,
                    o.customer_name as customerName, o.customer_email as customerEmail,
                    o.shipping_address as shippingAddress, o.created_at as createdAt,
-                   json_group_array(
+                    json_group_array(
                         json_object('id', oi.product_id, 'name', oi.product_name, 'productId', oi.product_id, 'productName', oi.product_name,
                                     'quantity', oi.quantity, 'price', oi.price, 'image', oi.image)
                     ) as items
@@ -404,9 +555,13 @@ class Database {
     async getOrderById(id) {
         const sql = `
             SELECT o.id, o.user_id as userId, o.total_amount as totalAmount, o.status,
+                   o.payment_status as paymentStatus, o.payment_provider as paymentProvider,
+                   o.payment_reference as paymentReference, o.payment_amount as paymentAmount,
+                   o.payment_currency as paymentCurrency, o.payment_failed_reason as paymentFailedReason,
+                   o.paid_at as paidAt,
                    o.customer_name as customerName, o.customer_email as customerEmail,
                    o.shipping_address as shippingAddress, o.created_at as createdAt,
-                   json_group_array(
+                    json_group_array(
                         json_object('id', oi.product_id, 'name', oi.product_name, 'productId', oi.product_id, 'productName', oi.product_name,
                                     'quantity', oi.quantity, 'price', oi.price, 'image', oi.image)
                     ) as items
@@ -424,8 +579,12 @@ class Database {
 
         await this.runInTransaction(async () => {
             const sql = `
-                INSERT INTO orders (id, user_id, total_amount, status, customer_name, customer_email, shipping_address, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO orders (
+                    id, user_id, total_amount, status, customer_name, customer_email, shipping_address, created_at,
+                    payment_status, payment_provider, payment_reference, payment_amount, payment_currency,
+                    payment_failed_reason, paid_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
             await this.run(sql, [
                 order.id,
@@ -435,7 +594,14 @@ class Database {
                 order.customerName,
                 order.customerEmail,
                 JSON.stringify(order.shippingAddress),
-                order.createdAt
+                order.createdAt,
+                order.paymentStatus || 'pending',
+                order.paymentProvider || null,
+                order.paymentReference || null,
+                Number.isFinite(Number(order.paymentAmount)) ? Number(order.paymentAmount) : Number(order.totalAmount),
+                order.paymentCurrency || 'USD',
+                order.paymentFailedReason || null,
+                order.paidAt || null,
             ]);
 
             for (const item of items) {
@@ -454,7 +620,7 @@ class Database {
             }
         });
 
-        return order;
+        return this.getOrderById(order.id);
     }
 
     async updateOrderStatus(orderId, status) {
@@ -473,6 +639,194 @@ class Database {
             const sql = 'DELETE FROM orders WHERE id = ?';
             return this.run(sql, [orderId]);
         });
+    }
+
+    async getPaymentAttemptById(id) {
+        const sql = `
+            SELECT id, order_id as orderId, provider, provider_reference as providerReference,
+                   amount, currency, status, failure_reason as failureReason,
+                   metadata, created_at as createdAt, updated_at as updatedAt
+            FROM payment_attempts
+            WHERE id = ?
+        `;
+        const attempt = await this.get(sql, [id]);
+
+        if (!attempt) {
+            return null;
+        }
+
+        return {
+            ...attempt,
+            metadata: attempt.metadata ? this.safeJsonParse(attempt.metadata, {}) : {},
+        };
+    }
+
+    async getPaymentAttemptsByOrderId(orderId) {
+        const sql = `
+            SELECT id, order_id as orderId, provider, provider_reference as providerReference,
+                   amount, currency, status, failure_reason as failureReason,
+                   metadata, created_at as createdAt, updated_at as updatedAt
+            FROM payment_attempts
+            WHERE order_id = ?
+            ORDER BY created_at DESC
+        `;
+        const attempts = await this.all(sql, [orderId]);
+
+        return attempts.map((attempt) => ({
+            ...attempt,
+            metadata: attempt.metadata ? this.safeJsonParse(attempt.metadata, {}) : {},
+        }));
+    }
+
+    async createPaymentAttempt(paymentAttempt) {
+        const sql = `
+            INSERT INTO payment_attempts (
+                id, order_id, provider, provider_reference, amount, currency,
+                status, failure_reason, metadata, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        await this.run(sql, [
+            paymentAttempt.id,
+            paymentAttempt.orderId,
+            paymentAttempt.provider,
+            paymentAttempt.providerReference || null,
+            Number(paymentAttempt.amount),
+            paymentAttempt.currency || 'USD',
+            paymentAttempt.status,
+            paymentAttempt.failureReason || null,
+            JSON.stringify(paymentAttempt.metadata || {}),
+            paymentAttempt.createdAt,
+            paymentAttempt.updatedAt,
+        ]);
+
+        return this.getPaymentAttemptById(paymentAttempt.id);
+    }
+
+    async updatePaymentAttemptStatus(paymentAttemptId, status, updates = {}) {
+        const fields = ['status = ?', 'updated_at = ?'];
+        const values = [status, updates.updatedAt || new Date().toISOString()];
+
+        if (updates.providerReference !== undefined) {
+            fields.push('provider_reference = ?');
+            values.push(updates.providerReference || null);
+        }
+
+        if (updates.failureReason !== undefined) {
+            fields.push('failure_reason = ?');
+            values.push(updates.failureReason || null);
+        }
+
+        if (updates.metadata !== undefined) {
+            fields.push('metadata = ?');
+            values.push(JSON.stringify(updates.metadata || {}));
+        }
+
+        values.push(paymentAttemptId);
+        const sql = `UPDATE payment_attempts SET ${fields.join(', ')} WHERE id = ?`;
+        const result = await this.run(sql, values);
+        if (result.changes === 0) {
+            return null;
+        }
+
+        return this.getPaymentAttemptById(paymentAttemptId);
+    }
+
+    async getPaymentEventByProviderEvent(provider, providerEventId) {
+        const sql = `
+            SELECT id, provider, provider_event_id as providerEventId,
+                   event_type as eventType, order_id as orderId,
+                   payload, processed_at as processedAt
+            FROM payment_events
+            WHERE provider = ? AND provider_event_id = ?
+        `;
+
+        const event = await this.get(sql, [provider, providerEventId]);
+        if (!event) {
+            return null;
+        }
+
+        return {
+            ...event,
+            payload: event.payload ? this.safeJsonParse(event.payload, {}) : {},
+        };
+    }
+
+    async savePaymentEvent(event) {
+        const existingEvent = await this.getPaymentEventByProviderEvent(event.provider, event.providerEventId);
+        if (existingEvent) {
+            return {
+                created: false,
+                event: existingEvent,
+            };
+        }
+
+        const sql = `
+            INSERT INTO payment_events (
+                id, provider, provider_event_id, event_type, order_id, payload, processed_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        await this.run(sql, [
+            event.id,
+            event.provider,
+            event.providerEventId,
+            event.eventType,
+            event.orderId || null,
+            JSON.stringify(event.payload || {}),
+            event.processedAt,
+        ]);
+
+        return {
+            created: true,
+            event: await this.getPaymentEventByProviderEvent(event.provider, event.providerEventId),
+        };
+    }
+
+    async updateOrderPayment(orderId, paymentData) {
+        const fields = ['payment_status = ?'];
+        const values = [paymentData.paymentStatus];
+
+        if (paymentData.paymentProvider !== undefined) {
+            fields.push('payment_provider = ?');
+            values.push(paymentData.paymentProvider || null);
+        }
+
+        if (paymentData.paymentReference !== undefined) {
+            fields.push('payment_reference = ?');
+            values.push(paymentData.paymentReference || null);
+        }
+
+        if (paymentData.paymentAmount !== undefined) {
+            fields.push('payment_amount = ?');
+            values.push(Number(paymentData.paymentAmount));
+        }
+
+        if (paymentData.paymentCurrency !== undefined) {
+            fields.push('payment_currency = ?');
+            values.push(paymentData.paymentCurrency || 'USD');
+        }
+
+        if (paymentData.paymentFailedReason !== undefined) {
+            fields.push('payment_failed_reason = ?');
+            values.push(paymentData.paymentFailedReason || null);
+        }
+
+        if (paymentData.paidAt !== undefined) {
+            fields.push('paid_at = ?');
+            values.push(paymentData.paidAt || null);
+        }
+
+        values.push(orderId);
+        const sql = `UPDATE orders SET ${fields.join(', ')} WHERE id = ?`;
+        const result = await this.run(sql, values);
+        if (result.changes === 0) {
+            return null;
+        }
+
+        return this.getOrderById(orderId);
     }
 
     // === KURS KAYIT İŞLEMLERİ ===
