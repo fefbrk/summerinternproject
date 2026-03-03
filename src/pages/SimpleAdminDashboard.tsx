@@ -9,6 +9,12 @@ import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import apiService, { Order, User, Contact, BlogPost, PressRelease, Event, MediaCoverage, OrderPaymentStatus } from '@/services/apiService';
 import RichTextEditor from '@/components/RichTextEditor';
+import AdminOrdersTab from '@/components/admin/AdminOrdersTab';
+import OrderEditModal from '@/components/admin/OrderEditModal';
+import AdminContactsTab from '@/components/admin/AdminContactsTab';
+import ContactDetailModal from '@/components/admin/ContactDetailModal';
+import ContactEditModal from '@/components/admin/ContactEditModal';
+import { createInitialOrderPaymentForm, type OrderPaymentFormState } from '@/components/admin/orderAdminShared';
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   return error instanceof Error ? error.message : fallback;
@@ -21,26 +27,6 @@ const getErrorStatus = (error: unknown): number | null => {
 
   const response = (error as { response?: { status?: unknown } }).response;
   return typeof response?.status === 'number' ? response.status : null;
-};
-
-const formatCurrency = (value: number, currency = 'USD') => {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  } catch (_error) {
-    return `$${value.toFixed(2)}`;
-  }
-};
-
-const paymentStatusBadgeClass: Record<Order['paymentStatus'], string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  paid: 'bg-green-100 text-green-800',
-  failed: 'bg-red-100 text-red-800',
-  refunded: 'bg-gray-100 text-gray-800',
 };
 
 const SimpleAdminDashboard = () => {
@@ -84,14 +70,7 @@ const SimpleAdminDashboard = () => {
   const [orderPaymentDetails, setOrderPaymentDetails] = useState<OrderPaymentStatus | null>(null);
   const [isLoadingOrderPaymentDetails, setIsLoadingOrderPaymentDetails] = useState(false);
   const [isUpdatingOrderPayment, setIsUpdatingOrderPayment] = useState(false);
-  const [orderPaymentForm, setOrderPaymentForm] = useState({
-    paymentStatus: 'pending' as Order['paymentStatus'],
-    paymentProvider: 'manual',
-    paymentReference: '',
-    paymentAmount: '',
-    paymentCurrency: 'USD',
-    paymentFailedReason: '',
-  });
+  const [orderPaymentForm, setOrderPaymentForm] = useState<OrderPaymentFormState>(createInitialOrderPaymentForm());
   
   // Delete confirmation state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -239,20 +218,15 @@ const SimpleAdminDashboard = () => {
     return contacts.filter(contact => contact.type === contactTypeFilter);
   };
 
+  const filteredContacts = getFilteredContacts();
+
   const closeOrderEditModal = () => {
     setShowOrderEditModal(false);
     setEditingOrder(null);
     setOrderPaymentDetails(null);
     setIsLoadingOrderPaymentDetails(false);
     setIsUpdatingOrderPayment(false);
-    setOrderPaymentForm({
-      paymentStatus: 'pending',
-      paymentProvider: 'manual',
-      paymentReference: '',
-      paymentAmount: '',
-      paymentCurrency: 'USD',
-      paymentFailedReason: '',
-    });
+    setOrderPaymentForm(createInitialOrderPaymentForm());
   };
 
   const syncOrderPaymentForm = (order: Order, paymentDetails?: OrderPaymentStatus | null) => {
@@ -341,6 +315,37 @@ const SimpleAdminDashboard = () => {
     }
   };
 
+  const updateOrderPaymentForm = (updates: Partial<OrderPaymentFormState>) => {
+    setOrderPaymentForm((currentForm) => ({
+      ...currentForm,
+      ...updates,
+    }));
+  };
+
+  const handleEditingOrderStatusChange = (status: Order['status']) => {
+    setEditingOrder((currentOrder) => {
+      if (!currentOrder) {
+        return currentOrder;
+      }
+
+      return {
+        ...currentOrder,
+        status,
+      };
+    });
+  };
+
+  const handleUpdateOrderFulfillment = async () => {
+    if (!editingOrder) {
+      return;
+    }
+
+    const updatedOrder = await updateOrderStatus(editingOrder.id, editingOrder.status);
+    if (updatedOrder) {
+      setEditingOrder(updatedOrder);
+    }
+  };
+
 
 
   // Update contact status
@@ -352,6 +357,48 @@ const SimpleAdminDashboard = () => {
     } catch (error) {
       toast.error('Update error: ' + getErrorMessage(error, 'Unknown error'));
     }
+  };
+
+  const openContactDetailModal = (contact: Contact) => {
+    setSelectedContact(contact);
+    setShowContactModal(true);
+  };
+
+  const closeContactDetailModal = () => {
+    setShowContactModal(false);
+    setSelectedContact(null);
+  };
+
+  const openContactEditModal = (contact: Contact) => {
+    setEditingContact(contact);
+    setShowContactEditModal(true);
+  };
+
+  const closeContactEditModal = () => {
+    setShowContactEditModal(false);
+    setEditingContact(null);
+  };
+
+  const handleEditingContactStatusChange = (status: Contact['status']) => {
+    setEditingContact((currentContact) => {
+      if (!currentContact) {
+        return currentContact;
+      }
+
+      return {
+        ...currentContact,
+        status,
+      };
+    });
+  };
+
+  const handleSaveContactStatus = async () => {
+    if (!editingContact) {
+      return;
+    }
+
+    await updateContactStatus(editingContact.id, editingContact.status);
+    closeContactEditModal();
   };
 
 
@@ -1265,138 +1312,18 @@ const SimpleAdminDashboard = () => {
 
           {/* Orders Tab */}
           <TabsContent value="orders" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Order & Payment Operations</CardTitle>
-              </CardHeader>
-              <CardContent className="p-2">
-                <div className="mb-4 flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <label htmlFor="orderStatusFilter" className="text-sm font-medium">Fulfillment:</label>
-                    <select
-                      id="orderStatusFilter"
-                      value={orderStatusFilter}
-                      onChange={(e) => setOrderStatusFilter(e.target.value as 'all' | Order['status'])}
-                      className="p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="all">All</option>
-                      <option value="received">Received</option>
-                      <option value="preparing">Preparing</option>
-                      <option value="shipping">Shipping</option>
-                      <option value="delivered">Delivered</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <label htmlFor="orderPaymentFilter" className="text-sm font-medium">Payment:</label>
-                    <select
-                      id="orderPaymentFilter"
-                      value={orderPaymentFilter}
-                      onChange={(e) => setOrderPaymentFilter(e.target.value as 'all' | Order['paymentStatus'])}
-                      className="p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="all">All</option>
-                      <option value="pending">Pending</option>
-                      <option value="paid">Paid</option>
-                      <option value="failed">Failed</option>
-                      <option value="refunded">Refunded</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto w-full">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border p-2 text-left cursor-pointer" onClick={() => sortOrders('id')}>
-                          Order ID {orderSortField === 'id' && (orderSortDirection === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th className="border p-2 text-left cursor-pointer" onClick={() => sortOrders('customerName')}>
-                          Customer {orderSortField === 'customerName' && (orderSortDirection === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th className="border p-2 text-left cursor-pointer" onClick={() => sortOrders('totalAmount')}>
-                          Total {orderSortField === 'totalAmount' && (orderSortDirection === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th className="border p-2 text-left">Payment</th>
-                        <th className="border p-2 text-left">Payment Amount</th>
-                        <th className="border p-2 text-left">Provider</th>
-                        <th className="border p-2 text-left cursor-pointer" onClick={() => sortOrders('status')}>
-                          Fulfillment {orderSortField === 'status' && (orderSortDirection === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th className="border p-2 text-left cursor-pointer" onClick={() => sortOrders('createdAt')}>
-                          Date {orderSortField === 'createdAt' && (orderSortDirection === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th className="border p-2 text-left">Items</th>
-                        <th className="border p-2 text-left">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredSortedOrders.length === 0 ? (
-                        <tr>
-                          <td colSpan={10} className="border p-4 text-center text-gray-500">No orders found for selected filters</td>
-                        </tr>
-                      ) : (
-                        filteredSortedOrders.map(order => (
-                          <tr key={order.id} className="hover:bg-gray-50">
-                            <td className="border p-2">{order.id}</td>
-                            <td className="border p-2">
-                              <div className="text-sm font-medium">{order.customerName}</div>
-                              <div className="text-xs text-gray-500">{order.customerEmail}</div>
-                            </td>
-                            <td className="border p-2">{formatCurrency(order.totalAmount, order.paymentCurrency || 'USD')}</td>
-                            <td className="border p-2">
-                              <span className={`${paymentStatusBadgeClass[order.paymentStatus]} px-2 py-1 rounded-full text-xs`}>
-                                {order.paymentStatus}
-                              </span>
-                            </td>
-                            <td className="border p-2">{formatCurrency(order.paymentAmount || order.totalAmount, order.paymentCurrency || 'USD')}</td>
-                            <td className="border p-2">{order.paymentProvider || '-'}</td>
-                            <td className="border p-2">
-                              <span className={
-                                order.status === 'received' ? 'bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs' :
-                                  order.status === 'preparing' ? 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs' :
-                                    order.status === 'shipping' ? 'bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs' :
-                                      'bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs'
-                              }>
-                                {order.status}
-                              </span>
-                            </td>
-                            <td className="border p-2">{new Date(order.createdAt).toLocaleDateString('en-US')}</td>
-                            <td className="border p-2">
-                              <div className="max-h-20 overflow-y-auto text-xs">
-                                {order.items && order.items.length > 0 ? order.items.map((item, idx) => (
-                                  <div key={idx} className="mb-1 p-1 bg-gray-50 rounded">
-                                    {item.quantity || 1}x {item.name || 'Unknown Product'} - {formatCurrency(item.price || 0, order.paymentCurrency || 'USD')}
-                                  </div>
-                                )) : (
-                                  <div className="text-gray-500">No items</div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="border p-2">
-                              <div className="flex space-x-2">
-                                <button
-                                  onClick={() => openOrderEditModal(order)}
-                                  className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
-                                >
-                                  Manage
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteClick('order', order.id, `Order #${order.id}`)}
-                                  className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <AdminOrdersTab
+              orders={filteredSortedOrders}
+              orderSortField={orderSortField}
+              orderSortDirection={orderSortDirection}
+              orderStatusFilter={orderStatusFilter}
+              orderPaymentFilter={orderPaymentFilter}
+              onSortOrders={sortOrders}
+              onOrderStatusFilterChange={setOrderStatusFilter}
+              onOrderPaymentFilterChange={setOrderPaymentFilter}
+              onManageOrder={openOrderEditModal}
+              onDeleteOrder={(order) => handleDeleteClick('order', order.id, `Order #${order.id}`)}
+            />
           </TabsContent>
 
 
@@ -1451,105 +1378,15 @@ const SimpleAdminDashboard = () => {
 
           {/* Contacts Tab */}
           <TabsContent value="contacts" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Contact Messages</CardTitle>
-              </CardHeader>
-              <CardContent className="p-2">
-                <div className="mb-4 flex items-center space-x-2">
-                  <label htmlFor="contactTypeFilter" className="text-sm font-medium">Filter by Type:</label>
-                  <select 
-                    id="contactTypeFilter"
-                    value={contactTypeFilter}
-                    onChange={(e) => setContactTypeFilter(e.target.value)}
-                    className="p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="all">All Types</option>
-                    <option value="general">General</option>
-                    <option value="support">Support</option>
-                    <option value="training">Training</option>
-                    <option value="sales">Sales</option>
-                  </select>
-                </div>
-                <div className="overflow-x-auto w-full">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border p-2 text-left">ID</th>
-                        <th className="border p-2 text-left">Type</th>
-                        <th className="border p-2 text-left">Full Name</th>
-                        <th className="border p-2 text-left">Email</th>
-                        <th className="border p-2 text-left">Subject</th>
-                        <th className="border p-2 text-left">Message</th>
-                        <th className="border p-2 text-left">Status</th>
-                        <th className="border p-2 text-left">Date</th>
-                        <th className="border p-2 text-left">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {contacts.length === 0 ? (
-                        <tr>
-                          <td colSpan={9} className="border p-4 text-center text-gray-500">No contact messages found yet</td>
-                        </tr>
-                      ) : (
-                        getFilteredContacts().map(contact => (
-                          <tr key={contact.id} className="hover:bg-gray-50">
-                            <td className="border p-2">{contact.id}</td>
-                            <td className="border p-2">{contact.type}</td>
-                            <td className="border p-2">{contact.name}</td>
-                            <td className="border p-2">{contact.email}</td>
-                            <td className="border p-2">{contact.subject}</td>
-                            <td className="border p-2">
-                              <div className="max-w-xs truncate text-gray-700">
-                                {contact.message}
-                              </div>
-                            </td>
-                            <td className="border p-2">
-                              <span className={
-                                contact.status === 'new' ? 'bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs' :
-                                  contact.status === 'reviewing' ? 'bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs' :
-                                    'bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs'
-                              }>
-                                {contact.status === 'answered' ? 'answered (closed)' : contact.status}
-                              </span>
-                            </td>
-                            <td className="border p-2">{new Date(contact.createdAt).toLocaleDateString('en-US')}</td>
-                            <td className="border p-2">
-                              <div className="flex space-x-2">
-                                <button
-                                  onClick={() => {
-                                    setSelectedContact(contact);
-                                    setShowContactModal(true);
-                                  }}
-                                  className="px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600 transition-colors"
-                                >
-                                  View
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setEditingContact(contact);
-                                    setShowContactEditModal(true);
-                                  }}
-                                  className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteClick('contact', contact.id, contact.name)}
-                                  className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
+            <AdminContactsTab
+              allContactsCount={contacts.length}
+              contacts={filteredContacts}
+              contactTypeFilter={contactTypeFilter}
+              onContactTypeFilterChange={setContactTypeFilter}
+              onViewContact={openContactDetailModal}
+              onEditContact={openContactEditModal}
+              onDeleteContact={(contact) => handleDeleteClick('contact', contact.id, contact.name)}
+            />
           </TabsContent>
 
           {/* Blog Tab */}
@@ -1876,95 +1713,13 @@ const SimpleAdminDashboard = () => {
       </div>
 
       {/* Contact Message Modal */}
-      {showContactModal && selectedContact && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold text-gray-900">Contact Message Details</h3>
-                <button 
-                  onClick={() => setShowContactModal(false)}
-                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">From</p>
-                    <p className="text-base">{selectedContact.name} ({selectedContact.email})</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Type</p>
-                    <p className="text-base capitalize">{selectedContact.type}</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Subject</p>
-                  <p className="text-base font-medium">{selectedContact.subject}</p>
-                </div>
-                
-                <div>
-                  <p className="text-sm font-medium text-gray-500">Message</p>
-                  <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <p className="text-base whitespace-pre-wrap">{selectedContact.message}</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Status</p>
-                    <p className="text-base capitalize">{selectedContact.status}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Date</p>
-                    <p className="text-base">{new Date(selectedContact.createdAt).toLocaleString()}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-between">
-                <select
-                  value={selectedContact.status}
-                  onChange={(e) => {
-                    updateContactStatus(selectedContact.id, e.target.value as Contact['status']);
-                    setShowContactModal(false);
-                  }}
-                  className="p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="new">New</option>
-                  <option value="reviewing">Reviewing</option>
-                  <option value="answered">Answered</option>
-                  <option value="closed">Closed</option>
-                </select>
-                
-                <div className="space-x-2">
-                  <button
-                    onClick={() => setShowContactModal(false)}
-                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
-                  >
-                    Close
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleDeleteClick('contact', selectedContact.id, selectedContact.name);
-                      setShowContactModal(false);
-                    }}
-                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ContactDetailModal
+        isOpen={showContactModal}
+        contact={selectedContact}
+        onClose={closeContactDetailModal}
+        onUpdateStatus={updateContactStatus}
+        onDeleteContact={(contact) => handleDeleteClick('contact', contact.id, contact.name)}
+      />
 
       {/* Blog Post Modal */}
       {showBlogModal && (
@@ -2777,308 +2532,19 @@ const SimpleAdminDashboard = () => {
       )}
 
       {/* Order Edit Modal */}
-      {showOrderEditModal && editingOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Order & Payment Details</h2>
-              <button
-                onClick={closeOrderEditModal}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Order ID</label>
-                  <input
-                    type="text"
-                    value={editingOrder.id}
-                    readOnly
-                    className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">User ID</label>
-                  <input
-                    type="text"
-                    value={editingOrder.userId}
-                    readOnly
-                    className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={editingOrder.status}
-                    onChange={(e) => setEditingOrder({
-                      ...editingOrder,
-                      status: e.target.value as Order['status']
-                    })}
-                    className="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="received">Order Received</option>
-                    <option value="preparing">Preparing</option>
-                    <option value="shipping">Shipping</option>
-                    <option value="delivered">Delivered</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Customer Name</label>
-                  <input
-                    type="text"
-                    value={editingOrder.customerName}
-                    readOnly
-                    className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Customer Email</label>
-                  <input
-                    type="email"
-                    value={editingOrder.customerEmail}
-                    readOnly
-                    className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Total Amount</label>
-                  <input
-                    type="text"
-                    value={formatCurrency(editingOrder.totalAmount, editingOrder.paymentCurrency || 'USD')}
-                    readOnly
-                    className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Order Date</label>
-                  <input
-                    type="text"
-                    value={new Date(editingOrder.createdAt).toLocaleString()}
-                    readOnly
-                    className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
-                  />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Address</label>
-                <textarea
-                  value={editingOrder.shippingAddress ? 
-                    `${editingOrder.shippingAddress.address || ''}\n${editingOrder.shippingAddress.city || ''}, ${editingOrder.shippingAddress.province || ''} ${editingOrder.shippingAddress.zipCode || ''}` 
-                    : 'No address information'}
-                  readOnly
-                  rows={3}
-                  className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600 resize-none"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Order Items</label>
-                <div className="border border-gray-300 rounded p-4 bg-gray-50 max-h-60 overflow-y-auto">
-                  {editingOrder.items && editingOrder.items.length > 0 ? (
-                    <div className="space-y-3">
-                      {editingOrder.items.map((item, idx) => (
-                        <div key={idx} className="bg-white p-3 rounded border">
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-sm">
-                            <div>
-                              <span className="font-medium text-gray-700">Product:</span>
-                              <div className="text-gray-900">{item.name || 'Unknown Product'}</div>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-700">Quantity:</span>
-                              <div className="text-gray-900">{item.quantity}</div>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-700">Unit Price:</span>
-                              <div className="text-gray-900">{formatCurrency(item.price, editingOrder.paymentCurrency || 'USD')}</div>
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-700">Total:</span>
-                              <div className="text-gray-900 font-semibold">{formatCurrency(item.quantity * item.price, editingOrder.paymentCurrency || 'USD')}</div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-gray-500 text-center py-4">No items found</div>
-                  )}
-                </div>
-              </div>
-
-              <div className="border border-gray-200 rounded p-4 bg-gray-50 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-gray-800">Payment Management</h3>
-                  <span className={`${paymentStatusBadgeClass[orderPaymentForm.paymentStatus]} px-2 py-1 rounded-full text-xs`}>
-                    {orderPaymentForm.paymentStatus}
-                  </span>
-                </div>
-
-                {isLoadingOrderPaymentDetails ? (
-                  <div className="text-sm text-gray-500">Loading payment details...</div>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
-                        <select
-                          value={orderPaymentForm.paymentStatus}
-                          onChange={(e) => setOrderPaymentForm({
-                            ...orderPaymentForm,
-                            paymentStatus: e.target.value as Order['paymentStatus']
-                          })}
-                          className="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="paid">Paid</option>
-                          <option value="failed">Failed</option>
-                          <option value="refunded">Refunded</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
-                        <input
-                          type="text"
-                          value={orderPaymentForm.paymentProvider}
-                          onChange={(e) => setOrderPaymentForm({ ...orderPaymentForm, paymentProvider: e.target.value })}
-                          className="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Reference</label>
-                        <input
-                          type="text"
-                          value={orderPaymentForm.paymentReference}
-                          onChange={(e) => setOrderPaymentForm({ ...orderPaymentForm, paymentReference: e.target.value })}
-                          className="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Amount</label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={orderPaymentForm.paymentAmount}
-                          onChange={(e) => setOrderPaymentForm({ ...orderPaymentForm, paymentAmount: e.target.value })}
-                          className="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
-                        <input
-                          type="text"
-                          value={orderPaymentForm.paymentCurrency}
-                          onChange={(e) => setOrderPaymentForm({ ...orderPaymentForm, paymentCurrency: e.target.value.toUpperCase() })}
-                          className="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Paid At</label>
-                        <input
-                          type="text"
-                          readOnly
-                          value={orderPaymentDetails?.paidAt ? new Date(orderPaymentDetails.paidAt).toLocaleString() : '-'}
-                          className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
-                        />
-                      </div>
-                    </div>
-
-                    {orderPaymentForm.paymentStatus === 'failed' && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Failure Reason</label>
-                        <textarea
-                          rows={2}
-                          value={orderPaymentForm.paymentFailedReason}
-                          onChange={(e) => setOrderPaymentForm({ ...orderPaymentForm, paymentFailedReason: e.target.value })}
-                          className="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                    )}
-
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">Payment Attempts</h4>
-                      {orderPaymentDetails && orderPaymentDetails.attempts.length > 0 ? (
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                          {orderPaymentDetails.attempts.map((attempt) => {
-                            const attemptClass =
-                              attempt.status === 'succeeded'
-                                ? 'bg-green-100 text-green-800'
-                                : attempt.status === 'failed'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-yellow-100 text-yellow-800';
-
-                            return (
-                              <div key={attempt.id} className="p-2 rounded border bg-white text-xs">
-                                <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-                                  <span>{new Date(attempt.createdAt).toLocaleString()}</span>
-                                  <span className={`${attemptClass} px-2 py-1 rounded-full`}>{attempt.status}</span>
-                                </div>
-                                <div>
-                                  {attempt.provider} / {attempt.providerReference || '-'} / {formatCurrency(attempt.amount, attempt.currency)}
-                                </div>
-                                {attempt.failureReason && <div className="text-red-700 mt-1">Reason: {attempt.failureReason}</div>}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="text-sm text-gray-500">No payment attempts yet.</div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-            
-            <div className="mt-6 flex justify-end space-x-2">
-              <button
-                onClick={closeOrderEditModal}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={updateOrderPayment}
-                disabled={isUpdatingOrderPayment || isLoadingOrderPaymentDetails}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50"
-              >
-                {isUpdatingOrderPayment ? 'Updating Payment...' : 'Update Payment'}
-              </button>
-              <button
-                onClick={async () => {
-                  const updatedOrder = await updateOrderStatus(editingOrder.id, editingOrder.status);
-                  if (updatedOrder) {
-                    setEditingOrder(updatedOrder);
-                  }
-                }}
-                className="px-6 py-3 rounded-lg border border-kibo-purple text-kibo-purple hover:bg-kibo-orange hover:text-kibo-purple active:bg-kibo-orange active:text-kibo-purple transition-colors cursor-pointer"
-              >
-                Update Fulfillment
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <OrderEditModal
+        isOpen={showOrderEditModal}
+        order={editingOrder}
+        paymentDetails={orderPaymentDetails}
+        isLoadingPaymentDetails={isLoadingOrderPaymentDetails}
+        isUpdatingPayment={isUpdatingOrderPayment}
+        paymentForm={orderPaymentForm}
+        onClose={closeOrderEditModal}
+        onOrderStatusChange={handleEditingOrderStatusChange}
+        onPaymentFormChange={updateOrderPaymentForm}
+        onUpdatePayment={updateOrderPayment}
+        onUpdateFulfillment={handleUpdateOrderFulfillment}
+      />
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && deleteItem && (
@@ -3128,132 +2594,13 @@ const SimpleAdminDashboard = () => {
       )}
 
       {/* Contact Edit Modal */}
-      {showContactEditModal && editingContact && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Edit Contact</h2>
-              <button
-                onClick={() => {
-                  setShowContactEditModal(false);
-                  setEditingContact(null);
-                }}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                  <input
-                    type="text"
-                    value={editingContact.name}
-                    readOnly
-                    className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={editingContact.email}
-                    readOnly
-                    className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
-                  />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                  <input
-                    type="text"
-                    value={editingContact.type}
-                    readOnly
-                    className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={editingContact.status}
-                    onChange={(e) => setEditingContact({
-                      ...editingContact,
-                      status: e.target.value as Contact['status']
-                    })}
-                    className="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="new">New</option>
-                    <option value="reviewing">Reviewing</option>
-                    <option value="answered">Answered</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-                <input
-                  type="text"
-                  value={editingContact.subject}
-                  readOnly
-                  className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Message</label>
-                <textarea
-                  value={editingContact.message}
-                  readOnly
-                  rows={6}
-                  className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600 resize-none"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input
-                  type="text"
-                  value={new Date(editingContact.createdAt).toLocaleString()}
-                  readOnly
-                  className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
-                />
-              </div>
-            </div>
-            
-            <div className="mt-6 flex justify-end space-x-2">
-              <button
-                onClick={() => {
-                  setShowContactEditModal(false);
-                  setEditingContact(null);
-                }}
-                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  try {
-                    await updateContactStatus(editingContact.id, editingContact.status);
-                    setShowContactEditModal(false);
-                    setEditingContact(null);
-                  } catch (error) {
-                    console.error('Error updating contact:', error);
-                  }
-                }}
-                className="px-6 py-3 rounded-lg border border-kibo-purple text-kibo-purple hover:bg-kibo-orange hover:text-kibo-purple active:bg-kibo-orange active:text-kibo-purple transition-colors cursor-pointer"
-              >
-                Update Status
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ContactEditModal
+        isOpen={showContactEditModal}
+        contact={editingContact}
+        onClose={closeContactEditModal}
+        onContactStatusChange={handleEditingContactStatusChange}
+        onSave={handleSaveContactStatus}
+      />
 
       <Footer />
     </div>

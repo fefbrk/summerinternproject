@@ -23,7 +23,8 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 
 **Admin Paneli**
 - Kapsamlı dashboard ve CRUD işlemleri
-- Kullanıcı ve sipariş yönetimi
+- Kullanıcı, sipariş ve odeme durumu yonetimi
+- Orders/contacts panelleri parcali admin bilesenlerine ayrilmistir (`src/components/admin/*`)
 - İstatistik kartları ve raporlama
 
 **Eğitim Platformu**
@@ -64,6 +65,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - HTML içerikleri istemci ve sunucuda sanitize edilir (XSS koruması).
 - `server/database/kinderlab.db` bu repoda bilincli olarak takip edilir; production secret/veri tutulmaz.
 - Public CMS endpoint'leri sadece `published` içerik döndürür; admin list endpoint'leri ayrıdır.
+- Lokal prompt yardimci dosyalari (`agentsmdpromptu.txt`, `güvenlikodyazmapromptu.txt`, `optimizasyonpromptu.txt`) gitignore altindadir.
 
 ### Backend Ortam Değişkenleri
 
@@ -116,7 +118,8 @@ contacts
 
 ```
 ├── src/
-│   ├── components/    # UI bileşenleri
+│   ├── components/    # UI bilesenleri
+│   │   └── admin/     # Admin dashboard parcali bilesenleri
 │   ├── pages/         # Sayfa bileşenleri
 │   │   └── products/  # Ürün kategorileri
 │   ├── assets/        # Görsel ve medya dosyaları

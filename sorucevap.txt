@@ -17,7 +17,7 @@ Bu dosya, proje hakkinda teknik mulakat, devir ve sunum sorularina hizli ve dogr
 **C:** Ogretmenler, veliler, egitim kurumlari ve kurum ici admin ekibi.
 
 ### S3: Projenin su anki durumu ne?
-**C:** Guvenlik ve veri butunlugu tarafi guclendirildi. Payment gateway (iyzico/stripe/paytr vb.) henuz bagli degil, ama payment domain altyapisi hazir.
+**C:** Guvenlik ve veri butunlugu tarafi guclendirildi. Payment gateway (iyzico/stripe/paytr vb.) henuz bagli degil, ama payment domain altyapisi hazir. Admin dashboardda orders/contacts bolumleri parcali bilesenlere ayrildi.
 
 ### S4: Neden bu kadar moduler yapi tercih edildi?
 **C:** Monolit route dosyasi yerine moduler route/middleware/service yapisi ile degisiklik etkisi azaltildi ve test/yayina alma riski dusuruldu.
@@ -110,7 +110,7 @@ public/   -> statik varliklar
 - Provider-agnostic payment service iskeleti (`server/services/paymentService.js`)
 
 ### S20: Gercek PSP baglanmadiysa ne yapabiliyoruz?
-**C:** Manual/admin payment status update ile operasyon akisi test edilebiliyor; fulfillment guard gercekten calisiyor.
+**C:** Manual/admin payment status update ile operasyon akisi test edilebiliyor; fulfillment guard gercekten calisiyor. Admin tarafinda payment attempts goruntuleme ve payment status guncelleme yapilabiliyor.
 
 ### S21: Neden provider-agnostic payment service kuruldu?
 **C:** PSP secimi netlesmeden once domain modeli sabitlensin diye. Boylece iyzico/stripe/paytr secimi sonrada yapildiginda kodu bastan yazmak gerekmiyor.
@@ -236,7 +236,8 @@ npm run lint && npm test && npm run build -- --logLevel error
 ### S41: Su an acik kalan ana teknik borclar neler?
 **C:**
 - PSP sandbox entegrasyonu (provider secimi bekleniyor)
-- Payment UI akisi (checkout return + hesap/admin gosterimleri)
+- Payment UI akisi (checkout return + hesap gosterimleri)
+- Kalan admin tablarinin da orders/contacts gibi parcali yapiya alinmasi
 - Upload/content unhappy-path testlerinin daha da artirilmasi
 - Account UI integration testlerinin artirilmasi
 

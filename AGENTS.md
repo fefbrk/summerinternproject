@@ -10,6 +10,7 @@ Bu dokuman, proje icinde calisan insan/AI agentlari icin tek noktadan hizli oper
 - CI: GitHub Actions (`.github/workflows/ci.yml`) -> lint + test + build
 - Icerik alanlari: blog, press releases, media coverage, events
 - Is alanlari: e-commerce orders, course registrations, contacts, user account data, payment domain hazirligi
+- Admin dashboard: order/payment ve contact operasyonlari `src/components/admin/*` altinda parcali yapiya alinmistir
 
 Ana dizinler:
 
@@ -228,6 +229,7 @@ cd server && npm start
 
 - [ ] Secretlar `.env` dosyalarinda, repoya dahil degil
 - [ ] `server/.env` gitignore kapsaminda
+- [ ] Local prompt yardimci dosyalari (`agentsmdpromptu.txt`, `güvenlikodyazmapromptu.txt`, `optimizasyonpromptu.txt`) commit edilmedi
 - [ ] Legacy default admin kimlik bilgileri aktif degil
 - [ ] Auth middleware kullaniciyi DB'den yeniden dogruluyor
 - [ ] Public CMS endpointleri draft icerik dondurmuyor
@@ -248,6 +250,10 @@ cd server && npm start
 - Payment service: `server/services/paymentService.js`
 - DB adapter: `server/database/database.js`
 - DB schema: `server/database/schema.sql`
+- Admin order tab: `src/components/admin/AdminOrdersTab.tsx`
+- Admin order modal: `src/components/admin/OrderEditModal.tsx`
+- Admin contact tab: `src/components/admin/AdminContactsTab.tsx`
+- Admin contact modallari: `src/components/admin/ContactDetailModal.tsx`, `src/components/admin/ContactEditModal.tsx`
 
 ## 11) Yeni Session Hizli Baslangic
 

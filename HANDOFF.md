@@ -43,6 +43,10 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
   - Backend: `server/tests/api.integration.test.js`, `server/tests/database.transaction.test.js`
   - Frontend smoke: `src/test/smoke/auth-pages.smoke.test.tsx`
   - CI: `.github/workflows/ci.yml` (`lint + test + build`).
+- Admin dashboard sadeletme (phase-2) uygulandi:
+  - Orders + Payment tab'i `src/components/admin/AdminOrdersTab.tsx`'e tasindi,
+  - Order modal'i `src/components/admin/OrderEditModal.tsx` ile ayrildi,
+  - Contacts tab/detail/edit modallari `src/components/admin/*` altina parcali yapiya alindi.
 
 ## 2) Hala Acik Olan Teknik Borc (Oncelik Sirasi)
 
@@ -52,7 +56,8 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
    - idempotent event isleme (`payment_events`).
 2. Payment UI entegrasyonu:
    - checkout redirect/return akisi,
-   - account/admin ekranlarinda payment status/attempt gorunurlugu.
+   - account ekranlarinda payment status/attempt gorunurlugu,
+   - kalan admin tablarinin benzer sekilde parcali yapiya alinmasi.
 3. Test kapsami artisi:
    - upload/content CRUD unhappy-path testleri,
    - account UI integration testleri,
@@ -80,4 +85,5 @@ cd server && npm start
 - `ENABLE_DEMO_ENDPOINTS` prod'da `false` kalmali.
 - `TRUST_PROXY` sadece reverse proxy arkasinda `true` olmali.
 - `server/database/kinderlab.db` bu repoda bilinclli olarak tracked; secret/gercek prod veri konmamalidir.
+- Local prompt yardimci dosyalari (`agentsmdpromptu.txt`, `güvenlikodyazmapromptu.txt`, `optimizasyonpromptu.txt`) `.gitignore` altindadir; repoya alinmamali.
 - CI Node 20 uyumu icin backend test scripti explicit dosya listesi kullanir.
