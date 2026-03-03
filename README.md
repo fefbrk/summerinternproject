@@ -23,8 +23,10 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 
 **Admin Paneli**
 - Kapsamlı dashboard ve CRUD işlemleri
-- Kullanıcı, sipariş ve odeme durumu yonetimi
+- Kullanıcı, sipariş/fulfillment yonetimi ve payment snapshot izleme
 - Orders/users/contacts/blog/press/media/events panelleri ve ana modallar parcali admin bilesenlerine ayrilmistir (`src/components/admin/*`)
+- Fulfillment ownership akisi: admin `received/preparing/shipping`, teslimat sonrasi carrier-webhook kaynakli durum guncellemesi
+- Order modalinda tek aksiyon fulfillment update'tir (`Update Order`); payment alani read-only snapshot olarak gorunur
 - İstatistik kartları ve raporlama
 
 **Eğitim Platformu**
@@ -53,7 +55,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 ## Test Komutları
 
 - `npm run test:backend`: Backend entegrasyon testleri
-- `npm run test:frontend`: Frontend smoke testleri (Vitest + RTL)
+- `npm run test:frontend`: Frontend smoke + admin component testleri (Vitest + RTL)
 - `npm test`: Tüm testleri ardışık çalıştırır
 
 ## Güvenlik Notları
@@ -65,6 +67,8 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - HTML içerikleri istemci ve sunucuda sanitize edilir (XSS koruması).
 - `server/database/kinderlab.db` bu repoda bilincli olarak takip edilir; production secret/veri tutulmaz.
 - Public CMS endpoint'leri sadece `published` içerik döndürür; admin list endpoint'leri ayrıdır.
+- `shipping` durumuna geciste `carrier + tracking` zorunludur; `delivered` varsayilan olarak carrier webhook ile guncellenir.
+- Admin dashboard'da payment alanlari operasyonel olarak read-only tutulur; fulfillment adimlari tek update aksiyonuyla yonetilir.
 - Lokal prompt yardimci dosyalari (`agentsmdpromptu.txt`, `güvenlikodyazmapromptu.txt`, `optimizasyonpromptu.txt`) gitignore altindadir.
 
 ### Backend Ortam Değişkenleri
@@ -78,6 +82,9 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - `DEFAULT_ADMIN_EMAIL`: İlk admin hesabı e-posta adresi.
 - `DEFAULT_ADMIN_PASSWORD`: İlk admin hesabı şifresi (üretimde zorunlu).
 - `ENABLE_DEMO_ENDPOINTS`: `true` ise demo/temizleme endpoint'leri aktif olur.
+- `CARRIER_WEBHOOK_SECRET`: Carrier webhook endpoint gizli anahtarı.
+- `ENABLE_MANUAL_FULFILLMENT_OVERRIDE`: Acil durum manuel delivered override (`false` kalması önerilir).
+- `SUPER_ADMIN_EMAILS`: Override için yetkili super-admin e-posta listesi (virgülle ayrılmış).
 - `SQLITE_DB_PATH`: Opsiyonel veritabanı yolu (test ortamları için geçici DB tanımlamakta kullanılır).
 
 ## Proje Büyüklüğü
@@ -91,7 +98,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 
 **Diğer:**
 - 64 UI bileşeni
-- 13+ veritabanı tablosu (orders/content/payment domain dahil)
+- 14+ veritabanı tablosu (orders/content/payment/fulfillment domain dahil)
 - 50+ API endpoint
 - 3 Context provider
 
@@ -100,9 +107,10 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 ```text
 users
 ├─ orders
-│  └─ order_items
+│  ├─ order_items
 │  ├─ payment_attempts
-│  └─ payment_events
+│  ├─ payment_events
+│  └─ fulfillment_events
 ├─ course_registrations
 ├─ user_addresses
 └─ user_payment_methods

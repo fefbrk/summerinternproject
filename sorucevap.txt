@@ -80,6 +80,7 @@ public/   -> statik varliklar
 - `/api/orders/my`
 - `/api/orders/:id/status`
 - `/api/orders/:id/payment-status`
+- `/webhooks/carrier/orders/:id/status`
 
 ### S14: Payment-status endpointleri ne ise yariyor?
 **C:**
@@ -100,7 +101,7 @@ public/   -> statik varliklar
 **C:** Reddediliyor. Total ve item butunlugu backend hesaplamasi ile dogrulaniyor.
 
 ### S18: Fulfillment akisi payment ile nasil bagli?
-**C:** Siparis `preparing/shipping/delivered` durumlarina sadece `payment_status = paid` ise gecirilebiliyor.
+**C:** Siparis fulfillment gecislerinde `payment_status = paid` zorunlu. Admin sadece `received/preparing/shipping` guncelleyebiliyor; `shipping` icin carrier + tracking zorunlu. `delivered` varsayilan olarak carrier webhook ile geliyor.
 
 ### S19: Payment gateway yokken hangi altyapi hazir?
 **C:**
@@ -127,6 +128,7 @@ orders
 order_items
 payment_attempts
 payment_events
+fulfillment_events
 course_registrations
 contacts
 blog_posts

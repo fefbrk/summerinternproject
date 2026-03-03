@@ -43,6 +43,10 @@ const LOGIN_RATE_LIMIT_MAX_ENTRIES = 10000;
 const CONTACT_WINDOW_MS = 10 * 60 * 1000;
 const CONTACT_MAX_ATTEMPTS = 20;
 const CONTACT_RATE_LIMIT_MAX_ENTRIES = 20000;
+const MANUAL_FULFILLMENT_OVERRIDE_ENABLED = process.env.ENABLE_MANUAL_FULFILLMENT_OVERRIDE === 'true';
+const CARRIER_WEBHOOK_SECRET = typeof process.env.CARRIER_WEBHOOK_SECRET === 'string'
+  ? process.env.CARRIER_WEBHOOK_SECRET.trim()
+  : '';
 const LEGACY_DEFAULT_ADMIN_EMAIL = 'admin@klr.com';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const configuredAdminEmail = typeof process.env.DEFAULT_ADMIN_EMAIL === 'string'
@@ -70,6 +74,14 @@ if (configuredAdminEmail && !EMAIL_PATTERN.test(configuredAdminEmail)) {
 
 if (IS_PRODUCTION && !process.env.DEFAULT_ADMIN_PASSWORD) {
   throw new Error('DEFAULT_ADMIN_PASSWORD must be set in production.');
+}
+
+if (IS_PRODUCTION && !CARRIER_WEBHOOK_SECRET) {
+  console.warn('CARRIER_WEBHOOK_SECRET is not set. Carrier webhook endpoint will reject all requests.');
+}
+
+if (MANUAL_FULFILLMENT_OVERRIDE_ENABLED) {
+  console.warn('ENABLE_MANUAL_FULFILLMENT_OVERRIDE is enabled. Use only for controlled emergency operations.');
 }
 
 const getDefaultAdminEmail = () => {

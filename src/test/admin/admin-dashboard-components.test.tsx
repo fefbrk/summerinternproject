@@ -11,7 +11,6 @@ import type {
 } from '@/services/apiService';
 import AdminOrdersTab from '@/components/admin/AdminOrdersTab';
 import OrderEditModal from '@/components/admin/OrderEditModal';
-import { createInitialOrderPaymentForm } from '@/components/admin/orderAdminShared';
 import AdminBlogTab from '@/components/admin/AdminBlogTab';
 import AdminPressReleasesTab from '@/components/admin/AdminPressReleasesTab';
 import AdminMediaCoverageTab from '@/components/admin/AdminMediaCoverageTab';
@@ -187,45 +186,105 @@ describe('admin dashboard critical component flows', () => {
     expect(onDeleteOrder).toHaveBeenCalledWith(sampleOrder);
   });
 
-  test('order edit modal triggers payment and fulfillment callbacks', () => {
+  test('order edit modal triggers fulfillment callback with single update button', () => {
     const onClose = vi.fn();
     const onOrderStatusChange = vi.fn();
-    const onPaymentFormChange = vi.fn();
-    const onUpdatePayment = vi.fn();
+    const onShipmentDetailsChange = vi.fn();
     const onUpdateFulfillment = vi.fn();
 
     render(
       <OrderEditModal
         isOpen={true}
         order={sampleOrder}
+        initialStatus="received"
         paymentDetails={samplePaymentDetails}
         isLoadingPaymentDetails={false}
-        isUpdatingPayment={false}
-        paymentForm={createInitialOrderPaymentForm()}
         onClose={onClose}
         onOrderStatusChange={onOrderStatusChange}
-        onPaymentFormChange={onPaymentFormChange}
-        onUpdatePayment={onUpdatePayment}
+        onShipmentDetailsChange={onShipmentDetailsChange}
         onUpdateFulfillment={onUpdateFulfillment}
       />
     );
 
-    const [orderStatusSelect, paymentStatusSelect] = screen.getAllByRole('combobox');
+    const [orderStatusSelect] = screen.getAllByRole('combobox');
 
     fireEvent.change(orderStatusSelect, { target: { value: 'shipping' } });
     expect(onOrderStatusChange).toHaveBeenCalledWith('shipping');
 
-    fireEvent.change(paymentStatusSelect, { target: { value: 'paid' } });
-    expect(onPaymentFormChange).toHaveBeenCalledWith({ paymentStatus: 'paid' });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Update Payment' }));
-    expect(onUpdatePayment).toHaveBeenCalledTimes(1);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Update Fulfillment' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Update Order' }));
     expect(onUpdateFulfillment).toHaveBeenCalledTimes(1);
+
+    expect(screen.queryByRole('button', { name: 'Update Payment' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  test('order edit modal requires carrier details when selecting shipping', () => {
+    const onClose = vi.fn();
+    const onUpdateFulfillment = vi.fn();
+
+    const FulfillmentHarness = () => {
+      const [order, setOrder] = useState<Order>({
+        ...sampleOrder,
+        status: 'preparing',
+        shipmentProvider: null,
+        shipmentTrackingNumber: null,
+        fulfillmentSource: 'manual',
+      });
+
+      return (
+        <OrderEditModal
+          isOpen={true}
+          order={order}
+          initialStatus="preparing"
+          paymentDetails={samplePaymentDetails}
+          isLoadingPaymentDetails={false}
+          onClose={onClose}
+          onOrderStatusChange={(status) => setOrder((current) => ({ ...current, status }))}
+          onShipmentDetailsChange={(updates) => setOrder((current) => ({ ...current, ...updates }))}
+          onUpdateFulfillment={onUpdateFulfillment}
+        />
+      );
+    };
+
+    render(<FulfillmentHarness />);
+
+    const [statusSelect] = screen.getAllByRole('combobox');
+    fireEvent.change(statusSelect, { target: { value: 'shipping' } });
+
+    expect(screen.getByRole('button', { name: 'Update Order' })).toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText('e.g. ups'), { target: { value: 'ups' } });
+    fireEvent.change(screen.getByPlaceholderText('e.g. 1Z999AA10123456784'), { target: { value: '1Z999AA10123456784' } });
+
+    expect(screen.getByRole('button', { name: 'Update Order' })).toBeEnabled();
+  });
+
+  test('order edit modal is read-only for carrier-managed shipping orders', () => {
+    render(
+      <OrderEditModal
+        isOpen={true}
+        order={{
+          ...sampleOrder,
+          status: 'shipping',
+          shipmentProvider: 'ups',
+          shipmentTrackingNumber: '1Z999AA10123456784',
+          fulfillmentSource: 'carrier',
+        }}
+        initialStatus="shipping"
+        paymentDetails={samplePaymentDetails}
+        isLoadingPaymentDetails={false}
+        onClose={() => undefined}
+        onOrderStatusChange={() => undefined}
+        onShipmentDetailsChange={() => undefined}
+        onUpdateFulfillment={() => undefined}
+      />
+    );
+
+    const [statusSelect] = screen.getAllByRole('combobox');
+    expect(statusSelect).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Carrier Managed' })).toBeDisabled();
   });
 
   test('blog tab triggers create, edit, and delete callbacks', () => {

@@ -18,6 +18,9 @@ process.env.DEFAULT_ADMIN_EMAIL = 'admin.integration@example.com';
 process.env.DEFAULT_ADMIN_PASSWORD = 'StrongPass123A';
 process.env.CORS_ORIGINS = 'http://localhost:5173';
 process.env.ENABLE_DEMO_ENDPOINTS = 'false';
+process.env.CARRIER_WEBHOOK_SECRET = 'carrier-webhook-test-secret';
+process.env.ENABLE_MANUAL_FULFILLMENT_OVERRIDE = 'false';
+process.env.SUPER_ADMIN_EMAILS = process.env.DEFAULT_ADMIN_EMAIL;
 
 const { startServer } = require('../server');
 const database = require('../database/database');
@@ -29,6 +32,7 @@ const requestJson = async (endpoint, options = {}) => {
   const headers = {
     ...(options.body ? { 'Content-Type': 'application/json' } : {}),
     ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+    ...(options.headers || {}),
   };
 
   const response = await fetch(`${baseUrl}${endpoint}`, {
@@ -546,6 +550,109 @@ test('order creation enforces backend catalog prices and totals', async () => {
 
   assert.equal(paidFulfillmentUpdate.status, 200);
   assert.equal(paidFulfillmentUpdate.data.status, 'preparing');
+
+  const shippingWithoutTracking = await requestJson(`/api/orders/${validTotalResponse.data.id}/status`, {
+    method: 'PUT',
+    token: adminToken,
+    body: {
+      status: 'shipping',
+      shipmentProvider: 'ups',
+    },
+  });
+  assert.equal(shippingWithoutTracking.status, 400);
+  assert.equal(
+    shippingWithoutTracking.data.error,
+    'Shipment provider and tracking number are required when setting shipping status'
+  );
+
+  const shippedUpdate = await requestJson(`/api/orders/${validTotalResponse.data.id}/status`, {
+    method: 'PUT',
+    token: adminToken,
+    body: {
+      status: 'shipping',
+      shipmentProvider: 'ups',
+      shipmentTrackingNumber: '1Z999AA10123456784',
+    },
+  });
+
+  assert.equal(shippedUpdate.status, 200);
+  assert.equal(shippedUpdate.data.status, 'shipping');
+  assert.equal(shippedUpdate.data.shipmentProvider, 'ups');
+  assert.equal(shippedUpdate.data.shipmentTrackingNumber, '1Z999AA10123456784');
+  assert.equal(shippedUpdate.data.fulfillmentSource, 'carrier');
+
+  const manualDeliveredAttempt = await requestJson(`/api/orders/${validTotalResponse.data.id}/status`, {
+    method: 'PUT',
+    token: adminToken,
+    body: {
+      status: 'delivered',
+      overrideReason: 'manual-check',
+    },
+  });
+
+  assert.equal(manualDeliveredAttempt.status, 403);
+  assert.equal(manualDeliveredAttempt.data.error, 'Manual fulfillment override is disabled');
+
+  const carrierWebhookUnauthorized = await requestJson(`/webhooks/carrier/orders/${validTotalResponse.data.id}/status`, {
+    method: 'POST',
+    body: {
+      provider: 'ups',
+      providerEventId: 'carrier-event-1',
+      status: 'delivered',
+      trackingNumber: '1Z999AA10123456784',
+    },
+  });
+
+  assert.equal(carrierWebhookUnauthorized.status, 401);
+
+  const carrierWebhookDelivered = await requestJson(`/webhooks/carrier/orders/${validTotalResponse.data.id}/status`, {
+    method: 'POST',
+    headers: {
+      'x-carrier-webhook-secret': process.env.CARRIER_WEBHOOK_SECRET,
+    },
+    body: {
+      provider: 'ups',
+      providerEventId: 'carrier-event-1',
+      status: 'delivered',
+      trackingNumber: '1Z999AA10123456784',
+    },
+  });
+
+  assert.equal(carrierWebhookDelivered.status, 200);
+  assert.equal(carrierWebhookDelivered.data.duplicated, false);
+  assert.equal(carrierWebhookDelivered.data.order.status, 'delivered');
+  assert.equal(carrierWebhookDelivered.data.order.fulfillmentSource, 'carrier');
+
+  const carrierWebhookDeliveredDuplicate = await requestJson(`/webhooks/carrier/orders/${validTotalResponse.data.id}/status`, {
+    method: 'POST',
+    headers: {
+      'x-carrier-webhook-secret': process.env.CARRIER_WEBHOOK_SECRET,
+    },
+    body: {
+      provider: 'ups',
+      providerEventId: 'carrier-event-1',
+      status: 'delivered',
+      trackingNumber: '1Z999AA10123456784',
+    },
+  });
+
+  assert.equal(carrierWebhookDeliveredDuplicate.status, 200);
+  assert.equal(carrierWebhookDeliveredDuplicate.data.duplicated, true);
+  assert.equal(carrierWebhookDeliveredDuplicate.data.order.status, 'delivered');
+
+  const regressAfterShippingAttempt = await requestJson(`/api/orders/${validTotalResponse.data.id}/status`, {
+    method: 'PUT',
+    token: adminToken,
+    body: {
+      status: 'preparing',
+    },
+  });
+
+  assert.equal(regressAfterShippingAttempt.status, 400);
+  assert.equal(
+    regressAfterShippingAttempt.data.error,
+    'Delivered orders are carrier managed and cannot be changed manually'
+  );
 
   const unknownProductResponse = await requestJson('/api/orders', {
     method: 'POST',

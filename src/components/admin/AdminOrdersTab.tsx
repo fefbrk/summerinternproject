@@ -35,7 +35,7 @@ const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Order & Payment Operations</CardTitle>
+        <CardTitle>Order Fulfillment Operations</CardTitle>
       </CardHeader>
       <CardContent className="p-2">
         <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -87,7 +87,9 @@ const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                 </th>
                 <th className="border p-2 text-left">Payment</th>
                 <th className="border p-2 text-left">Payment Amount</th>
-                <th className="border p-2 text-left">Provider</th>
+                <th className="border p-2 text-left">Payment Provider</th>
+                <th className="border p-2 text-left">Carrier</th>
+                <th className="border p-2 text-left">Tracking</th>
                 <th className="border p-2 text-left cursor-pointer" onClick={() => onSortOrders('status')}>
                   Fulfillment {orderSortField === 'status' && (orderSortDirection === 'asc' ? '↑' : '↓')}
                 </th>
@@ -101,7 +103,7 @@ const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
             <tbody>
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="border p-4 text-center text-gray-500">No orders found for selected filters</td>
+                  <td colSpan={12} className="border p-4 text-center text-gray-500">No orders found for selected filters</td>
                 </tr>
               ) : (
                 orders.map((order) => (
@@ -119,6 +121,8 @@ const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                     </td>
                     <td className="border p-2">{formatCurrency(order.paymentAmount || order.totalAmount, order.paymentCurrency || 'USD')}</td>
                     <td className="border p-2">{order.paymentProvider || '-'}</td>
+                    <td className="border p-2">{order.shipmentProvider || '-'}</td>
+                    <td className="border p-2">{order.shipmentTrackingNumber || '-'}</td>
                     <td className="border p-2">
                       <span className={`${fulfillmentStatusBadgeClass[order.status]} px-2 py-1 rounded-full text-xs`}>
                         {order.status}

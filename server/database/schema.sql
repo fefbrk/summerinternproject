@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS orders (
     payment_currency TEXT NOT NULL DEFAULT 'USD',
     payment_failed_reason TEXT,
     paid_at TEXT,
+    shipment_provider TEXT,
+    shipment_tracking_number TEXT,
+    fulfillment_source TEXT NOT NULL DEFAULT 'manual' CHECK (fulfillment_source IN ('manual', 'carrier', 'manual-override')),
+    fulfillment_updated_at TEXT,
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
@@ -72,9 +76,30 @@ CREATE TABLE IF NOT EXISTS payment_events (
     FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE SET NULL
 );
 
+CREATE TABLE IF NOT EXISTS fulfillment_events (
+    id TEXT PRIMARY KEY,
+    order_id TEXT NOT NULL,
+    source TEXT NOT NULL CHECK (source IN ('admin-manual', 'carrier-webhook', 'manual-override')),
+    from_status TEXT CHECK (from_status IN ('received', 'preparing', 'shipping', 'delivered')),
+    to_status TEXT NOT NULL CHECK (to_status IN ('received', 'preparing', 'shipping', 'delivered')),
+    shipment_provider TEXT,
+    shipment_tracking_number TEXT,
+    provider_event_id TEXT,
+    reason TEXT,
+    actor_user_id TEXT,
+    actor_email TEXT,
+    payload TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    UNIQUE(shipment_provider, provider_event_id),
+    FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_order_id ON payment_attempts(order_id);
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_status ON payment_attempts(status);
 CREATE INDEX IF NOT EXISTS idx_payment_events_order_id ON payment_events(order_id);
+CREATE INDEX IF NOT EXISTS idx_fulfillment_events_order_id ON fulfillment_events(order_id);
+CREATE INDEX IF NOT EXISTS idx_fulfillment_events_source ON fulfillment_events(source);
+CREATE INDEX IF NOT EXISTS idx_fulfillment_events_provider_event ON fulfillment_events(shipment_provider, provider_event_id);
 
 -- Course Registrations Table
 CREATE TABLE IF NOT EXISTS course_registrations (

@@ -1,3 +1,5 @@
+const crypto = require('node:crypto');
+
 const registerCommerceRoutes = (app, deps) => {
   const {
     database,
@@ -47,6 +49,46 @@ const registerCommerceRoutes = (app, deps) => {
   const toCents = (amount) => Math.round(Number(amount) * 100);
   const fromCents = (amountInCents) => amountInCents / 100;
   const fulfillmentStatusesRequiringPaid = new Set(['preparing', 'shipping', 'delivered']);
+  const manualFulfillmentStatuses = new Set(['received', 'preparing', 'shipping']);
+  const carrierStatusToOrderStatus = {
+    shipping: 'shipping',
+    in_transit: 'shipping',
+    out_for_delivery: 'shipping',
+    delivered: 'delivered',
+  };
+  const allowedCarrierStatuses = new Set(Object.keys(carrierStatusToOrderStatus));
+  const manualFulfillmentOverrideEnabled = process.env.ENABLE_MANUAL_FULFILLMENT_OVERRIDE === 'true';
+  const carrierWebhookSecret = sanitizePlainText(process.env.CARRIER_WEBHOOK_SECRET, 256);
+  const superAdminEmailSet = new Set(
+    String(process.env.SUPER_ADMIN_EMAILS || process.env.DEFAULT_ADMIN_EMAIL || '')
+      .split(',')
+      .map((email) => sanitizeEmail(email))
+      .filter(Boolean)
+  );
+
+  const isSuperAdmin = (user) => {
+    if (!user || !user.isAdmin) {
+      return false;
+    }
+
+    const normalizedEmail = sanitizeEmail(user.email);
+    return normalizedEmail ? superAdminEmailSet.has(normalizedEmail) : false;
+  };
+
+  const isValidCarrierWebhookSecret = (providedSecret) => {
+    if (!carrierWebhookSecret || typeof providedSecret !== 'string') {
+      return false;
+    }
+
+    const expectedBuffer = Buffer.from(carrierWebhookSecret);
+    const providedBuffer = Buffer.from(providedSecret);
+
+    if (expectedBuffer.length !== providedBuffer.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(expectedBuffer, providedBuffer);
+  };
 
   const calculateOrderTotalCents = (items) => {
     return items.reduce((sum, item) => {
@@ -212,6 +254,9 @@ const registerCommerceRoutes = (app, deps) => {
     try {
       const id = sanitizePlainText(req.params.id, 64);
       const status = sanitizePlainText(req.body?.status, 40);
+      const shipmentProvider = sanitizePlainText(req.body?.shipmentProvider, 120);
+      const shipmentTrackingNumber = sanitizePlainText(req.body?.shipmentTrackingNumber, 200);
+      const overrideReason = sanitizePlainText(req.body?.overrideReason, 500);
 
       if (!orderStatuses.has(status)) {
         return res.status(400).json({ error: 'Invalid order status' });
@@ -222,14 +267,101 @@ const registerCommerceRoutes = (app, deps) => {
         return res.status(404).json({ error: 'Order not found' });
       }
 
+      if (existingOrder.status === 'delivered' && status !== 'delivered') {
+        return res.status(400).json({ error: 'Delivered orders are carrier managed and cannot be changed manually' });
+      }
+
+      if (existingOrder.status === 'shipping' && status !== 'delivered') {
+        return res.status(400).json({ error: 'Shipping orders are carrier managed after handoff' });
+      }
+
       if (fulfillmentStatusesRequiringPaid.has(status) && existingOrder.paymentStatus !== 'paid') {
         return res.status(400).json({ error: 'Order payment must be completed before fulfillment' });
       }
 
-      const order = await database.updateOrderStatus(id, status);
+      if (status === 'delivered') {
+        if (!manualFulfillmentOverrideEnabled) {
+          return res.status(403).json({ error: 'Manual fulfillment override is disabled' });
+        }
+
+        if (!isSuperAdmin(req.user)) {
+          return res.status(403).json({ error: 'Super admin access required for manual delivered override' });
+        }
+
+        if (!overrideReason) {
+          return res.status(400).json({ error: 'Override reason is required for manual delivered override' });
+        }
+
+        const order = await database.updateOrderFulfillment(id, {
+          status,
+          fulfillmentSource: 'manual-override',
+          fulfillmentUpdatedAt: new Date().toISOString(),
+        });
+
+        if (!order) {
+          return res.status(404).json({ error: 'Order not found' });
+        }
+
+        await database.createFulfillmentEvent({
+          id: uuidv4(),
+          orderId: id,
+          source: 'manual-override',
+          fromStatus: existingOrder.status,
+          toStatus: order.status,
+          shipmentProvider: order.shipmentProvider || null,
+          shipmentTrackingNumber: order.shipmentTrackingNumber || null,
+          providerEventId: null,
+          reason: overrideReason,
+          actorUserId: req.user.id,
+          actorEmail: req.user.email,
+          payload: {
+            source: 'admin-manual-override',
+          },
+          createdAt: new Date().toISOString(),
+        });
+
+        return res.json(order);
+      }
+
+      if (!manualFulfillmentStatuses.has(status)) {
+        return res.status(400).json({ error: 'Status can only be updated manually to received, preparing, or shipping' });
+      }
+
+      const effectiveShipmentProvider = shipmentProvider || existingOrder.shipmentProvider || '';
+      const effectiveTrackingNumber = shipmentTrackingNumber || existingOrder.shipmentTrackingNumber || '';
+
+      if (status === 'shipping' && (!effectiveShipmentProvider || !effectiveTrackingNumber)) {
+        return res.status(400).json({ error: 'Shipment provider and tracking number are required when setting shipping status' });
+      }
+
+      const order = await database.updateOrderFulfillment(id, {
+        status,
+        shipmentProvider: status === 'shipping' ? effectiveShipmentProvider : existingOrder.shipmentProvider || null,
+        shipmentTrackingNumber: status === 'shipping' ? effectiveTrackingNumber : existingOrder.shipmentTrackingNumber || null,
+        fulfillmentSource: status === 'shipping' ? 'carrier' : 'manual',
+        fulfillmentUpdatedAt: new Date().toISOString(),
+      });
       if (!order) {
         return res.status(404).json({ error: 'Order not found' });
       }
+
+      await database.createFulfillmentEvent({
+        id: uuidv4(),
+        orderId: id,
+        source: 'admin-manual',
+        fromStatus: existingOrder.status,
+        toStatus: order.status,
+        shipmentProvider: order.shipmentProvider || null,
+        shipmentTrackingNumber: order.shipmentTrackingNumber || null,
+        providerEventId: null,
+        reason: status === 'shipping' ? 'admin-marked-shipped' : 'admin-status-update',
+        actorUserId: req.user.id,
+        actorEmail: req.user.email,
+        payload: {
+          source: 'admin-manual',
+        },
+        createdAt: new Date().toISOString(),
+      });
 
       res.json(order);
     } catch (error) {
@@ -372,6 +504,111 @@ const registerCommerceRoutes = (app, deps) => {
     } catch (error) {
       console.error('Error updating order payment status:', error);
       res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/webhooks/carrier/orders/:id/status', async (req, res) => {
+    try {
+      if (!carrierWebhookSecret) {
+        return res.status(503).json({ error: 'Carrier webhook secret is not configured' });
+      }
+
+      const providedSecretHeader = req.headers['x-carrier-webhook-secret'];
+      const providedSecret = Array.isArray(providedSecretHeader)
+        ? providedSecretHeader[0]
+        : providedSecretHeader;
+
+      if (!isValidCarrierWebhookSecret(providedSecret)) {
+        return res.status(401).json({ error: 'Invalid carrier webhook secret' });
+      }
+
+      const id = sanitizePlainText(req.params.id, 64);
+      const shipmentProvider = sanitizePlainText(req.body?.provider, 120).toLowerCase();
+      const providerEventId = sanitizePlainText(req.body?.providerEventId, 200);
+      const carrierStatus = sanitizePlainText(req.body?.status, 40).toLowerCase();
+      const shipmentTrackingNumber = sanitizePlainText(req.body?.trackingNumber, 200);
+      const occurredAt = sanitizePlainText(req.body?.occurredAt, 64) || new Date().toISOString();
+
+      if (!shipmentProvider || !providerEventId || !allowedCarrierStatuses.has(carrierStatus) || !shipmentTrackingNumber) {
+        return res.status(400).json({ error: 'Invalid carrier webhook payload' });
+      }
+
+      const existingOrder = await database.getOrderById(id);
+      if (!existingOrder) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      if (existingOrder.shipmentTrackingNumber && existingOrder.shipmentTrackingNumber !== shipmentTrackingNumber) {
+        return res.status(409).json({ error: 'Tracking number does not match the order tracking number' });
+      }
+
+      const duplicateEvent = await database.getFulfillmentEventByProviderEvent(shipmentProvider, providerEventId);
+      if (duplicateEvent) {
+        return res.json({
+          duplicated: true,
+          order: existingOrder,
+        });
+      }
+
+      const mappedOrderStatus = carrierStatusToOrderStatus[carrierStatus];
+      const statusRank = {
+        received: 0,
+        preparing: 1,
+        shipping: 2,
+        delivered: 3,
+      };
+
+      const currentRank = statusRank[existingOrder.status] ?? 0;
+      const mappedRank = statusRank[mappedOrderStatus] ?? 0;
+      const nextStatus = mappedRank < currentRank ? existingOrder.status : mappedOrderStatus;
+
+      if (fulfillmentStatusesRequiringPaid.has(nextStatus) && existingOrder.paymentStatus !== 'paid') {
+        return res.status(400).json({ error: 'Order payment must be completed before fulfillment' });
+      }
+
+      const shouldUpdateOrder =
+        existingOrder.status !== nextStatus ||
+        existingOrder.shipmentProvider !== shipmentProvider ||
+        existingOrder.shipmentTrackingNumber !== shipmentTrackingNumber ||
+        existingOrder.fulfillmentSource !== 'carrier';
+
+      const updatedOrder = shouldUpdateOrder
+        ? await database.updateOrderFulfillment(id, {
+          status: nextStatus,
+          shipmentProvider,
+          shipmentTrackingNumber,
+          fulfillmentSource: 'carrier',
+          fulfillmentUpdatedAt: occurredAt,
+        })
+        : existingOrder;
+
+      if (!updatedOrder) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      await database.createFulfillmentEvent({
+        id: uuidv4(),
+        orderId: id,
+        source: 'carrier-webhook',
+        fromStatus: existingOrder.status,
+        toStatus: updatedOrder.status,
+        shipmentProvider,
+        shipmentTrackingNumber,
+        providerEventId,
+        reason: mappedRank < currentRank ? `${carrierStatus}:ignored-regression` : carrierStatus,
+        actorUserId: null,
+        actorEmail: null,
+        payload: typeof req.body === 'object' && req.body !== null ? req.body : {},
+        createdAt: occurredAt,
+      });
+
+      return res.json({
+        duplicated: false,
+        order: updatedOrder,
+      });
+    } catch (error) {
+      console.error('Error processing carrier webhook:', error);
+      return res.status(500).json({ error: 'Internal server error' });
     }
   });
 

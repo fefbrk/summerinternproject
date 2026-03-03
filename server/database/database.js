@@ -82,6 +82,10 @@ class Database {
             paymentCurrency: typeof order.paymentCurrency === 'string' && order.paymentCurrency.trim().length > 0 ? order.paymentCurrency : 'USD',
             paymentFailedReason: typeof order.paymentFailedReason === 'string' ? order.paymentFailedReason : null,
             paidAt: typeof order.paidAt === 'string' ? order.paidAt : null,
+            shipmentProvider: typeof order.shipmentProvider === 'string' ? order.shipmentProvider : null,
+            shipmentTrackingNumber: typeof order.shipmentTrackingNumber === 'string' ? order.shipmentTrackingNumber : null,
+            fulfillmentSource: typeof order.fulfillmentSource === 'string' ? order.fulfillmentSource : 'manual',
+            fulfillmentUpdatedAt: typeof order.fulfillmentUpdatedAt === 'string' ? order.fulfillmentUpdatedAt : null,
             shippingAddress: order.shippingAddress ? this.safeJsonParse(order.shippingAddress, {}) : {},
             items: this.normalizeOrderItems(parsedItems)
         };
@@ -163,8 +167,12 @@ class Database {
             await this.addSourceColumnsToMediaCoverage();
             // Orders tablosuna odeme kolonlarini ekle
             await this.addPaymentColumnsToOrders();
+            // Orders tablosuna fulfillment kolonlarini ekle
+            await this.addFulfillmentColumnsToOrders();
             // Odeme deneme/event tablolarini olustur
             await this.ensurePaymentTables();
+            // Fulfillment event tablosunu olustur
+            await this.ensureFulfillmentTables();
             console.log('Veritabanı migrasyonları başarıyla çalıştırıldı');
         } catch (error) {
             console.error('Migrasyon hatası:', error);
@@ -359,6 +367,69 @@ class Database {
         }
     }
 
+    async addFulfillmentColumnsToOrders() {
+        try {
+            const tableExists = await this.get(`
+                SELECT name FROM sqlite_master
+                WHERE type='table' AND name='orders'
+            `);
+
+            if (!tableExists) {
+                return;
+            }
+
+            const columnInfo = await this.all('PRAGMA table_info(orders)');
+            const hasColumn = (columnName) => columnInfo.some((column) => column.name === columnName);
+
+            if (!hasColumn('shipment_provider')) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN shipment_provider TEXT
+                `);
+                console.log('Orders tablosuna shipment_provider kolonu eklendi');
+            }
+
+            if (!hasColumn('shipment_tracking_number')) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN shipment_tracking_number TEXT
+                `);
+                console.log('Orders tablosuna shipment_tracking_number kolonu eklendi');
+            }
+
+            if (!hasColumn('fulfillment_source')) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN fulfillment_source TEXT NOT NULL DEFAULT 'manual'
+                `);
+                console.log('Orders tablosuna fulfillment_source kolonu eklendi');
+            }
+
+            if (!hasColumn('fulfillment_updated_at')) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN fulfillment_updated_at TEXT
+                `);
+                console.log('Orders tablosuna fulfillment_updated_at kolonu eklendi');
+            }
+
+            await this.run(`
+                UPDATE orders
+                SET fulfillment_source = 'manual'
+                WHERE fulfillment_source IS NULL OR TRIM(fulfillment_source) = ''
+            `);
+
+            await this.run(`
+                UPDATE orders
+                SET fulfillment_updated_at = created_at
+                WHERE fulfillment_updated_at IS NULL OR TRIM(fulfillment_updated_at) = ''
+            `);
+        } catch (error) {
+            console.error('Orders fulfillment kolon migrasyonu hatası:', error);
+            throw error;
+        }
+    }
+
     async ensurePaymentTables() {
         try {
             await this.run(`
@@ -397,6 +468,37 @@ class Database {
             await this.run('CREATE INDEX IF NOT EXISTS idx_payment_events_order_id ON payment_events(order_id)');
         } catch (error) {
             console.error('Payment tablo migrasyonu hatası:', error);
+            throw error;
+        }
+    }
+
+    async ensureFulfillmentTables() {
+        try {
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS fulfillment_events (
+                    id TEXT PRIMARY KEY,
+                    order_id TEXT NOT NULL,
+                    source TEXT NOT NULL CHECK (source IN ('admin-manual', 'carrier-webhook', 'manual-override')),
+                    from_status TEXT CHECK (from_status IN ('received', 'preparing', 'shipping', 'delivered')),
+                    to_status TEXT NOT NULL CHECK (to_status IN ('received', 'preparing', 'shipping', 'delivered')),
+                    shipment_provider TEXT,
+                    shipment_tracking_number TEXT,
+                    provider_event_id TEXT,
+                    reason TEXT,
+                    actor_user_id TEXT,
+                    actor_email TEXT,
+                    payload TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL,
+                    UNIQUE(shipment_provider, provider_event_id),
+                    FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
+                )
+            `);
+
+            await this.run('CREATE INDEX IF NOT EXISTS idx_fulfillment_events_order_id ON fulfillment_events(order_id)');
+            await this.run('CREATE INDEX IF NOT EXISTS idx_fulfillment_events_source ON fulfillment_events(source)');
+            await this.run('CREATE INDEX IF NOT EXISTS idx_fulfillment_events_provider_event ON fulfillment_events(shipment_provider, provider_event_id)');
+        } catch (error) {
+            console.error('Fulfillment tablo migrasyonu hatası:', error);
             throw error;
         }
     }
@@ -513,11 +615,15 @@ class Database {
                    o.payment_reference as paymentReference, o.payment_amount as paymentAmount,
                    o.payment_currency as paymentCurrency, o.payment_failed_reason as paymentFailedReason,
                    o.paid_at as paidAt,
+                   o.shipment_provider as shipmentProvider,
+                   o.shipment_tracking_number as shipmentTrackingNumber,
+                   o.fulfillment_source as fulfillmentSource,
+                   o.fulfillment_updated_at as fulfillmentUpdatedAt,
                    o.customer_name as customerName, o.customer_email as customerEmail,
                    o.shipping_address as shippingAddress, o.created_at as createdAt,
-                    json_group_array(
-                        json_object('id', oi.product_id, 'name', oi.product_name, 'productId', oi.product_id, 'productName', oi.product_name,
-                                    'quantity', oi.quantity, 'price', oi.price, 'image', oi.image)
+                     json_group_array(
+                         json_object('id', oi.product_id, 'name', oi.product_name, 'productId', oi.product_id, 'productName', oi.product_name,
+                                     'quantity', oi.quantity, 'price', oi.price, 'image', oi.image)
                     ) as items
             FROM orders o
             LEFT JOIN order_items oi ON o.id = oi.order_id
@@ -535,11 +641,15 @@ class Database {
                    o.payment_reference as paymentReference, o.payment_amount as paymentAmount,
                    o.payment_currency as paymentCurrency, o.payment_failed_reason as paymentFailedReason,
                    o.paid_at as paidAt,
+                   o.shipment_provider as shipmentProvider,
+                   o.shipment_tracking_number as shipmentTrackingNumber,
+                   o.fulfillment_source as fulfillmentSource,
+                   o.fulfillment_updated_at as fulfillmentUpdatedAt,
                    o.customer_name as customerName, o.customer_email as customerEmail,
                    o.shipping_address as shippingAddress, o.created_at as createdAt,
-                    json_group_array(
-                        json_object('id', oi.product_id, 'name', oi.product_name, 'productId', oi.product_id, 'productName', oi.product_name,
-                                    'quantity', oi.quantity, 'price', oi.price, 'image', oi.image)
+                     json_group_array(
+                         json_object('id', oi.product_id, 'name', oi.product_name, 'productId', oi.product_id, 'productName', oi.product_name,
+                                     'quantity', oi.quantity, 'price', oi.price, 'image', oi.image)
                     ) as items
             FROM orders o
             LEFT JOIN order_items oi ON o.id = oi.order_id
@@ -559,11 +669,15 @@ class Database {
                    o.payment_reference as paymentReference, o.payment_amount as paymentAmount,
                    o.payment_currency as paymentCurrency, o.payment_failed_reason as paymentFailedReason,
                    o.paid_at as paidAt,
+                   o.shipment_provider as shipmentProvider,
+                   o.shipment_tracking_number as shipmentTrackingNumber,
+                   o.fulfillment_source as fulfillmentSource,
+                   o.fulfillment_updated_at as fulfillmentUpdatedAt,
                    o.customer_name as customerName, o.customer_email as customerEmail,
                    o.shipping_address as shippingAddress, o.created_at as createdAt,
-                    json_group_array(
-                        json_object('id', oi.product_id, 'name', oi.product_name, 'productId', oi.product_id, 'productName', oi.product_name,
-                                    'quantity', oi.quantity, 'price', oi.price, 'image', oi.image)
+                     json_group_array(
+                         json_object('id', oi.product_id, 'name', oi.product_name, 'productId', oi.product_id, 'productName', oi.product_name,
+                                     'quantity', oi.quantity, 'price', oi.price, 'image', oi.image)
                     ) as items
             FROM orders o
             LEFT JOIN order_items oi ON o.id = oi.order_id
@@ -582,9 +696,10 @@ class Database {
                 INSERT INTO orders (
                     id, user_id, total_amount, status, customer_name, customer_email, shipping_address, created_at,
                     payment_status, payment_provider, payment_reference, payment_amount, payment_currency,
-                    payment_failed_reason, paid_at
+                    payment_failed_reason, paid_at,
+                    shipment_provider, shipment_tracking_number, fulfillment_source, fulfillment_updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
             await this.run(sql, [
                 order.id,
@@ -602,6 +717,10 @@ class Database {
                 order.paymentCurrency || 'USD',
                 order.paymentFailedReason || null,
                 order.paidAt || null,
+                order.shipmentProvider || null,
+                order.shipmentTrackingNumber || null,
+                order.fulfillmentSource || 'manual',
+                order.fulfillmentUpdatedAt || order.createdAt,
             ]);
 
             for (const item of items) {
@@ -624,8 +743,37 @@ class Database {
     }
 
     async updateOrderStatus(orderId, status) {
-        const sql = 'UPDATE orders SET status = ? WHERE id = ?';
-        const result = await this.run(sql, [status, orderId]);
+        const resultOrder = await this.updateOrderFulfillment(orderId, { status });
+        if (!resultOrder) {
+            return null;
+        }
+
+        return resultOrder;
+    }
+
+    async updateOrderFulfillment(orderId, fulfillmentData) {
+        const fields = ['status = ?', 'fulfillment_updated_at = ?'];
+        const now = fulfillmentData.fulfillmentUpdatedAt || new Date().toISOString();
+        const values = [fulfillmentData.status, now];
+
+        if (fulfillmentData.shipmentProvider !== undefined) {
+            fields.push('shipment_provider = ?');
+            values.push(fulfillmentData.shipmentProvider || null);
+        }
+
+        if (fulfillmentData.shipmentTrackingNumber !== undefined) {
+            fields.push('shipment_tracking_number = ?');
+            values.push(fulfillmentData.shipmentTrackingNumber || null);
+        }
+
+        if (fulfillmentData.fulfillmentSource !== undefined) {
+            fields.push('fulfillment_source = ?');
+            values.push(fulfillmentData.fulfillmentSource || 'manual');
+        }
+
+        values.push(orderId);
+        const sql = `UPDATE orders SET ${fields.join(', ')} WHERE id = ?`;
+        const result = await this.run(sql, values);
         if (result.changes === 0) {
             return null;
         }
@@ -783,6 +931,98 @@ class Database {
             created: true,
             event: await this.getPaymentEventByProviderEvent(event.provider, event.providerEventId),
         };
+    }
+
+    async getFulfillmentEventById(id) {
+        const sql = `
+            SELECT id, order_id as orderId, source, from_status as fromStatus, to_status as toStatus,
+                   shipment_provider as shipmentProvider, shipment_tracking_number as shipmentTrackingNumber,
+                   provider_event_id as providerEventId, reason, actor_user_id as actorUserId,
+                   actor_email as actorEmail, payload, created_at as createdAt
+            FROM fulfillment_events
+            WHERE id = ?
+        `;
+
+        const event = await this.get(sql, [id]);
+        if (!event) {
+            return null;
+        }
+
+        return {
+            ...event,
+            payload: event.payload ? this.safeJsonParse(event.payload, {}) : {},
+        };
+    }
+
+    async getFulfillmentEventByProviderEvent(provider, providerEventId) {
+        const sql = `
+            SELECT id, order_id as orderId, source, from_status as fromStatus, to_status as toStatus,
+                   shipment_provider as shipmentProvider, shipment_tracking_number as shipmentTrackingNumber,
+                   provider_event_id as providerEventId, reason, actor_user_id as actorUserId,
+                   actor_email as actorEmail, payload, created_at as createdAt
+            FROM fulfillment_events
+            WHERE source = 'carrier-webhook'
+              AND shipment_provider = ?
+              AND provider_event_id = ?
+            LIMIT 1
+        `;
+
+        const event = await this.get(sql, [provider, providerEventId]);
+        if (!event) {
+            return null;
+        }
+
+        return {
+            ...event,
+            payload: event.payload ? this.safeJsonParse(event.payload, {}) : {},
+        };
+    }
+
+    async getFulfillmentEventsByOrderId(orderId) {
+        const sql = `
+            SELECT id, order_id as orderId, source, from_status as fromStatus, to_status as toStatus,
+                   shipment_provider as shipmentProvider, shipment_tracking_number as shipmentTrackingNumber,
+                   provider_event_id as providerEventId, reason, actor_user_id as actorUserId,
+                   actor_email as actorEmail, payload, created_at as createdAt
+            FROM fulfillment_events
+            WHERE order_id = ?
+            ORDER BY created_at DESC
+        `;
+
+        const events = await this.all(sql, [orderId]);
+        return events.map((event) => ({
+            ...event,
+            payload: event.payload ? this.safeJsonParse(event.payload, {}) : {},
+        }));
+    }
+
+    async createFulfillmentEvent(event) {
+        const sql = `
+            INSERT INTO fulfillment_events (
+                id, order_id, source, from_status, to_status,
+                shipment_provider, shipment_tracking_number, provider_event_id,
+                reason, actor_user_id, actor_email, payload, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        await this.run(sql, [
+            event.id,
+            event.orderId,
+            event.source,
+            event.fromStatus || null,
+            event.toStatus,
+            event.shipmentProvider || null,
+            event.shipmentTrackingNumber || null,
+            event.providerEventId || null,
+            event.reason || null,
+            event.actorUserId || null,
+            event.actorEmail || null,
+            JSON.stringify(event.payload || {}),
+            event.createdAt,
+        ]);
+
+        return this.getFulfillmentEventById(event.id);
     }
 
     async updateOrderPayment(orderId, paymentData) {
@@ -1687,6 +1927,9 @@ async getAllEvents() {
     async clearAllData() {
         await this.runInTransaction(async () => {
             await this.run('DELETE FROM order_items');
+            await this.run('DELETE FROM payment_attempts');
+            await this.run('DELETE FROM payment_events');
+            await this.run('DELETE FROM fulfillment_events');
             await this.run('DELETE FROM orders');
             await this.run('DELETE FROM course_registrations');
             await this.run('DELETE FROM contacts');

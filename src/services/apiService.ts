@@ -29,6 +29,10 @@ export interface Order {
   items: OrderItem[];
   totalAmount: number;
   status: 'received' | 'preparing' | 'shipping' | 'delivered';
+  shipmentProvider?: string | null;
+  shipmentTrackingNumber?: string | null;
+  fulfillmentSource?: 'manual' | 'carrier' | 'manual-override';
+  fulfillmentUpdatedAt?: string | null;
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
   paymentProvider?: string | null;
   paymentReference?: string | null;
@@ -359,17 +363,65 @@ class ApiService {
     return this.request(`/orders/my${this.buildQueryString(options)}`);
   }
 
-  async createOrder(orderData: Omit<Order, 'id' | 'status' | 'createdAt' | 'userId' | 'paymentStatus' | 'paymentProvider' | 'paymentReference' | 'paymentAmount' | 'paymentCurrency' | 'paymentFailedReason' | 'paidAt'> & { userId?: string }): Promise<Order> {
+  async createOrder(
+    orderData: Omit<
+      Order,
+      'id' |
+      'status' |
+      'createdAt' |
+      'userId' |
+      'shipmentProvider' |
+      'shipmentTrackingNumber' |
+      'fulfillmentSource' |
+      'fulfillmentUpdatedAt' |
+      'paymentStatus' |
+      'paymentProvider' |
+      'paymentReference' |
+      'paymentAmount' |
+      'paymentCurrency' |
+      'paymentFailedReason' |
+      'paidAt'
+    > & { userId?: string }
+  ): Promise<Order> {
     return this.request('/orders', {
       method: 'POST',
       body: JSON.stringify(orderData),
     });
   }
 
-  async updateOrderStatus(orderId: string, status: Order['status']): Promise<Order> {
+  async updateOrderStatus(
+    orderId: string,
+    status: Order['status'],
+    payload?: {
+      shipmentProvider?: string;
+      shipmentTrackingNumber?: string;
+      overrideReason?: string;
+    }
+  ): Promise<Order> {
+    const requestBody: {
+      status: Order['status'];
+      shipmentProvider?: string;
+      shipmentTrackingNumber?: string;
+      overrideReason?: string;
+    } = {
+      status,
+    };
+
+    if (payload?.shipmentProvider) {
+      requestBody.shipmentProvider = payload.shipmentProvider;
+    }
+
+    if (payload?.shipmentTrackingNumber) {
+      requestBody.shipmentTrackingNumber = payload.shipmentTrackingNumber;
+    }
+
+    if (payload?.overrideReason) {
+      requestBody.overrideReason = payload.overrideReason;
+    }
+
     return this.request(`/orders/${orderId}/status`, {
       method: 'PUT',
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(requestBody),
     });
   }
 

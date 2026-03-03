@@ -1,23 +1,5 @@
 import { Order } from '@/services/apiService';
 
-export type OrderPaymentFormState = {
-  paymentStatus: Order['paymentStatus'];
-  paymentProvider: string;
-  paymentReference: string;
-  paymentAmount: string;
-  paymentCurrency: string;
-  paymentFailedReason: string;
-};
-
-export const createInitialOrderPaymentForm = (): OrderPaymentFormState => ({
-  paymentStatus: 'pending',
-  paymentProvider: 'manual',
-  paymentReference: '',
-  paymentAmount: '',
-  paymentCurrency: 'USD',
-  paymentFailedReason: '',
-});
-
 export const formatCurrency = (value: number, currency = 'USD') => {
   try {
     return new Intl.NumberFormat('en-US', {

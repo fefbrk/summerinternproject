@@ -39,13 +39,21 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
   - endpointler: `GET/PUT /api/orders/:id/payment-status`.
 - Fulfillment guard aktif:
   - `preparing|shipping|delivered` gecisi icin payment `paid` zorunlu.
+- Fulfillment ownership modeli guncellendi:
+  - Admin fulfillment update'i `received|preparing|shipping` ile sinirli,
+  - `shipping` icin `shipmentProvider + shipmentTrackingNumber` zorunlu,
+  - `delivered` varsayilan olarak sadece carrier webhook ile guncellenir (`POST /webhooks/carrier/orders/:id/status`),
+  - `ENABLE_MANUAL_FULFILLMENT_OVERRIDE=true` + `SUPER_ADMIN_EMAILS` + `overrideReason` ile acil durum manuel override desteği var,
+  - Tüm fulfillment gecisleri `fulfillment_events` tablosuna loglanir.
 - Test altyapisi guncel:
   - Backend: `server/tests/api.integration.test.js`, `server/tests/database.transaction.test.js`
   - Frontend smoke: `src/test/smoke/auth-pages.smoke.test.tsx`
   - CI: `.github/workflows/ci.yml` (`lint + test + build`).
 - Admin dashboard sadeletme (phase-3) uygulandi:
-  - Orders + Payment, users, contacts, blog, press, media, events tablari `src/components/admin/*` altina tasindi,
+  - Orders, users, contacts, blog, press, media, events tablari `src/components/admin/*` altina tasindi,
   - Order/contact/content/event modallari component bazli parcali yapiya alindi,
+  - Order modalinda payment alani read-only snapshot'a cekildi (manual payment edit UI'dan kaldirildi),
+  - Order modalinda tek update aksiyonu fulfillment icin birakildi (`Update Order`),
   - Delete confirmation modal'i `src/components/admin/ConfirmDeleteModal.tsx` ile ortaklastirildi.
 
 ## 2) Hala Acik Olan Teknik Borc (Oncelik Sirasi)
@@ -58,10 +66,10 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
    - checkout redirect/return akisi,
    - account ekranlarinda payment status/attempt gorunurlugu.
 3. Test kapsami artisi:
-   - upload/content CRUD unhappy-path testleri,
-   - account UI integration testleri,
-   - admin dashboard kritik akislari icin frontend testleri (payment update, fulfillment update, content CRUD),
-   - payment webhook replay/failure testleri.
+    - upload/content CRUD unhappy-path testleri,
+    - account UI integration testleri,
+    - payment webhook replay/failure testleri,
+    - carrier webhook retry/replay ve out-of-order event testleri.
 
 ## 3) Hemen Calistirilacak Komutlar (Yeni Session)
 
@@ -83,7 +91,10 @@ cd server && npm start
 
 - Prod'da zorunlu env: `AUTH_TOKEN_SECRET`, `DEFAULT_ADMIN_EMAIL`, `DEFAULT_ADMIN_PASSWORD`.
 - `ENABLE_DEMO_ENDPOINTS` prod'da `false` kalmali.
+- `CARRIER_WEBHOOK_SECRET` prod'da mutlaka set olmali.
+- `ENABLE_MANUAL_FULFILLMENT_OVERRIDE` normalde `false` kalmali.
 - `TRUST_PROXY` sadece reverse proxy arkasinda `true` olmali.
+- Admin dashboard order ekrani operasyonel olarak fulfillment odaklidir; payment degerleri UI'da sadece izleme amacli read-only tutulur.
 - `server/database/kinderlab.db` bu repoda bilinclli olarak tracked; secret/gercek prod veri konmamalidir.
 - Local prompt yardimci dosyalari (`agentsmdpromptu.txt`, `güvenlikodyazmapromptu.txt`, `optimizasyonpromptu.txt`) `.gitignore` altindadir; repoya alinmamali.
 - CI Node 20 uyumu icin backend test scripti explicit dosya listesi kullanir.

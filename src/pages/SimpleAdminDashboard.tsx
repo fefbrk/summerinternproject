@@ -12,7 +12,6 @@ import OrderEditModal from '@/components/admin/OrderEditModal';
 import AdminContactsTab from '@/components/admin/AdminContactsTab';
 import ContactDetailModal from '@/components/admin/ContactDetailModal';
 import ContactEditModal from '@/components/admin/ContactEditModal';
-import { createInitialOrderPaymentForm, type OrderPaymentFormState } from '@/components/admin/orderAdminShared';
 import { createInitialContentForm, createInitialEventForm, type ContentFormState, type EventFormState } from '@/components/admin/contentAdminShared';
 import AdminUsersTab from '@/components/admin/AdminUsersTab';
 import AdminBlogTab from '@/components/admin/AdminBlogTab';
@@ -73,13 +72,12 @@ const SimpleAdminDashboard = () => {
   
   // Order editing state
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [orderEditInitialStatus, setOrderEditInitialStatus] = useState<Order['status'] | null>(null);
   const [showOrderEditModal, setShowOrderEditModal] = useState(false);
   const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | Order['status']>('all');
   const [orderPaymentFilter, setOrderPaymentFilter] = useState<'all' | Order['paymentStatus']>('all');
   const [orderPaymentDetails, setOrderPaymentDetails] = useState<OrderPaymentStatus | null>(null);
   const [isLoadingOrderPaymentDetails, setIsLoadingOrderPaymentDetails] = useState(false);
-  const [isUpdatingOrderPayment, setIsUpdatingOrderPayment] = useState(false);
-  const [orderPaymentForm, setOrderPaymentForm] = useState<OrderPaymentFormState>(createInitialOrderPaymentForm());
   
   // Delete confirmation state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -232,35 +230,21 @@ const SimpleAdminDashboard = () => {
   const closeOrderEditModal = () => {
     setShowOrderEditModal(false);
     setEditingOrder(null);
+    setOrderEditInitialStatus(null);
     setOrderPaymentDetails(null);
     setIsLoadingOrderPaymentDetails(false);
-    setIsUpdatingOrderPayment(false);
-    setOrderPaymentForm(createInitialOrderPaymentForm());
-  };
-
-  const syncOrderPaymentForm = (order: Order, paymentDetails?: OrderPaymentStatus | null) => {
-    const source = paymentDetails || order;
-    setOrderPaymentForm({
-      paymentStatus: source.paymentStatus,
-      paymentProvider: source.paymentProvider || 'manual',
-      paymentReference: source.paymentReference || '',
-      paymentAmount: String(source.paymentAmount ?? order.totalAmount),
-      paymentCurrency: source.paymentCurrency || 'USD',
-      paymentFailedReason: source.paymentFailedReason || '',
-    });
   };
 
   const openOrderEditModal = async (order: Order) => {
     setEditingOrder(order);
+    setOrderEditInitialStatus(order.status);
     setShowOrderEditModal(true);
     setOrderPaymentDetails(null);
-    syncOrderPaymentForm(order, null);
     setIsLoadingOrderPaymentDetails(true);
 
     try {
       const paymentDetails = await apiService.getOrderPaymentStatus(order.id);
       setOrderPaymentDetails(paymentDetails);
-      syncOrderPaymentForm(order, paymentDetails);
     } catch (error) {
       toast.error('Could not load payment details: ' + getErrorMessage(error, 'Unknown error'));
     } finally {
@@ -271,9 +255,17 @@ const SimpleAdminDashboard = () => {
 
 
   // Update order status
-  const updateOrderStatus = async (orderId: string, status: Order['status']) => {
+  const updateOrderStatus = async (
+    orderId: string,
+    status: Order['status'],
+    payload?: {
+      shipmentProvider?: string;
+      shipmentTrackingNumber?: string;
+      overrideReason?: string;
+    }
+  ) => {
     try {
-      const updatedOrder = await apiService.updateOrderStatus(orderId, status);
+      const updatedOrder = await apiService.updateOrderStatus(orderId, status, payload);
       await loadData(); // Refresh data
       toast.success('Order status updated!');
       return updatedOrder;
@@ -281,54 +273,15 @@ const SimpleAdminDashboard = () => {
       const message = getErrorMessage(error, 'Unknown error');
       if (message.toLowerCase().includes('payment must be completed')) {
         toast.error('Payment must be marked as paid before moving to fulfillment statuses.');
+      } else if (message.toLowerCase().includes('shipment provider and tracking number')) {
+        toast.error('Carrier and tracking number are required before marking an order as shipping.');
+      } else if (message.toLowerCase().includes('carrier managed')) {
+        toast.error('This order is now carrier-managed. Further fulfillment updates must come from carrier events.');
       } else {
         toast.error('Update error: ' + message);
       }
       return null;
     }
-  };
-
-  const updateOrderPayment = async () => {
-    if (!editingOrder) {
-      return;
-    }
-
-    setIsUpdatingOrderPayment(true);
-
-    try {
-      const parsedAmount = Number(orderPaymentForm.paymentAmount);
-      const fallbackAmount = Number(editingOrder.paymentAmount || editingOrder.totalAmount);
-      const paymentAmount = Number.isFinite(parsedAmount) ? parsedAmount : fallbackAmount;
-
-      const updatedOrder = await apiService.updateOrderPaymentStatus(editingOrder.id, {
-        paymentStatus: orderPaymentForm.paymentStatus,
-        paymentProvider: orderPaymentForm.paymentProvider || undefined,
-        paymentReference: orderPaymentForm.paymentReference || undefined,
-        paymentAmount,
-        paymentCurrency: (orderPaymentForm.paymentCurrency || 'USD').toUpperCase(),
-        paymentFailedReason: orderPaymentForm.paymentStatus === 'failed'
-          ? (orderPaymentForm.paymentFailedReason || 'manual-update')
-          : undefined,
-      });
-
-      setEditingOrder(updatedOrder);
-      const paymentDetails = await apiService.getOrderPaymentStatus(editingOrder.id);
-      setOrderPaymentDetails(paymentDetails);
-      syncOrderPaymentForm(updatedOrder, paymentDetails);
-      await loadData();
-      toast.success('Payment status updated!');
-    } catch (error) {
-      toast.error('Payment update error: ' + getErrorMessage(error, 'Unknown error'));
-    } finally {
-      setIsUpdatingOrderPayment(false);
-    }
-  };
-
-  const updateOrderPaymentForm = (updates: Partial<OrderPaymentFormState>) => {
-    setOrderPaymentForm((currentForm) => ({
-      ...currentForm,
-      ...updates,
-    }));
   };
 
   const handleEditingOrderStatusChange = (status: Order['status']) => {
@@ -344,14 +297,35 @@ const SimpleAdminDashboard = () => {
     });
   };
 
+  const handleEditingOrderShipmentChange = (updates: Partial<Pick<Order, 'shipmentProvider' | 'shipmentTrackingNumber'>>) => {
+    setEditingOrder((currentOrder) => {
+      if (!currentOrder) {
+        return currentOrder;
+      }
+
+      return {
+        ...currentOrder,
+        ...updates,
+      };
+    });
+  };
+
   const handleUpdateOrderFulfillment = async () => {
     if (!editingOrder) {
       return;
     }
 
-    const updatedOrder = await updateOrderStatus(editingOrder.id, editingOrder.status);
+    const fulfillmentPayload = editingOrder.status === 'shipping'
+      ? {
+        shipmentProvider: (editingOrder.shipmentProvider || '').trim(),
+        shipmentTrackingNumber: (editingOrder.shipmentTrackingNumber || '').trim(),
+      }
+      : undefined;
+
+    const updatedOrder = await updateOrderStatus(editingOrder.id, editingOrder.status, fulfillmentPayload);
     if (updatedOrder) {
       setEditingOrder(updatedOrder);
+      setOrderEditInitialStatus(updatedOrder.status);
     }
   };
 
@@ -1354,14 +1328,12 @@ const SimpleAdminDashboard = () => {
       <OrderEditModal
         isOpen={showOrderEditModal}
         order={editingOrder}
+        initialStatus={orderEditInitialStatus}
         paymentDetails={orderPaymentDetails}
         isLoadingPaymentDetails={isLoadingOrderPaymentDetails}
-        isUpdatingPayment={isUpdatingOrderPayment}
-        paymentForm={orderPaymentForm}
         onClose={closeOrderEditModal}
         onOrderStatusChange={handleEditingOrderStatusChange}
-        onPaymentFormChange={updateOrderPaymentForm}
-        onUpdatePayment={updateOrderPayment}
+        onShipmentDetailsChange={handleEditingOrderShipmentChange}
         onUpdateFulfillment={handleUpdateOrderFulfillment}
       />
 

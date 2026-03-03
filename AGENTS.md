@@ -10,7 +10,7 @@ Bu dokuman, proje icinde calisan insan/AI agentlari icin tek noktadan hizli oper
 - CI: GitHub Actions (`.github/workflows/ci.yml`) -> lint + test + build
 - Icerik alanlari: blog, press releases, media coverage, events
 - Is alanlari: e-commerce orders, course registrations, contacts, user account data, payment domain hazirligi
-- Admin dashboard: orders/users/contacts/blog/press/media/events tablari ve ana modallar `src/components/admin/*` altinda parcali yapiya alinmistir
+- Admin dashboard: orders/users/contacts/blog/press/media/events tablari ve ana modallar `src/components/admin/*` altinda parcali yapiya alinmistir; order operasyonu fulfillment odaklidir, payment alani modalda read-only snapshot olarak izlenir
 
 Ana dizinler:
 
@@ -63,7 +63,7 @@ Asagidaki roller mantiksal ayrimdir; tek agent birden fazla rol ustlenebilir.
 - ESLint (`npm run lint`)
 - Vite build (`npm run build`)
 - Backend test (`npm run test:backend`)
-- Frontend smoke test (`npm run test:frontend`)
+- Frontend smoke + admin component test (`npm run test:frontend`)
 - Full test (`npm test`)
 - Nodemon (`server` icinde `npm run dev`)
 
@@ -129,6 +129,7 @@ Temel endpoint gruplari (`server/routes/*`):
 - Auth: `/api/login`, `/api/register`, `/api/me`
 - Users: `/api/users`, `/api/users/:id/password`
 - Orders: `/api/orders`, `/api/orders/my`, `/api/orders/:id/status`, `/api/orders/:id/payment-status`
+- Carrier webhook: `POST /webhooks/carrier/orders/:id/status` (secret header ile)
 - Registrations: `/api/registrations`, `/api/registrations/my`, `/api/registrations/:id/status`
 - Contacts: `/api/contacts`, `/api/contacts/:id/status`
 - CMS Public: `/api/blog`, `/api/press-releases`, `/api/media-coverage`, `/api/events` (yalnizca `published`)
@@ -137,6 +138,11 @@ Temel endpoint gruplari (`server/routes/*`):
 - Account extras: `/api/addresses/*`, `/api/payment-methods/*`
 
 Not: Public endpointler sinirlidir; digerleri token ister ve admin kontrolleri middleware tarafinda uygulanir.
+
+Admin order operasyon notu:
+
+- Order modalinda tek update aksiyonu fulfillment icindir (`Update Order`)
+- Payment alani dashboard'da read-only snapshot olarak gosterilir (amount/currency/status izleme + attempts listesi)
 
 ## 7) Konfigurasyon Ornekleri
 
@@ -156,6 +162,9 @@ TRUST_PROXY=false
 DEFAULT_ADMIN_EMAIL=admin@example.com
 DEFAULT_ADMIN_PASSWORD=<strong-password>
 ENABLE_DEMO_ENDPOINTS=false
+CARRIER_WEBHOOK_SECRET=<long-random-webhook-secret>
+ENABLE_MANUAL_FULFILLMENT_OVERRIDE=false
+SUPER_ADMIN_EMAILS=admin@example.com
 SQLITE_DB_PATH=./database/kinderlab.db
 ```
 
@@ -165,6 +174,8 @@ Production notlari:
 - `DEFAULT_ADMIN_EMAIL` gecerli e-posta olmali
 - `DEFAULT_ADMIN_PASSWORD` zorunlu
 - `ENABLE_DEMO_ENDPOINTS=false` kalmali
+- `CARRIER_WEBHOOK_SECRET` tanimli olmali (carrier webhook akisi icin)
+- `ENABLE_MANUAL_FULFILLMENT_OVERRIDE` normalde `false` kalmali (acil durum disinda acilmaz)
 - `TRUST_PROXY` sadece reverse-proxy arkasinda `true` olmali
 - `SQLITE_DB_PATH` opsiyoneldir (test ortaminda gecici DB vermek icin kullanilir)
 
@@ -234,6 +245,9 @@ cd server && npm start
 - [ ] Auth middleware kullaniciyi DB'den yeniden dogruluyor
 - [ ] Public CMS endpointleri draft icerik dondurmuyor
 - [ ] Fulfillment status'lerine gecmeden once payment `paid` dogrulaniyor
+- [ ] Admin `shipping` gecisinde carrier/tracking zorunlu
+- [ ] `delivered` guncellemesi webhook disinda manuel acik degil (`ENABLE_MANUAL_FULFILLMENT_OVERRIDE=false`)
+- [ ] Admin order modalinda payment alanlari read-only, fulfillment icin tek update aksiyonu aktif
 - [ ] `npm run lint` ve `npm run build` basarili
 - [ ] Demo endpointleri prod ortamda kapali
 
@@ -275,4 +289,5 @@ cd server && npm start
 - Auth token middleware DB'den kullaniciyi yeniden dogrular (token tek basina yeterli degil).
 - Node test scripti CI uyumu icin explicit dosya listesi kullanir (`server/package.json` test scripti).
 - Address tipi frontendde `home|office`, backendde `delivery|billing` maplenir; bu donusumde regression testi bulunur.
-- Orders tablosunda payment kolonlari ve `payment_attempts`/`payment_events` tablolari aktiftir; webhook/PSP baglantisi bunlar uzerinden idempotent ilerlemelidir.
+- Orders tablosunda payment/fulfillment kolonlari ve `payment_attempts`/`payment_events`/`fulfillment_events` tablolari aktiftir; webhook idempotency kayitlari DB tarafinda tutulur.
+- Admin dashboard order modalinda payment status manuel edit UI'dan kapali tutulur; fulfillment adimlari operasyonel olarak ayridir.
