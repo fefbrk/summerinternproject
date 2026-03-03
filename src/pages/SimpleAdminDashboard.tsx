@@ -7,7 +7,7 @@ import { ROOT_URL } from '@/services/apiService';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
-import apiService, { Order, User, Contact, BlogPost, PressRelease, Event, MediaCoverage } from '@/services/apiService';
+import apiService, { Order, User, Contact, BlogPost, PressRelease, Event, MediaCoverage, OrderPaymentStatus } from '@/services/apiService';
 import RichTextEditor from '@/components/RichTextEditor';
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
@@ -21,6 +21,26 @@ const getErrorStatus = (error: unknown): number | null => {
 
   const response = (error as { response?: { status?: unknown } }).response;
   return typeof response?.status === 'number' ? response.status : null;
+};
+
+const formatCurrency = (value: number, currency = 'USD') => {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch (_error) {
+    return `$${value.toFixed(2)}`;
+  }
+};
+
+const paymentStatusBadgeClass: Record<Order['paymentStatus'], string> = {
+  pending: 'bg-yellow-100 text-yellow-800',
+  paid: 'bg-green-100 text-green-800',
+  failed: 'bg-red-100 text-red-800',
+  refunded: 'bg-gray-100 text-gray-800',
 };
 
 const SimpleAdminDashboard = () => {
@@ -59,6 +79,19 @@ const SimpleAdminDashboard = () => {
   // Order editing state
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [showOrderEditModal, setShowOrderEditModal] = useState(false);
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | Order['status']>('all');
+  const [orderPaymentFilter, setOrderPaymentFilter] = useState<'all' | Order['paymentStatus']>('all');
+  const [orderPaymentDetails, setOrderPaymentDetails] = useState<OrderPaymentStatus | null>(null);
+  const [isLoadingOrderPaymentDetails, setIsLoadingOrderPaymentDetails] = useState(false);
+  const [isUpdatingOrderPayment, setIsUpdatingOrderPayment] = useState(false);
+  const [orderPaymentForm, setOrderPaymentForm] = useState({
+    paymentStatus: 'pending' as Order['paymentStatus'],
+    paymentProvider: 'manual',
+    paymentReference: '',
+    paymentAmount: '',
+    paymentCurrency: 'USD',
+    paymentFailedReason: '',
+  });
   
   // Delete confirmation state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -118,13 +151,23 @@ const SimpleAdminDashboard = () => {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const allOrders = await apiService.getAllOrders({ limit: 1000 });
-      const allUsers = await apiService.getAllUsers({ limit: 1000 });
-      const allContacts = await apiService.getAllContacts({ limit: 1000 });
-      const allBlogPosts = await apiService.getAllBlogPostsForAdmin({ limit: 1000 });
-      const allPressReleases = await apiService.getAllPressReleasesForAdmin({ limit: 1000 });
-      const allMediaCoverages = await apiService.getAllMediaCoveragesForAdmin({ limit: 1000 });
-      const allEvents = await apiService.getAllEventsForAdmin({ limit: 1000 });
+      const [
+        allOrders,
+        allUsers,
+        allContacts,
+        allBlogPosts,
+        allPressReleases,
+        allMediaCoverages,
+        allEvents,
+      ] = await Promise.all([
+        apiService.getAllOrders({ limit: 1000 }),
+        apiService.getAllUsers({ limit: 1000 }),
+        apiService.getAllContacts({ limit: 1000 }),
+        apiService.getAllBlogPostsForAdmin({ limit: 1000 }),
+        apiService.getAllPressReleasesForAdmin({ limit: 1000 }),
+        apiService.getAllMediaCoveragesForAdmin({ limit: 1000 }),
+        apiService.getAllEventsForAdmin({ limit: 1000 }),
+      ]);
 
       setOrders(allOrders);
       setUsers(allUsers);
@@ -177,6 +220,16 @@ const SimpleAdminDashboard = () => {
       return 0;
     });
   };
+
+  const getFilteredSortedOrders = () => {
+    return getSortedOrders().filter((order) => {
+      const fulfillmentMatch = orderStatusFilter === 'all' || order.status === orderStatusFilter;
+      const paymentMatch = orderPaymentFilter === 'all' || order.paymentStatus === orderPaymentFilter;
+      return fulfillmentMatch && paymentMatch;
+    });
+  };
+
+  const filteredSortedOrders = getFilteredSortedOrders();
   
   // Get filtered contacts
   const getFilteredContacts = () => {
@@ -186,16 +239,105 @@ const SimpleAdminDashboard = () => {
     return contacts.filter(contact => contact.type === contactTypeFilter);
   };
 
+  const closeOrderEditModal = () => {
+    setShowOrderEditModal(false);
+    setEditingOrder(null);
+    setOrderPaymentDetails(null);
+    setIsLoadingOrderPaymentDetails(false);
+    setIsUpdatingOrderPayment(false);
+    setOrderPaymentForm({
+      paymentStatus: 'pending',
+      paymentProvider: 'manual',
+      paymentReference: '',
+      paymentAmount: '',
+      paymentCurrency: 'USD',
+      paymentFailedReason: '',
+    });
+  };
+
+  const syncOrderPaymentForm = (order: Order, paymentDetails?: OrderPaymentStatus | null) => {
+    const source = paymentDetails || order;
+    setOrderPaymentForm({
+      paymentStatus: source.paymentStatus,
+      paymentProvider: source.paymentProvider || 'manual',
+      paymentReference: source.paymentReference || '',
+      paymentAmount: String(source.paymentAmount ?? order.totalAmount),
+      paymentCurrency: source.paymentCurrency || 'USD',
+      paymentFailedReason: source.paymentFailedReason || '',
+    });
+  };
+
+  const openOrderEditModal = async (order: Order) => {
+    setEditingOrder(order);
+    setShowOrderEditModal(true);
+    setOrderPaymentDetails(null);
+    syncOrderPaymentForm(order, null);
+    setIsLoadingOrderPaymentDetails(true);
+
+    try {
+      const paymentDetails = await apiService.getOrderPaymentStatus(order.id);
+      setOrderPaymentDetails(paymentDetails);
+      syncOrderPaymentForm(order, paymentDetails);
+    } catch (error) {
+      toast.error('Could not load payment details: ' + getErrorMessage(error, 'Unknown error'));
+    } finally {
+      setIsLoadingOrderPaymentDetails(false);
+    }
+  };
+
 
 
   // Update order status
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
     try {
-      await apiService.updateOrderStatus(orderId, status);
+      const updatedOrder = await apiService.updateOrderStatus(orderId, status);
       await loadData(); // Refresh data
       toast.success('Order status updated!');
+      return updatedOrder;
     } catch (error) {
-      toast.error('Update error: ' + getErrorMessage(error, 'Unknown error'));
+      const message = getErrorMessage(error, 'Unknown error');
+      if (message.toLowerCase().includes('payment must be completed')) {
+        toast.error('Payment must be marked as paid before moving to fulfillment statuses.');
+      } else {
+        toast.error('Update error: ' + message);
+      }
+      return null;
+    }
+  };
+
+  const updateOrderPayment = async () => {
+    if (!editingOrder) {
+      return;
+    }
+
+    setIsUpdatingOrderPayment(true);
+
+    try {
+      const parsedAmount = Number(orderPaymentForm.paymentAmount);
+      const fallbackAmount = Number(editingOrder.paymentAmount || editingOrder.totalAmount);
+      const paymentAmount = Number.isFinite(parsedAmount) ? parsedAmount : fallbackAmount;
+
+      const updatedOrder = await apiService.updateOrderPaymentStatus(editingOrder.id, {
+        paymentStatus: orderPaymentForm.paymentStatus,
+        paymentProvider: orderPaymentForm.paymentProvider || undefined,
+        paymentReference: orderPaymentForm.paymentReference || undefined,
+        paymentAmount,
+        paymentCurrency: (orderPaymentForm.paymentCurrency || 'USD').toUpperCase(),
+        paymentFailedReason: orderPaymentForm.paymentStatus === 'failed'
+          ? (orderPaymentForm.paymentFailedReason || 'manual-update')
+          : undefined,
+      });
+
+      setEditingOrder(updatedOrder);
+      const paymentDetails = await apiService.getOrderPaymentStatus(editingOrder.id);
+      setOrderPaymentDetails(paymentDetails);
+      syncOrderPaymentForm(updatedOrder, paymentDetails);
+      await loadData();
+      toast.success('Payment status updated!');
+    } catch (error) {
+      toast.error('Payment update error: ' + getErrorMessage(error, 'Unknown error'));
+    } finally {
+      setIsUpdatingOrderPayment(false);
     }
   };
 
@@ -574,13 +716,11 @@ const SimpleAdminDashboard = () => {
         return;
       }
 
-
-      let result;
       if (editingPressRelease) {
-        result = await apiService.updatePressRelease(editingPressRelease.id, pressReleaseFormData);
+        await apiService.updatePressRelease(editingPressRelease.id, pressReleaseFormData);
         toast.success('Press release updated successfully!');
       } else {
-        result = await apiService.createPressRelease(pressReleaseFormData);
+        await apiService.createPressRelease(pressReleaseFormData);
         toast.success('Press release created successfully!');
       }
       
@@ -696,12 +836,11 @@ const SimpleAdminDashboard = () => {
         return;
       }
 
-      let result;
       if (editingMediaCoverage) {
-        result = await apiService.updateMediaCoverage(editingMediaCoverage.id, mediaCoverageFormData);
+        await apiService.updateMediaCoverage(editingMediaCoverage.id, mediaCoverageFormData);
         toast.success('Media coverage updated successfully!');
       } else {
-        result = await apiService.createMediaCoverage(mediaCoverageFormData);
+        await apiService.createMediaCoverage(mediaCoverageFormData);
         toast.success('Media coverage created successfully!');
       }
       
@@ -1128,9 +1267,43 @@ const SimpleAdminDashboard = () => {
           <TabsContent value="orders" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Order List</CardTitle>
+                <CardTitle>Order & Payment Operations</CardTitle>
               </CardHeader>
               <CardContent className="p-2">
+                <div className="mb-4 flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="orderStatusFilter" className="text-sm font-medium">Fulfillment:</label>
+                    <select
+                      id="orderStatusFilter"
+                      value={orderStatusFilter}
+                      onChange={(e) => setOrderStatusFilter(e.target.value as 'all' | Order['status'])}
+                      className="p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="all">All</option>
+                      <option value="received">Received</option>
+                      <option value="preparing">Preparing</option>
+                      <option value="shipping">Shipping</option>
+                      <option value="delivered">Delivered</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="orderPaymentFilter" className="text-sm font-medium">Payment:</label>
+                    <select
+                      id="orderPaymentFilter"
+                      value={orderPaymentFilter}
+                      onChange={(e) => setOrderPaymentFilter(e.target.value as 'all' | Order['paymentStatus'])}
+                      className="p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="all">All</option>
+                      <option value="pending">Pending</option>
+                      <option value="paid">Paid</option>
+                      <option value="failed">Failed</option>
+                      <option value="refunded">Refunded</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="overflow-x-auto w-full">
                   <table className="w-full border-collapse">
                     <thead>
@@ -1138,19 +1311,17 @@ const SimpleAdminDashboard = () => {
                         <th className="border p-2 text-left cursor-pointer" onClick={() => sortOrders('id')}>
                           Order ID {orderSortField === 'id' && (orderSortDirection === 'asc' ? '↑' : '↓')}
                         </th>
-                        <th className="border p-2 text-left">User ID</th>
                         <th className="border p-2 text-left cursor-pointer" onClick={() => sortOrders('customerName')}>
-                          Full Name {orderSortField === 'customerName' && (orderSortDirection === 'asc' ? '↑' : '↓')}
-                        </th>
-                        <th className="border p-2 text-left cursor-pointer" onClick={() => sortOrders('customerEmail')}>
-                          Email {orderSortField === 'customerEmail' && (orderSortDirection === 'asc' ? '↑' : '↓')}
+                          Customer {orderSortField === 'customerName' && (orderSortDirection === 'asc' ? '↑' : '↓')}
                         </th>
                         <th className="border p-2 text-left cursor-pointer" onClick={() => sortOrders('totalAmount')}>
-                          Amount {orderSortField === 'totalAmount' && (orderSortDirection === 'asc' ? '↑' : '↓')}
+                          Total {orderSortField === 'totalAmount' && (orderSortDirection === 'asc' ? '↑' : '↓')}
                         </th>
-                        <th className="border p-2 text-left">Shipping Address</th>
+                        <th className="border p-2 text-left">Payment</th>
+                        <th className="border p-2 text-left">Payment Amount</th>
+                        <th className="border p-2 text-left">Provider</th>
                         <th className="border p-2 text-left cursor-pointer" onClick={() => sortOrders('status')}>
-                          Status {orderSortField === 'status' && (orderSortDirection === 'asc' ? '↑' : '↓')}
+                          Fulfillment {orderSortField === 'status' && (orderSortDirection === 'asc' ? '↑' : '↓')}
                         </th>
                         <th className="border p-2 text-left cursor-pointer" onClick={() => sortOrders('createdAt')}>
                           Date {orderSortField === 'createdAt' && (orderSortDirection === 'asc' ? '↑' : '↓')}
@@ -1160,23 +1331,26 @@ const SimpleAdminDashboard = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {orders.length === 0 ? (
+                      {filteredSortedOrders.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="border p-4 text-center text-gray-500">No orders found yet</td>
+                          <td colSpan={10} className="border p-4 text-center text-gray-500">No orders found for selected filters</td>
                         </tr>
                       ) : (
-                        getSortedOrders().map(order => (
+                        filteredSortedOrders.map(order => (
                           <tr key={order.id} className="hover:bg-gray-50">
                             <td className="border p-2">{order.id}</td>
-                            <td className="border p-2">{order.userId}</td>
-                            <td className="border p-2">{order.customerName}</td>
-                            <td className="border p-2">{order.customerEmail}</td>
-                            <td className="border p-2">${order.totalAmount.toFixed(2)}</td>
                             <td className="border p-2">
-                              <div className="max-w-xs truncate" title={`${order.shippingAddress?.address || ''}, ${order.shippingAddress?.city || ''}, ${order.shippingAddress?.state || ''} ${order.shippingAddress?.zipCode || ''}`}>
-                                {order.shippingAddress?.address || 'No address information'}
-                              </div>
+                              <div className="text-sm font-medium">{order.customerName}</div>
+                              <div className="text-xs text-gray-500">{order.customerEmail}</div>
                             </td>
+                            <td className="border p-2">{formatCurrency(order.totalAmount, order.paymentCurrency || 'USD')}</td>
+                            <td className="border p-2">
+                              <span className={`${paymentStatusBadgeClass[order.paymentStatus]} px-2 py-1 rounded-full text-xs`}>
+                                {order.paymentStatus}
+                              </span>
+                            </td>
+                            <td className="border p-2">{formatCurrency(order.paymentAmount || order.totalAmount, order.paymentCurrency || 'USD')}</td>
+                            <td className="border p-2">{order.paymentProvider || '-'}</td>
                             <td className="border p-2">
                               <span className={
                                 order.status === 'received' ? 'bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs' :
@@ -1192,7 +1366,7 @@ const SimpleAdminDashboard = () => {
                               <div className="max-h-20 overflow-y-auto text-xs">
                                 {order.items && order.items.length > 0 ? order.items.map((item, idx) => (
                                   <div key={idx} className="mb-1 p-1 bg-gray-50 rounded">
-                                    {item.quantity || 1}x {item.product_name || item.name || item.title || 'Unknown Product'} - ${(item.price || 0).toFixed(2)}
+                                    {item.quantity || 1}x {item.name || 'Unknown Product'} - {formatCurrency(item.price || 0, order.paymentCurrency || 'USD')}
                                   </div>
                                 )) : (
                                   <div className="text-gray-500">No items</div>
@@ -1202,13 +1376,10 @@ const SimpleAdminDashboard = () => {
                             <td className="border p-2">
                               <div className="flex space-x-2">
                                 <button
-                                  onClick={() => {
-                                    setEditingOrder(order);
-                                    setShowOrderEditModal(true);
-                                  }}
+                                  onClick={() => openOrderEditModal(order)}
                                   className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
                                 >
-                                  Edit
+                                  Manage
                                 </button>
                                 <button
                                   onClick={() => handleDeleteClick('order', order.id, `Order #${order.id}`)}
@@ -1296,8 +1467,8 @@ const SimpleAdminDashboard = () => {
                     <option value="all">All Types</option>
                     <option value="general">General</option>
                     <option value="support">Support</option>
-                    <option value="feedback">Feedback</option>
-                    <option value="partnership">Partnership</option>
+                    <option value="training">Training</option>
+                    <option value="sales">Sales</option>
                   </select>
                 </div>
                 <div className="overflow-x-auto w-full">
@@ -1345,6 +1516,15 @@ const SimpleAdminDashboard = () => {
                             <td className="border p-2">{new Date(contact.createdAt).toLocaleDateString('en-US')}</td>
                             <td className="border p-2">
                               <div className="flex space-x-2">
+                                <button
+                                  onClick={() => {
+                                    setSelectedContact(contact);
+                                    setShowContactModal(true);
+                                  }}
+                                  className="px-3 py-1 bg-gray-500 text-white text-sm rounded hover:bg-gray-600 transition-colors"
+                                >
+                                  View
+                                </button>
                                 <button
                                   onClick={() => {
                                     setEditingContact(contact);
@@ -2451,9 +2631,6 @@ const SimpleAdminDashboard = () => {
                           <input
                             type="text"
                             value="Event image"
-                            onChange={(e) => {
-                              // Alt text could be added as a separate field if needed
-                            }}
                             className="w-full p-1 border border-gray-300 rounded text-sm mt-1"
                             placeholder="Alt text"
                             readOnly
@@ -2604,12 +2781,9 @@ const SimpleAdminDashboard = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Order Details</h2>
+              <h2 className="text-xl font-bold">Order & Payment Details</h2>
               <button
-                onClick={() => {
-                  setShowOrderEditModal(false);
-                  setEditingOrder(null);
-                }}
+                onClick={closeOrderEditModal}
                 className="text-gray-500 hover:text-gray-700"
               >
                 ✕
@@ -2683,7 +2857,7 @@ const SimpleAdminDashboard = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Total Amount</label>
                   <input
                     type="text"
-                    value={`$${editingOrder.totalAmount.toFixed(2)}`}
+                    value={formatCurrency(editingOrder.totalAmount, editingOrder.paymentCurrency || 'USD')}
                     readOnly
                     className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
                   />
@@ -2704,7 +2878,7 @@ const SimpleAdminDashboard = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Shipping Address</label>
                 <textarea
                   value={editingOrder.shippingAddress ? 
-                    `${editingOrder.shippingAddress.address || ''}\n${editingOrder.shippingAddress.city || ''}, ${editingOrder.shippingAddress.state || ''} ${editingOrder.shippingAddress.zipCode || ''}` 
+                    `${editingOrder.shippingAddress.address || ''}\n${editingOrder.shippingAddress.city || ''}, ${editingOrder.shippingAddress.province || ''} ${editingOrder.shippingAddress.zipCode || ''}` 
                     : 'No address information'}
                   readOnly
                   rows={3}
@@ -2722,7 +2896,7 @@ const SimpleAdminDashboard = () => {
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-2 text-sm">
                             <div>
                               <span className="font-medium text-gray-700">Product:</span>
-                              <div className="text-gray-900">{item.product_name || item.name || item.title || 'Unknown Product'}</div>
+                              <div className="text-gray-900">{item.name || 'Unknown Product'}</div>
                             </div>
                             <div>
                               <span className="font-medium text-gray-700">Quantity:</span>
@@ -2730,11 +2904,11 @@ const SimpleAdminDashboard = () => {
                             </div>
                             <div>
                               <span className="font-medium text-gray-700">Unit Price:</span>
-                              <div className="text-gray-900">${item.price.toFixed(2)}</div>
+                              <div className="text-gray-900">{formatCurrency(item.price, editingOrder.paymentCurrency || 'USD')}</div>
                             </div>
                             <div>
                               <span className="font-medium text-gray-700">Total:</span>
-                              <div className="text-gray-900 font-semibold">${(item.quantity * item.price).toFixed(2)}</div>
+                              <div className="text-gray-900 font-semibold">{formatCurrency(item.quantity * item.price, editingOrder.paymentCurrency || 'USD')}</div>
                             </div>
                           </div>
                         </div>
@@ -2745,31 +2919,161 @@ const SimpleAdminDashboard = () => {
                   )}
                 </div>
               </div>
+
+              <div className="border border-gray-200 rounded p-4 bg-gray-50 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-gray-800">Payment Management</h3>
+                  <span className={`${paymentStatusBadgeClass[orderPaymentForm.paymentStatus]} px-2 py-1 rounded-full text-xs`}>
+                    {orderPaymentForm.paymentStatus}
+                  </span>
+                </div>
+
+                {isLoadingOrderPaymentDetails ? (
+                  <div className="text-sm text-gray-500">Loading payment details...</div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Status</label>
+                        <select
+                          value={orderPaymentForm.paymentStatus}
+                          onChange={(e) => setOrderPaymentForm({
+                            ...orderPaymentForm,
+                            paymentStatus: e.target.value as Order['paymentStatus']
+                          })}
+                          className="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="paid">Paid</option>
+                          <option value="failed">Failed</option>
+                          <option value="refunded">Refunded</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+                        <input
+                          type="text"
+                          value={orderPaymentForm.paymentProvider}
+                          onChange={(e) => setOrderPaymentForm({ ...orderPaymentForm, paymentProvider: e.target.value })}
+                          className="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Reference</label>
+                        <input
+                          type="text"
+                          value={orderPaymentForm.paymentReference}
+                          onChange={(e) => setOrderPaymentForm({ ...orderPaymentForm, paymentReference: e.target.value })}
+                          className="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Payment Amount</label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={orderPaymentForm.paymentAmount}
+                          onChange={(e) => setOrderPaymentForm({ ...orderPaymentForm, paymentAmount: e.target.value })}
+                          className="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Currency</label>
+                        <input
+                          type="text"
+                          value={orderPaymentForm.paymentCurrency}
+                          onChange={(e) => setOrderPaymentForm({ ...orderPaymentForm, paymentCurrency: e.target.value.toUpperCase() })}
+                          className="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Paid At</label>
+                        <input
+                          type="text"
+                          readOnly
+                          value={orderPaymentDetails?.paidAt ? new Date(orderPaymentDetails.paidAt).toLocaleString() : '-'}
+                          className="w-full p-2 border border-gray-300 rounded bg-gray-100 text-gray-600"
+                        />
+                      </div>
+                    </div>
+
+                    {orderPaymentForm.paymentStatus === 'failed' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Failure Reason</label>
+                        <textarea
+                          rows={2}
+                          value={orderPaymentForm.paymentFailedReason}
+                          onChange={(e) => setOrderPaymentForm({ ...orderPaymentForm, paymentFailedReason: e.target.value })}
+                          className="w-full p-2 border border-gray-300 rounded bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    )}
+
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-700 mb-2">Payment Attempts</h4>
+                      {orderPaymentDetails && orderPaymentDetails.attempts.length > 0 ? (
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                          {orderPaymentDetails.attempts.map((attempt) => {
+                            const attemptClass =
+                              attempt.status === 'succeeded'
+                                ? 'bg-green-100 text-green-800'
+                                : attempt.status === 'failed'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-yellow-100 text-yellow-800';
+
+                            return (
+                              <div key={attempt.id} className="p-2 rounded border bg-white text-xs">
+                                <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                                  <span>{new Date(attempt.createdAt).toLocaleString()}</span>
+                                  <span className={`${attemptClass} px-2 py-1 rounded-full`}>{attempt.status}</span>
+                                </div>
+                                <div>
+                                  {attempt.provider} / {attempt.providerReference || '-'} / {formatCurrency(attempt.amount, attempt.currency)}
+                                </div>
+                                {attempt.failureReason && <div className="text-red-700 mt-1">Reason: {attempt.failureReason}</div>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-500">No payment attempts yet.</div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             
             <div className="mt-6 flex justify-end space-x-2">
               <button
-                onClick={() => {
-                  setShowOrderEditModal(false);
-                  setEditingOrder(null);
-                }}
+                onClick={closeOrderEditModal}
                 className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition-colors"
               >
                 Cancel
               </button>
               <button
+                onClick={updateOrderPayment}
+                disabled={isUpdatingOrderPayment || isLoadingOrderPaymentDetails}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                {isUpdatingOrderPayment ? 'Updating Payment...' : 'Update Payment'}
+              </button>
+              <button
                 onClick={async () => {
-                  try {
-                    await updateOrderStatus(editingOrder.id, editingOrder.status);
-                    setShowOrderEditModal(false);
-                    setEditingOrder(null);
-                  } catch (error) {
-                    console.error('Error updating order:', error);
+                  const updatedOrder = await updateOrderStatus(editingOrder.id, editingOrder.status);
+                  if (updatedOrder) {
+                    setEditingOrder(updatedOrder);
                   }
                 }}
                 className="px-6 py-3 rounded-lg border border-kibo-purple text-kibo-purple hover:bg-kibo-orange hover:text-kibo-purple active:bg-kibo-orange active:text-kibo-purple transition-colors cursor-pointer"
               >
-                Update Status
+                Update Fulfillment
               </button>
             </div>
           </div>
