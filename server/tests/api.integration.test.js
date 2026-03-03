@@ -163,8 +163,8 @@ test('critical auth and authorization flow works end-to-end', async () => {
 
   assert.equal(createAddress.status, 201);
   assert.ok(createAddress.data && typeof createAddress.data.id === 'string');
-  assert.equal(createAddress.data.user_id, firstUserId);
-  assert.equal(createAddress.data.is_default, 1);
+  assert.equal(createAddress.data.userId, firstUserId);
+  assert.equal(createAddress.data.isDefault, 1);
 
   const updatedAddressWithoutDefaultPayload = await requestJson(`/api/addresses/${createAddress.data.id}`, {
     method: 'PUT',
@@ -183,7 +183,7 @@ test('critical auth and authorization flow works end-to-end', async () => {
   });
 
   assert.equal(updatedAddressWithoutDefaultPayload.status, 200);
-  assert.equal(updatedAddressWithoutDefaultPayload.data.is_default, 1);
+  assert.equal(updatedAddressWithoutDefaultPayload.data.isDefault, 1);
 
   const ownAddresses = await requestJson(`/api/addresses/${firstUserId}`, { token: firstUserToken });
   assert.equal(ownAddresses.status, 200);
@@ -206,8 +206,8 @@ test('critical auth and authorization flow works end-to-end', async () => {
 
   assert.equal(createPaymentMethod.status, 201);
   assert.ok(createPaymentMethod.data && typeof createPaymentMethod.data.id === 'string');
-  assert.equal(createPaymentMethod.data.user_id, firstUserId);
-  assert.equal(createPaymentMethod.data.is_default, 1);
+  assert.equal(createPaymentMethod.data.userId, firstUserId);
+  assert.equal(createPaymentMethod.data.isDefault, 1);
 
   const updatePaymentWithoutDefaultPayload = await requestJson(`/api/payment-methods/${createPaymentMethod.data.id}`, {
     method: 'PUT',
@@ -218,7 +218,7 @@ test('critical auth and authorization flow works end-to-end', async () => {
   });
 
   assert.equal(updatePaymentWithoutDefaultPayload.status, 200);
-  assert.equal(updatePaymentWithoutDefaultPayload.data.is_default, 1);
+  assert.equal(updatePaymentWithoutDefaultPayload.data.isDefault, 1);
 
   const secondUserRegister = await requestJson('/api/register', {
     method: 'POST',
@@ -295,7 +295,7 @@ test('content and status endpoints return full entities', async () => {
     },
   });
 
-  assert.equal(createdEvent.status, 200);
+  assert.equal(createdEvent.status, 201);
   assert.ok(createdEvent.data && typeof createdEvent.data.id === 'string');
   assert.equal(createdEvent.data.status, 'upcoming');
 
@@ -324,7 +324,7 @@ test('content and status endpoints return full entities', async () => {
     },
   });
 
-  assert.equal(createdMediaCoverage.status, 200);
+  assert.equal(createdMediaCoverage.status, 201);
   assert.ok(createdMediaCoverage.data && typeof createdMediaCoverage.data.id === 'string');
   assert.equal(createdMediaCoverage.data.status, 'draft');
 
@@ -366,7 +366,7 @@ test('public CMS endpoints hide drafts while admin endpoints can access them', a
     },
   });
 
-  assert.equal(createdDraftBlog.status, 200);
+  assert.equal(createdDraftBlog.status, 201);
   assert.ok(createdDraftBlog.data && typeof createdDraftBlog.data.id === 'string');
 
   const publicBlogList = await requestJson('/api/blog');
@@ -451,7 +451,7 @@ test('order creation enforces backend catalog prices and totals', async () => {
     },
   });
 
-  assert.equal(validTotalResponse.status, 200);
+  assert.equal(validTotalResponse.status, 201);
   assert.equal(validTotalResponse.data.totalAmount, 544);
   assert.equal(validTotalResponse.data.paymentStatus, 'pending');
   assert.equal(validTotalResponse.data.paymentAmount, 544);
