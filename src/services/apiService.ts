@@ -559,43 +559,33 @@ class ApiService {
     });
   }
 
-  // Blog image upload methods
-  async uploadBlogImage(blogPostId: string, file: File): Promise<{ imageUrl: string; filename: string }> {
+  // Generic image upload helper
+  private async _uploadImage(endpoint: string, file: File): Promise<{ imageUrl: string; filename: string }> {
     const formData = new FormData();
     formData.append('image', file);
-    
-    const response = await fetch(`${API_BASE_URL}/blog/${blogPostId}/images`, {
+
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       body: formData,
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
       throw new Error(errorMessage);
     }
-    
+
     return response.json();
   }
 
+  // Blog image upload methods
+  async uploadBlogImage(blogPostId: string, file: File): Promise<{ imageUrl: string; filename: string }> {
+    return this._uploadImage(`/blog/${blogPostId}/images`, file);
+  }
+
   async uploadTempBlogImage(file: File): Promise<{ imageUrl: string; filename: string }> {
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    const response = await fetch(`${API_BASE_URL}/blog/temp/images`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
-      throw new Error(errorMessage);
-    }
-    
-    return response.json();
+    return this._uploadImage('/blog/temp/images', file);
   }
 
   // Press Release methods
@@ -626,10 +616,7 @@ class ApiService {
   }
 
   async deletePressRelease(id: string): Promise<{ message: string }> {
-    const response = await this.request(`/press-releases/${id}`, {
-      method: 'DELETE'
-    });
-    return response;
+    return this.request(`/press-releases/${id}`, { method: 'DELETE' });
   }
 
   async updatePressReleaseStatus(id: string, status: PressRelease['status']): Promise<PressRelease> {
@@ -639,42 +626,13 @@ class ApiService {
     });
   }
 
+  // Press Release image upload methods
   async uploadPressReleaseImage(pressReleaseId: string, file: File): Promise<{ imageUrl: string; filename: string }> {
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    const response = await fetch(`${API_BASE_URL}/press-releases/${pressReleaseId}/images`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
-      throw new Error(errorMessage);
-    }
-    
-    return response.json();
+    return this._uploadImage(`/press-releases/${pressReleaseId}/images`, file);
   }
 
   async uploadTempPressReleaseImage(file: File): Promise<{ imageUrl: string; filename: string }> {
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    const response = await fetch(`${API_BASE_URL}/press-releases/temp/images`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
-      throw new Error(errorMessage);
-    }
-    
-    return response.json();
+    return this._uploadImage('/press-releases/temp/images', file);
   }
 
   // Media Coverage methods
@@ -705,10 +663,7 @@ class ApiService {
   }
 
   async deleteMediaCoverage(id: string): Promise<{ message: string }> {
-    const response = await this.request(`/media-coverage/${id}`, {
-      method: 'DELETE'
-    });
-    return response;
+    return this.request(`/media-coverage/${id}`, { method: 'DELETE' });
   }
 
   async updateMediaCoverageStatus(id: string, status: MediaCoverage['status']): Promise<MediaCoverage> {
@@ -718,42 +673,13 @@ class ApiService {
     });
   }
 
+  // Media Coverage image upload methods
   async uploadMediaCoverageImage(mediaCoverageId: string, file: File): Promise<{ imageUrl: string; filename: string }> {
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    const response = await fetch(`${API_BASE_URL}/media-coverage/${mediaCoverageId}/images`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
-      throw new Error(errorMessage);
-    }
-    
-    return response.json();
+    return this._uploadImage(`/media-coverage/${mediaCoverageId}/images`, file);
   }
 
   async uploadTempMediaCoverageImage(file: File): Promise<{ imageUrl: string; filename: string }> {
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    const response = await fetch(`${API_BASE_URL}/media-coverage/temp/images`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
-      throw new Error(errorMessage);
-    }
-    
-    return response.json();
+    return this._uploadImage('/media-coverage/temp/images', file);
   }
 
   // Event methods
@@ -784,10 +710,7 @@ class ApiService {
   }
 
   async deleteEvent(id: string): Promise<{ message: string }> {
-    const response = await this.request(`/events/${id}`, {
-      method: 'DELETE'
-    });
-    return response;
+    return this.request(`/events/${id}`, { method: 'DELETE' });
   }
 
   async updateEventStatus(id: string, status: Event['status']): Promise<Event> {
@@ -799,41 +722,11 @@ class ApiService {
 
   // Event image upload methods
   async uploadEventImage(eventId: string, file: File): Promise<{ imageUrl: string; filename: string }> {
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    const response = await fetch(`${API_BASE_URL}/events/${eventId}/images`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
-      throw new Error(errorMessage);
-    }
-    
-    return response.json();
+    return this._uploadImage(`/events/${eventId}/images`, file);
   }
 
   async uploadTempEventImage(file: File): Promise<{ imageUrl: string; filename: string }> {
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    const response = await fetch(`${API_BASE_URL}/events/temp/images`, {
-      method: 'POST',
-      headers: this.getAuthHeaders(),
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
-      throw new Error(errorMessage);
-    }
-    
-    return response.json();
+    return this._uploadImage('/events/temp/images', file);
   }
 
   // Kullanıcı adresleri

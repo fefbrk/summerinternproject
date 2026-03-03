@@ -15,11 +15,14 @@ Bu dokuman, proje icinde calisan insan/AI agentlari icin tek noktadan hizli oper
 Ana dizinler:
 
 - `src/` -> frontend sayfalari, context, servisler
+- `src/routes.tsx` -> tum route tanimlari ve lazy import'lar
 - `server/` -> API, auth middleware, SQLite islemleri
 - `server/routes/` -> endpoint gruplari (auth, commerce, account, content, demo)
 - `server/middleware/` -> authz/rate-limit middleware
 - `server/services/` -> bootstrap/is kurallari, urun katalogu ve payment servisleri
-- `server/database/` -> schema ve DB islemleri
+- `server/utils/` -> paylasilan yardimci fonksiyonlar (pagination, contentImageUtils)
+- `server/database/` -> schema ve DB islemleri (WAL mode aktif)
+- `server/fixtures/` -> demo veri JSON dosyalari
 
 ## 2) Agent Rolleri
 
@@ -264,6 +267,9 @@ cd server && npm start
 - Payment service: `server/services/paymentService.js`
 - DB adapter: `server/database/database.js`
 - DB schema: `server/database/schema.sql`
+- Shared utilities: `server/utils/pagination.js`, `server/utils/contentImageUtils.js`
+- Demo veri fixture: `server/fixtures/demo-data.json`
+- Route tanimlari: `src/routes.tsx`
 - Admin order tab: `src/components/admin/AdminOrdersTab.tsx`
 - Admin order modal: `src/components/admin/OrderEditModal.tsx`
 - Admin contact tab: `src/components/admin/AdminContactsTab.tsx`

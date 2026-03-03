@@ -1,3 +1,6 @@
+const { resolvePagination, paginateRows } = require('../utils/pagination');
+const { moveTempImagesToEntity } = require('../utils/contentImageUtils');
+
 const registerContentRoutes = (app, deps) => {
   const {
     database,
@@ -41,30 +44,8 @@ const registerContentRoutes = (app, deps) => {
     }
   };
 
-  const MAX_PAGE_SIZE = 1000;
   const DEFAULT_PUBLIC_PAGE_SIZE = 100;
   const DEFAULT_ADMIN_PAGE_SIZE = 1000;
-
-  const resolvePagination = (query, defaultLimit) => {
-    const rawLimit = Number(query?.limit);
-    const rawPage = Number(query?.page);
-
-    const limit = Number.isFinite(rawLimit) && rawLimit > 0
-      ? Math.min(Math.floor(rawLimit), MAX_PAGE_SIZE)
-      : defaultLimit;
-
-    const page = Number.isFinite(rawPage) && rawPage > 0
-      ? Math.floor(rawPage)
-      : 1;
-
-    const offset = (page - 1) * limit;
-
-    return { limit, page, offset };
-  };
-
-  const paginateRows = (rows, pagination) => {
-    return rows.slice(pagination.offset, pagination.offset + pagination.limit);
-  };
 
   const ensureAdminAccess = (req, res) => {
     if (!req.user || !req.user.isAdmin) {
@@ -75,33 +56,22 @@ const registerContentRoutes = (app, deps) => {
     return true;
   };
 
-  const sanitizeBlogPostForResponse = (post) => ({
-    ...post,
-    title: sanitizePlainText(post.title, 200),
-    excerpt: sanitizePlainText(post.excerpt, 600),
-    author: sanitizePlainText(post.author, 120),
-    content: sanitizeRichText(post.content),
-    images: sanitizeImagesPayload(post.images)
+  const sanitizeContentBase = (item) => ({
+    ...item,
+    title: sanitizePlainText(item.title, 200),
+    excerpt: sanitizePlainText(item.excerpt, 600),
+    author: sanitizePlainText(item.author, 120),
+    content: sanitizeRichText(item.content),
+    images: sanitizeImagesPayload(item.images)
   });
 
-  const sanitizePressReleaseForResponse = (release) => ({
-    ...release,
-    title: sanitizePlainText(release.title, 200),
-    excerpt: sanitizePlainText(release.excerpt, 600),
-    author: sanitizePlainText(release.author, 120),
-    content: sanitizeRichText(release.content),
-    images: sanitizeImagesPayload(release.images)
-  });
+  const sanitizeBlogPostForResponse = (post) => sanitizeContentBase(post);
+  const sanitizePressReleaseForResponse = (release) => sanitizeContentBase(release);
 
   const sanitizeMediaCoverageForResponse = (coverage) => ({
-    ...coverage,
-    title: sanitizePlainText(coverage.title, 200),
-    excerpt: sanitizePlainText(coverage.excerpt, 600),
+    ...sanitizeContentBase(coverage),
     sourceName: sanitizePlainText(coverage.sourceName || '', 200),
     sourceUrl: sanitizePlainText(coverage.sourceUrl || '', 500),
-    author: sanitizePlainText(coverage.author, 120),
-    content: sanitizeRichText(coverage.content),
-    images: sanitizeImagesPayload(coverage.images)
   });
 
   const sanitizeEventForResponse = (event) => ({
@@ -118,793 +88,742 @@ const registerContentRoutes = (app, deps) => {
     organizerName: sanitizePlainText(event.organizerName, 120)
   });
 
-// Blog Posts Routes
-app.get('/api/blog', async (req, res) => {
-  try {
-    const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
-    const blogPosts = await database.getAllBlogPosts();
-    const publishedBlogPosts = blogPosts.filter((post) => post.status === 'published');
-    const paginatedBlogPosts = paginateRows(publishedBlogPosts, pagination);
-    res.json(paginatedBlogPosts.map(sanitizeBlogPostForResponse));
-  } catch (error) {
-    console.error('Error getting blog posts:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/admin/blog', async (req, res) => {
-  try {
-    if (!ensureAdminAccess(req, res)) {
-      return;
+  // Blog Posts Routes
+  app.get('/api/blog', async (req, res) => {
+    try {
+      const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
+      const blogPosts = await database.getAllBlogPosts();
+      const publishedBlogPosts = blogPosts.filter((post) => post.status === 'published');
+      const paginatedBlogPosts = paginateRows(publishedBlogPosts, pagination);
+      res.json(paginatedBlogPosts.map(sanitizeBlogPostForResponse));
+    } catch (error) {
+      console.error('Error getting blog posts:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
+  });
 
-    const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
-    const blogPosts = await database.getAllBlogPosts();
-    const paginatedBlogPosts = paginateRows(blogPosts, pagination);
-    res.json(paginatedBlogPosts.map(sanitizeBlogPostForResponse));
-  } catch (error) {
-    console.error('Error getting admin blog posts:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/blog/:id', async (req, res) => {
-  try {
-    const id = sanitizePlainText(req.params.id, 64);
-    const blogPost = await database.getBlogPostById(id);
-    if (!blogPost || blogPost.status !== 'published') {
-      return res.status(404).json({ error: 'Blog post not found' });
-    }
-    res.json(sanitizeBlogPostForResponse(blogPost));
-  } catch (error) {
-    console.error('Error getting blog post:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/blog', async (req, res) => {
-  try {
-    const title = sanitizePlainText(req.body?.title, 200);
-    const excerpt = sanitizePlainText(req.body?.excerpt, 600);
-    const author = sanitizePlainText(req.body?.author, 120);
-    const content = sanitizeRichText(req.body?.content);
-    const publishDate = sanitizePlainText(req.body?.publishDate, 64);
-    const status = sanitizePlainText(req.body?.status, 40) || 'draft';
-    const images = sanitizeImagesPayload(req.body?.images);
-
-    if (!title || !excerpt || !author || !content || !blogStatuses.has(status)) {
-      return res.status(400).json({ error: 'Invalid blog payload' });
-    }
-    
-    // If publishDate is not provided or is empty, set it to current date/time
-    const finalPublishDate = publishDate || new Date().toISOString();
-    
-    const newBlogPost = {
-      id: uuidv4(),
-      title,
-      content,
-      excerpt,
-      author,
-      publishDate: finalPublishDate,
-      status,
-      images,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    const blogPost = await database.createBlogPost(newBlogPost);
-    
-    // Move images from temp folder to the blog post folder
-    const tempDir = path.join(baseImageDir, 'blog', 'temp', 'images');
-    const targetDir = path.join(baseImageDir, 'blog', String(blogPost.id), 'images');
-    
-    if (await pathExists(tempDir)) {
-      await moveDirectoryFiles(tempDir, targetDir);
-
-      if (blogPost.images && Array.isArray(blogPost.images)) {
-        blogPost.images = blogPost.images.map((img) => {
-          if (img.src && img.src.includes('/postimages/blog/temp/images/')) {
-            return {
-              ...img,
-              src: img.src.replace('/postimages/blog/temp/images/', `/postimages/blog/${String(blogPost.id)}/images/`)
-            };
-          }
-
-          return img;
-        });
-
-        const updatedBlogPost = await database.updateBlogPost(blogPost.id, { images: blogPost.images });
-        if (updatedBlogPost) {
-          blogPost.images = updatedBlogPost.images;
-        }
+  app.get('/api/admin/blog', async (req, res) => {
+    try {
+      if (!ensureAdminAccess(req, res)) {
+        return;
       }
+
+      const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
+      const blogPosts = await database.getAllBlogPosts();
+      const paginatedBlogPosts = paginateRows(blogPosts, pagination);
+      res.json(paginatedBlogPosts.map(sanitizeBlogPostForResponse));
+    } catch (error) {
+      console.error('Error getting admin blog posts:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
-    
-    res.json(blogPost);
-  } catch (error) {
-    console.error('Error creating blog post:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  });
 
-app.put('/api/blog/:id', async (req, res) => {
-  try {
-    const id = sanitizePlainText(req.params.id, 64);
-    const title = sanitizePlainText(req.body?.title, 200);
-    const excerpt = sanitizePlainText(req.body?.excerpt, 600);
-    const author = sanitizePlainText(req.body?.author, 120);
-    const content = sanitizeRichText(req.body?.content);
-    const publishDate = sanitizePlainText(req.body?.publishDate, 64);
-    const status = sanitizePlainText(req.body?.status, 40);
-    const images = sanitizeImagesPayload(req.body?.images);
-    
-    const existingPost = await database.getBlogPostById(id);
-    if (!existingPost) {
-      return res.status(404).json({ error: 'Blog post not found' });
-    }
-    
-    const finalPublishDate = publishDate || existingPost.publishDate;
-    const finalStatus = status || existingPost.status;
-
-    if (!title || !excerpt || !author || !content || !blogStatuses.has(finalStatus)) {
-      return res.status(400).json({ error: 'Invalid blog payload' });
-    }
-    
-    const updatedBlogPost = {
-      title,
-      content,
-      excerpt,
-      author,
-      publishDate: finalPublishDate,
-      status: finalStatus,
-      images,
-      updatedAt: new Date().toISOString()
-    };
-    
-    const blogPost = await database.updateBlogPost(id, updatedBlogPost);
-    res.json(blogPost);
-  } catch (error) {
-    console.error('Error updating blog post:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.put('/api/blog/:id/status', async (req, res) => {
-  try {
-    const id = sanitizePlainText(req.params.id, 64);
-    const status = sanitizePlainText(req.body?.status, 40);
-
-    if (!blogStatuses.has(status)) {
-      return res.status(400).json({ error: 'Invalid blog status' });
-    }
-    
-    const blogPost = await database.updateBlogPostStatus(id, status);
-    if (!blogPost) {
-      return res.status(404).json({ error: 'Blog post not found' });
-    }
-    
-    res.json(blogPost);
-  } catch (error) {
-    console.error('Error updating blog post status:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.delete('/api/blog/:id', async (req, res) => {
-  try {
-    const id = sanitizeResourceId(req.params.id);
-    if (!id) {
-      return res.status(400).json({ error: 'Invalid blog post id' });
-    }
-    
-    const result = await database.deleteBlogPost(id);
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Blog post not found' });
-    }
-    
-    // Delete the image directory if it exists
-    const imageDir = path.join(baseImageDir, 'blog', id, 'images');
-    await removeDirectoryIfExists(imageDir);
-    
-    res.json({ message: 'Blog post deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting blog post:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Press Releases Routes
-app.get('/api/press-releases', async (req, res) => {
-  try {
-    const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
-    const pressReleases = await database.getAllPressReleases();
-    const publishedPressReleases = pressReleases.filter((release) => release.status === 'published');
-    const paginatedPressReleases = paginateRows(publishedPressReleases, pagination);
-    res.json(paginatedPressReleases.map(sanitizePressReleaseForResponse));
-  } catch (error) {
-    console.error('Error getting press releases:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/admin/press-releases', async (req, res) => {
-  try {
-    if (!ensureAdminAccess(req, res)) {
-      return;
-    }
-
-    const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
-    const pressReleases = await database.getAllPressReleases();
-    const paginatedPressReleases = paginateRows(pressReleases, pagination);
-    res.json(paginatedPressReleases.map(sanitizePressReleaseForResponse));
-  } catch (error) {
-    console.error('Error getting admin press releases:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/press-releases/:id', async (req, res) => {
-  try {
-    const id = sanitizePlainText(req.params.id, 64);
-    const pressRelease = await database.getPressReleaseById(id);
-    if (!pressRelease || pressRelease.status !== 'published') {
-      return res.status(404).json({ error: 'Press release not found' });
-    }
-    res.json(sanitizePressReleaseForResponse(pressRelease));
-  } catch (error) {
-    console.error('Error getting press release:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/press-releases', async (req, res) => {
-  try {
-    const title = sanitizePlainText(req.body?.title, 200);
-    const content = sanitizeRichText(req.body?.content);
-    const excerpt = sanitizePlainText(req.body?.excerpt, 600);
-    const author = sanitizePlainText(req.body?.author, 120);
-    const publishDate = sanitizePlainText(req.body?.publishDate, 64) || new Date().toISOString();
-    const status = sanitizePlainText(req.body?.status, 40) || 'draft';
-    const images = sanitizeImagesPayload(req.body?.images);
-
-    if (!title || !content || !excerpt || !author || !blogStatuses.has(status)) {
-      return res.status(400).json({ error: 'Invalid press release payload' });
-    }
-
-    const newPressRelease = {
-      id: Date.now().toString(),
-      title,
-      content,
-      excerpt,
-      author,
-      publishDate,
-      status,
-      images,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    const pressRelease = await database.createPressRelease(newPressRelease);
-
-    // Move images from temp folder to the press release folder
-    const tempDir = path.join(baseImageDir, 'press', 'temp', 'images');
-    const targetDir = path.join(baseImageDir, 'press', String(pressRelease.id), 'images');
-    
-    if (await pathExists(tempDir)) {
-      await moveDirectoryFiles(tempDir, targetDir);
-      await removeDirectoryIfExists(tempDir);
-      
-      // Update image URLs in the press release
-      if (pressRelease.images && Array.isArray(pressRelease.images)) {
-        pressRelease.images = pressRelease.images.map(img => {
-          if (img.src && img.src.includes('/postimages/press/temp/images/')) {
-            return {
-              ...img,
-              src: img.src.replace('/postimages/press/temp/images/', `/postimages/press/${String(pressRelease.id)}/images/`)
-            };
-          }
-          return img;
-        });
+  app.get('/api/blog/:id', async (req, res) => {
+    try {
+      const id = sanitizePlainText(req.params.id, 64);
+      const blogPost = await database.getBlogPostById(id);
+      if (!blogPost || blogPost.status !== 'published') {
+        return res.status(404).json({ error: 'Blog post not found' });
       }
-      
-      // Update the press release with corrected image URLs
-      await database.updatePressRelease(pressRelease.id, { images: pressRelease.images });
+      res.json(sanitizeBlogPostForResponse(blogPost));
+    } catch (error) {
+      console.error('Error getting blog post:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
+  });
 
-    res.json(pressRelease);
-  } catch (error) {
-    console.error('Error creating press release:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  app.post('/api/blog', async (req, res) => {
+    try {
+      const title = sanitizePlainText(req.body?.title, 200);
+      const excerpt = sanitizePlainText(req.body?.excerpt, 600);
+      const author = sanitizePlainText(req.body?.author, 120);
+      const content = sanitizeRichText(req.body?.content);
+      const publishDate = sanitizePlainText(req.body?.publishDate, 64);
+      const status = sanitizePlainText(req.body?.status, 40) || 'draft';
+      const images = sanitizeImagesPayload(req.body?.images);
 
-app.put('/api/press-releases/:id', async (req, res) => {
-  try {
-    const id = sanitizePlainText(req.params.id, 64);
-    const title = sanitizePlainText(req.body?.title, 200);
-    const content = sanitizeRichText(req.body?.content);
-    const excerpt = sanitizePlainText(req.body?.excerpt, 600);
-    const author = sanitizePlainText(req.body?.author, 120);
-    const publishDate = sanitizePlainText(req.body?.publishDate, 64);
-    const status = sanitizePlainText(req.body?.status, 40);
-    const images = sanitizeImagesPayload(req.body?.images);
-
-    const existingPost = await database.getPressReleaseById(id);
-    if (!existingPost) {
-      return res.status(404).json({ error: 'Press release not found' });
-    }
-
-    const finalStatus = status || existingPost.status;
-
-    if (!title || !content || !excerpt || !author || !blogStatuses.has(finalStatus)) {
-      return res.status(400).json({ error: 'Invalid press release payload' });
-    }
-
-    const updatedPressRelease = {
-      title,
-      content,
-      excerpt,
-      author,
-      publishDate: publishDate || existingPost.publishDate,
-      status: finalStatus,
-      images,
-      updatedAt: new Date().toISOString()
-    };
-
-    const pressRelease = await database.updatePressRelease(id, updatedPressRelease);
-    res.json(pressRelease);
-  } catch (error) {
-    console.error('Error updating press release:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.put('/api/press-releases/:id/status', async (req, res) => {
-  try {
-    const id = sanitizePlainText(req.params.id, 64);
-    const status = sanitizePlainText(req.body?.status, 40);
-
-    if (!blogStatuses.has(status)) {
-      return res.status(400).json({ error: 'Invalid press release status' });
-    }
-
-    const pressRelease = await database.updatePressReleaseStatus(id, status);
-    if (!pressRelease) {
-      return res.status(404).json({ error: 'Press release not found' });
-    }
-
-    res.json(pressRelease);
-  } catch (error) {
-    console.error('Error updating press release status:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.delete('/api/press-releases/:id', async (req, res) => {
-  try {
-    const id = sanitizeResourceId(req.params.id);
-    if (!id) {
-      return res.status(400).json({ error: 'Invalid press release id' });
-    }
-
-    const result = await database.deletePressRelease(id);
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Press release not found' });
-    }
-
-    // Delete associated images
-    const imageDir = path.join(baseImageDir, 'press', id, 'images');
-    await removeDirectoryIfExists(imageDir);
-    
-    res.json({ message: 'Press release deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting press release:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Media Coverage Routes
-app.get('/api/media-coverage', async (req, res) => {
-  try {
-    const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
-    const mediaCoverages = await database.getAllMediaCoverages();
-    const publishedMediaCoverages = mediaCoverages.filter((coverage) => coverage.status === 'published');
-    const paginatedMediaCoverages = paginateRows(publishedMediaCoverages, pagination);
-    res.json(paginatedMediaCoverages.map(sanitizeMediaCoverageForResponse));
-  } catch (error) {
-    console.error('Error getting media coverages:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/admin/media-coverage', async (req, res) => {
-  try {
-    if (!ensureAdminAccess(req, res)) {
-      return;
-    }
-
-    const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
-    const mediaCoverages = await database.getAllMediaCoverages();
-    const paginatedMediaCoverages = paginateRows(mediaCoverages, pagination);
-    res.json(paginatedMediaCoverages.map(sanitizeMediaCoverageForResponse));
-  } catch (error) {
-    console.error('Error getting admin media coverages:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.get('/api/media-coverage/:id', async (req, res) => {
-  try {
-    const id = sanitizePlainText(req.params.id, 64);
-    const mediaCoverage = await database.getMediaCoverageById(id);
-    if (!mediaCoverage || mediaCoverage.status !== 'published') {
-      return res.status(404).json({ error: 'Media coverage not found' });
-    }
-    res.json(sanitizeMediaCoverageForResponse(mediaCoverage));
-  } catch (error) {
-    console.error('Error getting media coverage:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-app.post('/api/media-coverage', async (req, res) => {
-  try {
-    const title = sanitizePlainText(req.body?.title, 200);
-    const content = sanitizeRichText(req.body?.content);
-    const excerpt = sanitizePlainText(req.body?.excerpt, 600);
-    const sourceName = sanitizePlainText(req.body?.sourceName, 200);
-    const sourceUrl = sanitizePlainText(req.body?.sourceUrl, 500);
-    const author = sanitizePlainText(req.body?.author, 120);
-    const publishDate = sanitizePlainText(req.body?.publishDate, 64) || new Date().toISOString();
-    const status = sanitizePlainText(req.body?.status, 40) || 'draft';
-    const images = sanitizeImagesPayload(req.body?.images);
-
-    if (!title || !content || !excerpt || !author || !blogStatuses.has(status)) {
-      return res.status(400).json({ error: 'Invalid media coverage payload' });
-    }
-
-    const newMediaCoverage = {
-      id: Date.now().toString(),
-      title,
-      content,
-      excerpt,
-      sourceName,
-      sourceUrl,
-      author,
-      publishDate,
-      status,
-      images,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    const mediaCoverage = await database.createMediaCoverage(newMediaCoverage);
-
-    // Move images from temp folder to the media coverage folder
-    const tempDir = path.join(baseImageDir, 'media', 'temp', 'images');
-    const targetDir = path.join(baseImageDir, 'media', String(mediaCoverage.id), 'images');
-    
-    if (await pathExists(tempDir)) {
-      await moveDirectoryFiles(tempDir, targetDir);
-      await removeDirectoryIfExists(tempDir);
-      
-      // Update image URLs in the media coverage
-      if (mediaCoverage.images && Array.isArray(mediaCoverage.images)) {
-        mediaCoverage.images = mediaCoverage.images.map(img => {
-          if (img.src && img.src.includes('/postimages/media/temp/images/')) {
-            return {
-              ...img,
-              src: img.src.replace('/postimages/media/temp/images/', `/postimages/media/${String(mediaCoverage.id)}/images/`)
-            };
-          }
-          return img;
-        });
+      if (!title || !excerpt || !author || !content || !blogStatuses.has(status)) {
+        return res.status(400).json({ error: 'Invalid blog payload' });
       }
-      
-      // Update the media coverage with corrected image URLs
-      await database.updateMediaCoverage(mediaCoverage.id, { images: mediaCoverage.images });
+
+      // If publishDate is not provided or is empty, set it to current date/time
+      const finalPublishDate = publishDate || new Date().toISOString();
+
+      const newBlogPost = {
+        id: uuidv4(),
+        title,
+        content,
+        excerpt,
+        author,
+        publishDate: finalPublishDate,
+        status,
+        images,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const blogPost = await database.createBlogPost(newBlogPost);
+
+      // Move images from temp folder to the blog post folder
+      await moveTempImagesToEntity({
+        path, fs, baseImageDir,
+        folderName: 'blog',
+        entity: blogPost,
+        updateFn: (id, data) => database.updateBlogPost(id, data),
+      });
+
+      res.json(blogPost);
+    } catch (error) {
+      console.error('Error creating blog post:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
+  });
 
-    res.json(mediaCoverage);
-  } catch (error) {
-    console.error('Error creating media coverage:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  app.put('/api/blog/:id', async (req, res) => {
+    try {
+      const id = sanitizePlainText(req.params.id, 64);
+      const title = sanitizePlainText(req.body?.title, 200);
+      const excerpt = sanitizePlainText(req.body?.excerpt, 600);
+      const author = sanitizePlainText(req.body?.author, 120);
+      const content = sanitizeRichText(req.body?.content);
+      const publishDate = sanitizePlainText(req.body?.publishDate, 64);
+      const status = sanitizePlainText(req.body?.status, 40);
+      const images = sanitizeImagesPayload(req.body?.images);
 
-app.put('/api/media-coverage/:id', async (req, res) => {
-  try {
-    const id = sanitizePlainText(req.params.id, 64);
-    const title = sanitizePlainText(req.body?.title, 200);
-    const content = sanitizeRichText(req.body?.content);
-    const excerpt = sanitizePlainText(req.body?.excerpt, 600);
-    const sourceName = sanitizePlainText(req.body?.sourceName, 200);
-    const sourceUrl = sanitizePlainText(req.body?.sourceUrl, 500);
-    const author = sanitizePlainText(req.body?.author, 120);
-    const publishDate = sanitizePlainText(req.body?.publishDate, 64);
-    const status = sanitizePlainText(req.body?.status, 40);
-    const images = sanitizeImagesPayload(req.body?.images);
+      const existingPost = await database.getBlogPostById(id);
+      if (!existingPost) {
+        return res.status(404).json({ error: 'Blog post not found' });
+      }
 
-    const existingPost = await database.getMediaCoverageById(id);
-    if (!existingPost) {
-      return res.status(404).json({ error: 'Media coverage not found' });
+      const finalPublishDate = publishDate || existingPost.publishDate;
+      const finalStatus = status || existingPost.status;
+
+      if (!title || !excerpt || !author || !content || !blogStatuses.has(finalStatus)) {
+        return res.status(400).json({ error: 'Invalid blog payload' });
+      }
+
+      const updatedBlogPost = {
+        title,
+        content,
+        excerpt,
+        author,
+        publishDate: finalPublishDate,
+        status: finalStatus,
+        images,
+        updatedAt: new Date().toISOString()
+      };
+
+      const blogPost = await database.updateBlogPost(id, updatedBlogPost);
+      res.json(blogPost);
+    } catch (error) {
+      console.error('Error updating blog post:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
+  });
 
-    const finalStatus = status || existingPost.status;
+  app.put('/api/blog/:id/status', async (req, res) => {
+    try {
+      const id = sanitizePlainText(req.params.id, 64);
+      const status = sanitizePlainText(req.body?.status, 40);
 
-    if (!title || !content || !excerpt || !author || !blogStatuses.has(finalStatus)) {
-      return res.status(400).json({ error: 'Invalid media coverage payload' });
+      if (!blogStatuses.has(status)) {
+        return res.status(400).json({ error: 'Invalid blog status' });
+      }
+
+      const blogPost = await database.updateBlogPostStatus(id, status);
+      if (!blogPost) {
+        return res.status(404).json({ error: 'Blog post not found' });
+      }
+
+      res.json(blogPost);
+    } catch (error) {
+      console.error('Error updating blog post status:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
+  });
 
-    const updatedMediaCoverage = {
-      title,
-      content,
-      excerpt,
-      sourceName: sourceName || existingPost.sourceName || '',
-      sourceUrl: sourceUrl || existingPost.sourceUrl || '',
-      author,
-      publishDate: publishDate || existingPost.publishDate,
-      status: finalStatus,
-      images,
-      updatedAt: new Date().toISOString()
-    };
+  app.delete('/api/blog/:id', async (req, res) => {
+    try {
+      const id = sanitizeResourceId(req.params.id);
+      if (!id) {
+        return res.status(400).json({ error: 'Invalid blog post id' });
+      }
 
-    const mediaCoverage = await database.updateMediaCoverage(id, updatedMediaCoverage);
-    res.json(mediaCoverage);
-  } catch (error) {
-    console.error('Error updating media coverage:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+      const result = await database.deleteBlogPost(id);
+      if (result.changes === 0) {
+        return res.status(404).json({ error: 'Blog post not found' });
+      }
 
-app.put('/api/media-coverage/:id/status', async (req, res) => {
-  try {
-    const id = sanitizePlainText(req.params.id, 64);
-    const status = sanitizePlainText(req.body?.status, 40);
+      // Delete the image directory if it exists
+      const imageDir = path.join(baseImageDir, 'blog', id, 'images');
+      await removeDirectoryIfExists(imageDir);
 
-    if (!blogStatuses.has(status)) {
-      return res.status(400).json({ error: 'Invalid media coverage status' });
+      res.json({ message: 'Blog post deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting blog post:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
+  });
 
-    const mediaCoverage = await database.updateMediaCoverageStatus(id, status);
-    if (!mediaCoverage) {
-      return res.status(404).json({ error: 'Media coverage not found' });
+  // Press Releases Routes
+  app.get('/api/press-releases', async (req, res) => {
+    try {
+      const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
+      const pressReleases = await database.getAllPressReleases();
+      const publishedPressReleases = pressReleases.filter((release) => release.status === 'published');
+      const paginatedPressReleases = paginateRows(publishedPressReleases, pagination);
+      res.json(paginatedPressReleases.map(sanitizePressReleaseForResponse));
+    } catch (error) {
+      console.error('Error getting press releases:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
+  });
 
-    res.json(mediaCoverage);
-  } catch (error) {
-    console.error('Error updating media coverage status:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  app.get('/api/admin/press-releases', async (req, res) => {
+    try {
+      if (!ensureAdminAccess(req, res)) {
+        return;
+      }
 
-app.delete('/api/media-coverage/:id', async (req, res) => {
-  try {
-    const id = sanitizeResourceId(req.params.id);
-    if (!id) {
-      return res.status(400).json({ error: 'Invalid media coverage id' });
+      const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
+      const pressReleases = await database.getAllPressReleases();
+      const paginatedPressReleases = paginateRows(pressReleases, pagination);
+      res.json(paginatedPressReleases.map(sanitizePressReleaseForResponse));
+    } catch (error) {
+      console.error('Error getting admin press releases:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
+  });
 
-    const result = await database.deleteMediaCoverage(id);
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Media coverage not found' });
+  app.get('/api/press-releases/:id', async (req, res) => {
+    try {
+      const id = sanitizePlainText(req.params.id, 64);
+      const pressRelease = await database.getPressReleaseById(id);
+      if (!pressRelease || pressRelease.status !== 'published') {
+        return res.status(404).json({ error: 'Press release not found' });
+      }
+      res.json(sanitizePressReleaseForResponse(pressRelease));
+    } catch (error) {
+      console.error('Error getting press release:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
+  });
 
-    // Delete associated images
-    const imageDir = path.join(baseImageDir, 'media', id, 'images');
-    await removeDirectoryIfExists(imageDir);
-    
-    res.json({ message: 'Media coverage deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting media coverage:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  app.post('/api/press-releases', async (req, res) => {
+    try {
+      const title = sanitizePlainText(req.body?.title, 200);
+      const content = sanitizeRichText(req.body?.content);
+      const excerpt = sanitizePlainText(req.body?.excerpt, 600);
+      const author = sanitizePlainText(req.body?.author, 120);
+      const publishDate = sanitizePlainText(req.body?.publishDate, 64) || new Date().toISOString();
+      const status = sanitizePlainText(req.body?.status, 40) || 'draft';
+      const images = sanitizeImagesPayload(req.body?.images);
 
-// Events Routes
-app.get('/api/events', async (req, res) => {
-  try {
-    const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
-    const events = await database.getAllEvents();
-    const paginatedEvents = paginateRows(events, pagination);
-    res.json(paginatedEvents.map(sanitizeEventForResponse));
-  } catch (error) {
-    console.error('Error getting events:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+      if (!title || !content || !excerpt || !author || !blogStatuses.has(status)) {
+        return res.status(400).json({ error: 'Invalid press release payload' });
+      }
 
-app.get('/api/admin/events', async (req, res) => {
-  try {
-    if (!ensureAdminAccess(req, res)) {
-      return;
+      const newPressRelease = {
+        id: uuidv4(),
+        title,
+        content,
+        excerpt,
+        author,
+        publishDate,
+        status,
+        images,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const pressRelease = await database.createPressRelease(newPressRelease);
+
+      // Move images from temp folder to the press release folder
+      await moveTempImagesToEntity({
+        path, fs, baseImageDir,
+        folderName: 'press',
+        entity: pressRelease,
+        updateFn: (id, data) => database.updatePressRelease(id, data),
+      });
+
+      res.json(pressRelease);
+    } catch (error) {
+      console.error('Error creating press release:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
+  });
 
-    const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
-    const events = await database.getAllEvents();
-    const paginatedEvents = paginateRows(events, pagination);
-    res.json(paginatedEvents.map(sanitizeEventForResponse));
-  } catch (error) {
-    console.error('Error getting admin events:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  app.put('/api/press-releases/:id', async (req, res) => {
+    try {
+      const id = sanitizePlainText(req.params.id, 64);
+      const title = sanitizePlainText(req.body?.title, 200);
+      const content = sanitizeRichText(req.body?.content);
+      const excerpt = sanitizePlainText(req.body?.excerpt, 600);
+      const author = sanitizePlainText(req.body?.author, 120);
+      const publishDate = sanitizePlainText(req.body?.publishDate, 64);
+      const status = sanitizePlainText(req.body?.status, 40);
+      const images = sanitizeImagesPayload(req.body?.images);
 
-app.get('/api/events/:id', async (req, res) => {
-  try {
-    const id = sanitizePlainText(req.params.id, 64);
-    const event = await database.getEventById(id);
-    if (!event) {
-      return res.status(404).json({ error: 'Event not found' });
+      const existingPost = await database.getPressReleaseById(id);
+      if (!existingPost) {
+        return res.status(404).json({ error: 'Press release not found' });
+      }
+
+      const finalStatus = status || existingPost.status;
+
+      if (!title || !content || !excerpt || !author || !blogStatuses.has(finalStatus)) {
+        return res.status(400).json({ error: 'Invalid press release payload' });
+      }
+
+      const updatedPressRelease = {
+        title,
+        content,
+        excerpt,
+        author,
+        publishDate: publishDate || existingPost.publishDate,
+        status: finalStatus,
+        images,
+        updatedAt: new Date().toISOString()
+      };
+
+      const pressRelease = await database.updatePressRelease(id, updatedPressRelease);
+      res.json(pressRelease);
+    } catch (error) {
+      console.error('Error updating press release:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
-    res.json(sanitizeEventForResponse(event));
-  } catch (error) {
-    console.error('Error getting event:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  });
 
-app.post('/api/events', async (req, res) => {
-  try {
-    const title = sanitizePlainText(req.body?.title, 200);
-    const description = sanitizeRichText(req.body?.description);
-    const excerpt = sanitizePlainText(req.body?.excerpt, 600);
-    const startDate = sanitizePlainText(req.body?.startDate, 64);
-    const endDate = sanitizePlainText(req.body?.endDate, 64);
-    const venueName = sanitizePlainText(req.body?.venueName, 200);
-    const venueAddress = sanitizePlainText(req.body?.venueAddress, 300);
-    const venueCity = sanitizePlainText(req.body?.venueCity, 120);
-    const venueState = sanitizePlainText(req.body?.venueState, 120);
-    const venueZipCode = sanitizePlainText(req.body?.venueZipCode, 32);
-    const venueCountry = sanitizePlainText(req.body?.venueCountry, 120);
-    const venueWebsite = sanitizePlainText(req.body?.venueWebsite, 500);
-    const googleMapsLink = sanitizePlainText(req.body?.googleMapsLink, 500);
-    const organizerName = sanitizePlainText(req.body?.organizerName, 120);
-    const organizerWebsite = sanitizePlainText(req.body?.organizerWebsite, 500);
-    const eventWebsite = sanitizePlainText(req.body?.eventWebsite, 500);
-    const status = sanitizePlainText(req.body?.status, 40);
-    const category = sanitizePlainText(req.body?.category, 120);
-    const imageUrl = sanitizePlainText(req.body?.imageUrl, 500);
+  app.put('/api/press-releases/:id/status', async (req, res) => {
+    try {
+      const id = sanitizePlainText(req.params.id, 64);
+      const status = sanitizePlainText(req.body?.status, 40);
 
-    if (!title || !description || !excerpt || !startDate || !endDate || !venueName || !venueAddress || !venueCity || !venueState || !venueZipCode || !venueCountry || !organizerName || !eventWebsite || !eventStatuses.has(status)) {
-      return res.status(400).json({ error: 'Invalid event payload' });
-    }
-    
-    const newEvent = {
-      id: uuidv4(),
-      title,
-      description,
-      excerpt,
-      startDate,
-      endDate,
-      venueName,
-      venueAddress,
-      venueCity,
-      venueState,
-      venueZipCode,
-      venueCountry,
-      venueWebsite,
-      googleMapsLink,
-      organizerName,
-      organizerWebsite,
-      eventWebsite,
-      status,
-      category,
-      imageUrl,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    
-    const event = await database.createEvent(newEvent);
-    res.json(event);
-  } catch (error) {
-    console.error('Error creating event:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+      if (!blogStatuses.has(status)) {
+        return res.status(400).json({ error: 'Invalid press release status' });
+      }
 
-app.put('/api/events/:id', async (req, res) => {
-  try {
-    const id = sanitizePlainText(req.params.id, 64);
-    const title = sanitizePlainText(req.body?.title, 200);
-    const description = sanitizeRichText(req.body?.description);
-    const excerpt = sanitizePlainText(req.body?.excerpt, 600);
-    const startDate = sanitizePlainText(req.body?.startDate, 64);
-    const endDate = sanitizePlainText(req.body?.endDate, 64);
-    const venueName = sanitizePlainText(req.body?.venueName, 200);
-    const venueAddress = sanitizePlainText(req.body?.venueAddress, 300);
-    const venueCity = sanitizePlainText(req.body?.venueCity, 120);
-    const venueState = sanitizePlainText(req.body?.venueState, 120);
-    const venueZipCode = sanitizePlainText(req.body?.venueZipCode, 32);
-    const venueCountry = sanitizePlainText(req.body?.venueCountry, 120);
-    const venueWebsite = sanitizePlainText(req.body?.venueWebsite, 500);
-    const googleMapsLink = sanitizePlainText(req.body?.googleMapsLink, 500);
-    const organizerName = sanitizePlainText(req.body?.organizerName, 120);
-    const organizerWebsite = sanitizePlainText(req.body?.organizerWebsite, 500);
-    const eventWebsite = sanitizePlainText(req.body?.eventWebsite, 500);
-    const status = sanitizePlainText(req.body?.status, 40);
-    const category = sanitizePlainText(req.body?.category, 120);
-    const imageUrl = sanitizePlainText(req.body?.imageUrl, 500);
-    
-    const existingEvent = await database.getEventById(id);
-    if (!existingEvent) {
-      return res.status(404).json({ error: 'Event not found' });
-    }
-    
-    if (!title || !description || !excerpt || !startDate || !endDate || !venueName || !venueAddress || !venueCity || !venueState || !venueZipCode || !venueCountry || !organizerName || !eventWebsite || !eventStatuses.has(status)) {
-      return res.status(400).json({ error: 'Invalid event payload' });
-    }
+      const pressRelease = await database.updatePressReleaseStatus(id, status);
+      if (!pressRelease) {
+        return res.status(404).json({ error: 'Press release not found' });
+      }
 
-    const updatedEvent = {
-      title,
-      description,
-      excerpt,
-      startDate,
-      endDate,
-      venueName,
-      venueAddress,
-      venueCity,
-      venueState,
-      venueZipCode,
-      venueCountry,
-      venueWebsite,
-      googleMapsLink,
-      organizerName,
-      organizerWebsite,
-      eventWebsite,
-      status,
-      category,
-      imageUrl,
-      updatedAt: new Date().toISOString()
-    };
-    
-    const event = await database.updateEvent(id, updatedEvent);
-    res.json(event);
-  } catch (error) {
-    console.error('Error updating event:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+      res.json(pressRelease);
+    } catch (error) {
+      console.error('Error updating press release status:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
 
-app.put('/api/events/:id/status', async (req, res) => {
-  try {
-    const id = sanitizePlainText(req.params.id, 64);
-    const status = sanitizePlainText(req.body?.status, 40);
+  app.delete('/api/press-releases/:id', async (req, res) => {
+    try {
+      const id = sanitizeResourceId(req.params.id);
+      if (!id) {
+        return res.status(400).json({ error: 'Invalid press release id' });
+      }
 
-    if (!eventStatuses.has(status)) {
-      return res.status(400).json({ error: 'Invalid event status' });
-    }
-    
-    const event = await database.updateEventStatus(id, status);
-    if (!event) {
-      return res.status(404).json({ error: 'Event not found' });
-    }
-    
-    res.json(event);
-  } catch (error) {
-    console.error('Error updating event status:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+      const result = await database.deletePressRelease(id);
+      if (result.changes === 0) {
+        return res.status(404).json({ error: 'Press release not found' });
+      }
 
-app.delete('/api/events/:id', async (req, res) => {
-  try {
-    const id = sanitizeResourceId(req.params.id);
-    if (!id) {
-      return res.status(400).json({ error: 'Invalid event id' });
+      // Delete associated images
+      const imageDir = path.join(baseImageDir, 'press', id, 'images');
+      await removeDirectoryIfExists(imageDir);
+
+      res.json({ message: 'Press release deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting press release:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
-    
-    const result = await database.deleteEvent(id);
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Event not found' });
+  });
+
+  // Media Coverage Routes
+  app.get('/api/media-coverage', async (req, res) => {
+    try {
+      const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
+      const mediaCoverages = await database.getAllMediaCoverages();
+      const publishedMediaCoverages = mediaCoverages.filter((coverage) => coverage.status === 'published');
+      const paginatedMediaCoverages = paginateRows(publishedMediaCoverages, pagination);
+      res.json(paginatedMediaCoverages.map(sanitizeMediaCoverageForResponse));
+    } catch (error) {
+      console.error('Error getting media coverages:', error);
+      res.status(500).json({ error: 'Internal server error' });
     }
-    
-    res.json({ message: 'Event deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting event:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
+  });
+
+  app.get('/api/admin/media-coverage', async (req, res) => {
+    try {
+      if (!ensureAdminAccess(req, res)) {
+        return;
+      }
+
+      const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
+      const mediaCoverages = await database.getAllMediaCoverages();
+      const paginatedMediaCoverages = paginateRows(mediaCoverages, pagination);
+      res.json(paginatedMediaCoverages.map(sanitizeMediaCoverageForResponse));
+    } catch (error) {
+      console.error('Error getting admin media coverages:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/media-coverage/:id', async (req, res) => {
+    try {
+      const id = sanitizePlainText(req.params.id, 64);
+      const mediaCoverage = await database.getMediaCoverageById(id);
+      if (!mediaCoverage || mediaCoverage.status !== 'published') {
+        return res.status(404).json({ error: 'Media coverage not found' });
+      }
+      res.json(sanitizeMediaCoverageForResponse(mediaCoverage));
+    } catch (error) {
+      console.error('Error getting media coverage:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/media-coverage', async (req, res) => {
+    try {
+      const title = sanitizePlainText(req.body?.title, 200);
+      const content = sanitizeRichText(req.body?.content);
+      const excerpt = sanitizePlainText(req.body?.excerpt, 600);
+      const sourceName = sanitizePlainText(req.body?.sourceName, 200);
+      const sourceUrl = sanitizePlainText(req.body?.sourceUrl, 500);
+      const author = sanitizePlainText(req.body?.author, 120);
+      const publishDate = sanitizePlainText(req.body?.publishDate, 64) || new Date().toISOString();
+      const status = sanitizePlainText(req.body?.status, 40) || 'draft';
+      const images = sanitizeImagesPayload(req.body?.images);
+
+      if (!title || !content || !excerpt || !author || !blogStatuses.has(status)) {
+        return res.status(400).json({ error: 'Invalid media coverage payload' });
+      }
+
+      const newMediaCoverage = {
+        id: uuidv4(),
+        title,
+        content,
+        excerpt,
+        sourceName,
+        sourceUrl,
+        author,
+        publishDate,
+        status,
+        images,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const mediaCoverage = await database.createMediaCoverage(newMediaCoverage);
+
+      // Move images from temp folder to the media coverage folder
+      await moveTempImagesToEntity({
+        path, fs, baseImageDir,
+        folderName: 'media',
+        entity: mediaCoverage,
+        updateFn: (id, data) => database.updateMediaCoverage(id, data),
+      });
+
+      res.json(mediaCoverage);
+    } catch (error) {
+      console.error('Error creating media coverage:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.put('/api/media-coverage/:id', async (req, res) => {
+    try {
+      const id = sanitizePlainText(req.params.id, 64);
+      const title = sanitizePlainText(req.body?.title, 200);
+      const content = sanitizeRichText(req.body?.content);
+      const excerpt = sanitizePlainText(req.body?.excerpt, 600);
+      const sourceName = sanitizePlainText(req.body?.sourceName, 200);
+      const sourceUrl = sanitizePlainText(req.body?.sourceUrl, 500);
+      const author = sanitizePlainText(req.body?.author, 120);
+      const publishDate = sanitizePlainText(req.body?.publishDate, 64);
+      const status = sanitizePlainText(req.body?.status, 40);
+      const images = sanitizeImagesPayload(req.body?.images);
+
+      const existingPost = await database.getMediaCoverageById(id);
+      if (!existingPost) {
+        return res.status(404).json({ error: 'Media coverage not found' });
+      }
+
+      const finalStatus = status || existingPost.status;
+
+      if (!title || !content || !excerpt || !author || !blogStatuses.has(finalStatus)) {
+        return res.status(400).json({ error: 'Invalid media coverage payload' });
+      }
+
+      const updatedMediaCoverage = {
+        title,
+        content,
+        excerpt,
+        sourceName: sourceName || existingPost.sourceName || '',
+        sourceUrl: sourceUrl || existingPost.sourceUrl || '',
+        author,
+        publishDate: publishDate || existingPost.publishDate,
+        status: finalStatus,
+        images,
+        updatedAt: new Date().toISOString()
+      };
+
+      const mediaCoverage = await database.updateMediaCoverage(id, updatedMediaCoverage);
+      res.json(mediaCoverage);
+    } catch (error) {
+      console.error('Error updating media coverage:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.put('/api/media-coverage/:id/status', async (req, res) => {
+    try {
+      const id = sanitizePlainText(req.params.id, 64);
+      const status = sanitizePlainText(req.body?.status, 40);
+
+      if (!blogStatuses.has(status)) {
+        return res.status(400).json({ error: 'Invalid media coverage status' });
+      }
+
+      const mediaCoverage = await database.updateMediaCoverageStatus(id, status);
+      if (!mediaCoverage) {
+        return res.status(404).json({ error: 'Media coverage not found' });
+      }
+
+      res.json(mediaCoverage);
+    } catch (error) {
+      console.error('Error updating media coverage status:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.delete('/api/media-coverage/:id', async (req, res) => {
+    try {
+      const id = sanitizeResourceId(req.params.id);
+      if (!id) {
+        return res.status(400).json({ error: 'Invalid media coverage id' });
+      }
+
+      const result = await database.deleteMediaCoverage(id);
+      if (result.changes === 0) {
+        return res.status(404).json({ error: 'Media coverage not found' });
+      }
+
+      // Delete associated images
+      const imageDir = path.join(baseImageDir, 'media', id, 'images');
+      await removeDirectoryIfExists(imageDir);
+
+      res.json({ message: 'Media coverage deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting media coverage:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Events Routes
+  app.get('/api/events', async (req, res) => {
+    try {
+      const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
+      const events = await database.getAllEvents();
+      const publishedEvents = events.filter((event) => event.status === 'upcoming' || event.status === 'ongoing');
+      const paginatedEvents = paginateRows(publishedEvents, pagination);
+      res.json(paginatedEvents.map(sanitizeEventForResponse));
+    } catch (error) {
+      console.error('Error getting events:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/admin/events', async (req, res) => {
+    try {
+      if (!ensureAdminAccess(req, res)) {
+        return;
+      }
+
+      const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
+      const events = await database.getAllEvents();
+      const paginatedEvents = paginateRows(events, pagination);
+      res.json(paginatedEvents.map(sanitizeEventForResponse));
+    } catch (error) {
+      console.error('Error getting admin events:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/events/:id', async (req, res) => {
+    try {
+      const id = sanitizePlainText(req.params.id, 64);
+      const event = await database.getEventById(id);
+      if (!event) {
+        return res.status(404).json({ error: 'Event not found' });
+      }
+      res.json(sanitizeEventForResponse(event));
+    } catch (error) {
+      console.error('Error getting event:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/events', async (req, res) => {
+    try {
+      const title = sanitizePlainText(req.body?.title, 200);
+      const description = sanitizeRichText(req.body?.description);
+      const excerpt = sanitizePlainText(req.body?.excerpt, 600);
+      const startDate = sanitizePlainText(req.body?.startDate, 64);
+      const endDate = sanitizePlainText(req.body?.endDate, 64);
+      const venueName = sanitizePlainText(req.body?.venueName, 200);
+      const venueAddress = sanitizePlainText(req.body?.venueAddress, 300);
+      const venueCity = sanitizePlainText(req.body?.venueCity, 120);
+      const venueState = sanitizePlainText(req.body?.venueState, 120);
+      const venueZipCode = sanitizePlainText(req.body?.venueZipCode, 32);
+      const venueCountry = sanitizePlainText(req.body?.venueCountry, 120);
+      const venueWebsite = sanitizePlainText(req.body?.venueWebsite, 500);
+      const googleMapsLink = sanitizePlainText(req.body?.googleMapsLink, 500);
+      const organizerName = sanitizePlainText(req.body?.organizerName, 120);
+      const organizerWebsite = sanitizePlainText(req.body?.organizerWebsite, 500);
+      const eventWebsite = sanitizePlainText(req.body?.eventWebsite, 500);
+      const status = sanitizePlainText(req.body?.status, 40);
+      const category = sanitizePlainText(req.body?.category, 120);
+      const imageUrl = sanitizePlainText(req.body?.imageUrl, 500);
+
+      if (!title || !description || !excerpt || !startDate || !endDate || !venueName || !venueAddress || !venueCity || !venueState || !venueZipCode || !venueCountry || !organizerName || !eventWebsite || !eventStatuses.has(status)) {
+        return res.status(400).json({ error: 'Invalid event payload' });
+      }
+
+      const newEvent = {
+        id: uuidv4(),
+        title,
+        description,
+        excerpt,
+        startDate,
+        endDate,
+        venueName,
+        venueAddress,
+        venueCity,
+        venueState,
+        venueZipCode,
+        venueCountry,
+        venueWebsite,
+        googleMapsLink,
+        organizerName,
+        organizerWebsite,
+        eventWebsite,
+        status,
+        category,
+        imageUrl,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      const event = await database.createEvent(newEvent);
+      res.json(event);
+    } catch (error) {
+      console.error('Error creating event:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.put('/api/events/:id', async (req, res) => {
+    try {
+      const id = sanitizePlainText(req.params.id, 64);
+      const title = sanitizePlainText(req.body?.title, 200);
+      const description = sanitizeRichText(req.body?.description);
+      const excerpt = sanitizePlainText(req.body?.excerpt, 600);
+      const startDate = sanitizePlainText(req.body?.startDate, 64);
+      const endDate = sanitizePlainText(req.body?.endDate, 64);
+      const venueName = sanitizePlainText(req.body?.venueName, 200);
+      const venueAddress = sanitizePlainText(req.body?.venueAddress, 300);
+      const venueCity = sanitizePlainText(req.body?.venueCity, 120);
+      const venueState = sanitizePlainText(req.body?.venueState, 120);
+      const venueZipCode = sanitizePlainText(req.body?.venueZipCode, 32);
+      const venueCountry = sanitizePlainText(req.body?.venueCountry, 120);
+      const venueWebsite = sanitizePlainText(req.body?.venueWebsite, 500);
+      const googleMapsLink = sanitizePlainText(req.body?.googleMapsLink, 500);
+      const organizerName = sanitizePlainText(req.body?.organizerName, 120);
+      const organizerWebsite = sanitizePlainText(req.body?.organizerWebsite, 500);
+      const eventWebsite = sanitizePlainText(req.body?.eventWebsite, 500);
+      const status = sanitizePlainText(req.body?.status, 40);
+      const category = sanitizePlainText(req.body?.category, 120);
+      const imageUrl = sanitizePlainText(req.body?.imageUrl, 500);
+
+      const existingEvent = await database.getEventById(id);
+      if (!existingEvent) {
+        return res.status(404).json({ error: 'Event not found' });
+      }
+
+      if (!title || !description || !excerpt || !startDate || !endDate || !venueName || !venueAddress || !venueCity || !venueState || !venueZipCode || !venueCountry || !organizerName || !eventWebsite || !eventStatuses.has(status)) {
+        return res.status(400).json({ error: 'Invalid event payload' });
+      }
+
+      const updatedEvent = {
+        title,
+        description,
+        excerpt,
+        startDate,
+        endDate,
+        venueName,
+        venueAddress,
+        venueCity,
+        venueState,
+        venueZipCode,
+        venueCountry,
+        venueWebsite,
+        googleMapsLink,
+        organizerName,
+        organizerWebsite,
+        eventWebsite,
+        status,
+        category,
+        imageUrl,
+        updatedAt: new Date().toISOString()
+      };
+
+      const event = await database.updateEvent(id, updatedEvent);
+      res.json(event);
+    } catch (error) {
+      console.error('Error updating event:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.put('/api/events/:id/status', async (req, res) => {
+    try {
+      const id = sanitizePlainText(req.params.id, 64);
+      const status = sanitizePlainText(req.body?.status, 40);
+
+      if (!eventStatuses.has(status)) {
+        return res.status(400).json({ error: 'Invalid event status' });
+      }
+
+      const event = await database.updateEventStatus(id, status);
+      if (!event) {
+        return res.status(404).json({ error: 'Event not found' });
+      }
+
+      res.json(event);
+    } catch (error) {
+      console.error('Error updating event status:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.delete('/api/events/:id', async (req, res) => {
+    try {
+      const id = sanitizeResourceId(req.params.id);
+      if (!id) {
+        return res.status(400).json({ error: 'Invalid event id' });
+      }
+
+      const result = await database.deleteEvent(id);
+      if (result.changes === 0) {
+        return res.status(404).json({ error: 'Event not found' });
+      }
+
+      res.json({ message: 'Event deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting event:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
 };
 
 module.exports = registerContentRoutes;

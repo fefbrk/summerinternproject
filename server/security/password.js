@@ -15,6 +15,7 @@ const verifyPassword = (password, storedPassword) => {
   }
 
   if (!storedPassword.startsWith(`${HASH_PREFIX}:`)) {
+    console.warn('WARNING: Plaintext password comparison used. This user password should be migrated to scrypt hash.');
     return password === storedPassword;
   }
 

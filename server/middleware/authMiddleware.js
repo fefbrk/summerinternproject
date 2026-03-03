@@ -164,19 +164,14 @@ const createAuthMiddleware = ({
       isAdmin: Boolean(currentUser.isAdmin),
     };
 
-    if (normalizedPath.startsWith('/blog') && req.method !== 'GET' && !req.user.isAdmin) {
-      return res.status(403).json({ error: 'Admin access required' });
+    const cmsWritePaths = ['/blog', '/press-releases', '/media-coverage', '/events'];
+    for (const cmsPath of cmsWritePaths) {
+      if (normalizedPath.startsWith(cmsPath) && req.method !== 'GET' && !req.user.isAdmin) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
     }
 
-    if (normalizedPath.startsWith('/press-releases') && req.method !== 'GET' && !req.user.isAdmin) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    if (normalizedPath.startsWith('/media-coverage') && req.method !== 'GET' && !req.user.isAdmin) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    if (normalizedPath.startsWith('/events') && req.method !== 'GET' && !req.user.isAdmin) {
+    if (normalizedPath.startsWith('/admin/') && !req.user.isAdmin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
@@ -188,11 +183,8 @@ const createAuthMiddleware = ({
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    if (normalizedPath === '/orders' && req.method === 'GET' && !req.user.isAdmin) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    if (normalizedPath === '/registrations' && req.method === 'GET' && !req.user.isAdmin) {
+    const adminOnlyGetPaths = ['/orders', '/registrations'];
+    if (adminOnlyGetPaths.includes(normalizedPath) && req.method === 'GET' && !req.user.isAdmin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
@@ -210,12 +202,14 @@ const createAuthMiddleware = ({
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    if ((normalizedPath === '/load-demo-data' || normalizedPath === '/clear-all-data') && !demoEndpointsEnabled) {
-      return res.status(404).json({ error: 'Endpoint not available' });
-    }
-
-    if ((normalizedPath === '/load-demo-data' || normalizedPath === '/clear-all-data') && !req.user.isAdmin) {
-      return res.status(403).json({ error: 'Admin access required' });
+    const demoEndpoints = ['/load-demo-data', '/clear-all-data'];
+    if (demoEndpoints.includes(normalizedPath)) {
+      if (!demoEndpointsEnabled) {
+        return res.status(404).json({ error: 'Endpoint not available' });
+      }
+      if (!req.user.isAdmin) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
     }
 
     if (/^\/users\/[^/]+\/password$/.test(normalizedPath) && req.method === 'PUT') {

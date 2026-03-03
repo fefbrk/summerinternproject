@@ -55,6 +55,11 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
   - Order modalinda payment alani read-only snapshot'a cekildi (manual payment edit UI'dan kaldirildi),
   - Order modalinda tek update aksiyonu fulfillment icin birakildi (`Update Order`),
   - Delete confirmation modal'i `src/components/admin/ConfirmDeleteModal.tsx` ile ortaklastirildi.
+- Kod inceleme ve refactoring (phase-4) tamamlandi:
+  - Guvenlik: CSP header, CARRIER_WEBHOOK_SECRET prod guard, events public endpoint filtresi, plaintext parola uyarisi
+  - Kod tekrari giderme: pagination utility (`server/utils/pagination.js`), temp image utility (`server/utils/contentImageUtils.js`), CMS sanitizer factory, admin guard loop, frontend upload dedup, multer mapping, order SQL helper
+  - Optimizasyon: SQLite WAL mode, eksik DB indeksleri (payment_status, user_addresses, user_payment_methods)
+  - Mimari: PressRelease/MediaCoverage ID uretimi Date.now() -> uuidv4(), demo veri JSON fixture'a tasinmasi, App.tsx route tanimlari ayristirilmasi (`src/routes.tsx`)
 
 ## 2) Hala Acik Olan Teknik Borc (Oncelik Sirasi)
 
@@ -70,6 +75,7 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
     - account UI integration testleri,
     - payment webhook replay/failure testleri,
     - carrier webhook retry/replay ve out-of-order event testleri.
+4. Error response formati standardizasyonu (mevcut response'lar tutarli calisiyor, kozmetik iyilestirme).
 
 ## 3) Hemen Calistirilacak Komutlar (Yeni Session)
 

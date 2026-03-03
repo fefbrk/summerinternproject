@@ -28,3 +28,7 @@ npm run lint && npm test && npm run build -- --logLevel error
 - Admin order modalinda payment alani read-only snapshot olarak gosterilir; tek aksiyon fulfillment update'dir (`Update Order`).
 - PSP (iyzico/stripe/paytr) henuz bagli degil; payment domain hazirligi (`payment_attempts`, `payment_events`, payment-status endpointleri) aktiftir.
 - Admin panelinde orders/users/contacts/blog/press/media/events tablari ve ana modallar `src/components/admin/*` altina parcali yapiya alinmistir.
+- Route tanimlari `src/routes.tsx` dosyasina ayristirilmistir; `App.tsx` sadece provider ve layout icerir.
+- Backend paylasilan utility'ler `server/utils/` altindadir: pagination, contentImageUtils.
+- Demo verileri `server/fixtures/demo-data.json` fixture dosyasindadir.
+- SQLite WAL mode aktiftir (eslesen okuma/yazma performansi icin).

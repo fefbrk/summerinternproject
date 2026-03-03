@@ -77,7 +77,7 @@ if (IS_PRODUCTION && !process.env.DEFAULT_ADMIN_PASSWORD) {
 }
 
 if (IS_PRODUCTION && !CARRIER_WEBHOOK_SECRET) {
-  console.warn('CARRIER_WEBHOOK_SECRET is not set. Carrier webhook endpoint will reject all requests.');
+  throw new Error('CARRIER_WEBHOOK_SECRET must be set in production.');
 }
 
 if (MANUAL_FULFILLMENT_OVERRIDE_ENABLED) {
@@ -237,6 +237,7 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self'; frame-ancestors 'none'");
   next();
 });
 
@@ -252,45 +253,33 @@ const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     try {
       let uploadPath;
+      const resourceMappings = [
+        { paramKey: 'blogPostId', folderName: 'blog', urlSegment: '/blog/' },
+        { paramKey: 'pressReleaseId', folderName: 'press', urlSegment: '/press-releases/' },
+        { paramKey: 'mediaCoverageId', folderName: 'media', urlSegment: '/media-coverage/' },
+        { paramKey: 'eventId', folderName: 'events', urlSegment: '/events/' },
+      ];
 
-      if (req.params.blogPostId || req.body.blogPostId) {
-        const blogPostId = sanitizeResourceId(req.params.blogPostId || req.body.blogPostId);
-        if (!blogPostId) {
-          cb(new Error('Invalid blog post id'));
-          return;
+      let resolved = false;
+      for (const mapping of resourceMappings) {
+        const rawId = req.params[mapping.paramKey] || req.body[mapping.paramKey];
+        if (rawId) {
+          const resourceId = sanitizeResourceId(rawId);
+          if (!resourceId) {
+            cb(new Error(`Invalid ${mapping.paramKey}`));
+            return;
+          }
+          uploadPath = resolveUploadPath(mapping.folderName, resourceId, 'images');
+          resolved = true;
+          break;
         }
-        uploadPath = resolveUploadPath('blog', blogPostId, 'images');
-      } else if (req.params.pressReleaseId || req.body.pressReleaseId) {
-        const pressReleaseId = sanitizeResourceId(req.params.pressReleaseId || req.body.pressReleaseId);
-        if (!pressReleaseId) {
-          cb(new Error('Invalid press release id'));
-          return;
-        }
-        uploadPath = resolveUploadPath('press', pressReleaseId, 'images');
-      } else if (req.params.mediaCoverageId || req.body.mediaCoverageId) {
-        const mediaCoverageId = sanitizeResourceId(req.params.mediaCoverageId || req.body.mediaCoverageId);
-        if (!mediaCoverageId) {
-          cb(new Error('Invalid media coverage id'));
-          return;
-        }
-        uploadPath = resolveUploadPath('media', mediaCoverageId, 'images');
-      } else if (req.params.eventId || req.body.eventId) {
-        const eventId = sanitizeResourceId(req.params.eventId || req.body.eventId);
-        if (!eventId) {
-          cb(new Error('Invalid event id'));
-          return;
-        }
-        uploadPath = resolveUploadPath('events', eventId, 'images');
-      } else if (req.originalUrl.includes('/blog/')) {
-        uploadPath = resolveUploadPath('blog', 'temp', 'images');
-      } else if (req.originalUrl.includes('/press-releases/')) {
-        uploadPath = resolveUploadPath('press', 'temp', 'images');
-      } else if (req.originalUrl.includes('/media-coverage/')) {
-        uploadPath = resolveUploadPath('media', 'temp', 'images');
-      } else if (req.originalUrl.includes('/events/')) {
-        uploadPath = resolveUploadPath('events', 'temp', 'images');
-      } else {
-        uploadPath = resolveUploadPath('uploads');
+      }
+
+      if (!resolved) {
+        const tempMapping = resourceMappings.find((m) => req.originalUrl.includes(m.urlSegment));
+        uploadPath = tempMapping
+          ? resolveUploadPath(tempMapping.folderName, 'temp', 'images')
+          : resolveUploadPath('uploads');
       }
 
       fs.promises

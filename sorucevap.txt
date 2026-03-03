@@ -48,9 +48,11 @@ Database (SQLite)
 ### S9: Ana dizin yapisi nasil?
 **C:**
 ```text
-src/      -> frontend sayfa, context, servisler
-server/   -> express app, route, middleware, service, db
-public/   -> statik varliklar
+src/          -> frontend sayfa, context, servisler, routes.tsx
+server/       -> express app, route, middleware, service, db
+server/utils/ -> paylasilan yardimci fonksiyonlar (pagination, contentImageUtils)
+server/fixtures/ -> demo veri JSON dosyalari
+public/       -> statik varliklar
 ```
 
 ---
@@ -249,3 +251,28 @@ npm run lint && npm test && npm run build -- --logLevel error
 ---
 
 Bu dosya bilincli olarak "guncel, dogrulanmis ve operasyonel" bilgi tutar. Belirsiz veya dogrulanmamis iddialar eklenmemelidir.
+
+---
+
+## 11) KOD INCELEME VE REFACTORING
+
+### S43: Proje kod incelemesinde neler yapildi?
+**C:**
+- Guvenlik: CSP header, CARRIER_WEBHOOK_SECRET prod guard, events public endpoint filtresi, plaintext parola uyarisi
+- Kod tekrari giderme: pagination utility, temp image utility, CMS sanitizer factory, admin guard loop, frontend upload dedup, multer mapping, order SQL helper
+- Optimizasyon: SQLite WAL mode, eksik DB indeksleri
+- Mimari: PressRelease/MediaCoverage ID uretimi uuidv4'e gecildi, demo veri JSON fixture'a tasindi, App.tsx route tanimlari src/routes.tsx'e ayristirildi
+
+### S44: WAL mode ne ise yariyor?
+**C:** SQLite WAL (Write-Ahead Logging) mode, eşzamanlı okuma ve yazma işlemlerini mümkün kılar. Varsayılan rollback journal mode'da yazma sırasında okuma engellenirken, WAL mode'da okuma devam edebilir.
+
+### S45: Demo verileri neden JSON fixture'a tasindi?
+**C:** `demoRoutes.js` dosyasi 730 satirdan 75 satira indi. Statik demo verileri `server/fixtures/demo-data.json` dosyasina tasindi; route dosyasi sadece dinamik mantigi (parola uretimi, admin email) iceriyor.
+
+### S46: App.tsx neden routes.tsx'e ayristirildi?
+**C:** App.tsx 314 satirdan 40 satira indi. Tum lazy import'lar ve route tanimlari `src/routes.tsx`'e tasindi. App.tsx artik sadece provider ve layout icerir.
+
+### S47: Hangi paylasilan utility'ler oluşturuldu?
+**C:**
+- `server/utils/pagination.js`: resolvePagination ve paginateRows fonksiyonlari (3 route dosyasindan cikarildi)
+- `server/utils/contentImageUtils.js`: moveTempImagesToEntity fonksiyonu (3 CMS POST handler'dan cikarildi)

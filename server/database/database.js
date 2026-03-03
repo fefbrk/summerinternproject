@@ -106,8 +106,13 @@ class Database {
                             return;
                         }
 
-                        console.log('SQLite veritabanına bağlandı');
-                        resolve();
+                        this.db.run('PRAGMA journal_mode = WAL', (walErr) => {
+                            if (walErr) {
+                                console.warn('PRAGMA journal_mode = WAL ayarlama hatası:', walErr);
+                            }
+                            console.log('SQLite veritabanına bağlandı');
+                            resolve();
+                        });
                     });
                 }
             });
@@ -138,7 +143,7 @@ class Database {
         try {
             const schemaPath = path.join(__dirname, 'schema.sql');
             const schema = fs.readFileSync(schemaPath, 'utf8');
-            
+
             return new Promise((resolve, reject) => {
                 this.db.exec(schema, (err) => {
                     if (err) {
@@ -506,7 +511,7 @@ class Database {
     // SQL sorgusu çalıştır (INSERT, UPDATE, DELETE)
     run(sql, params = []) {
         return new Promise((resolve, reject) => {
-            this.db.run(sql, params, function(err) {
+            this.db.run(sql, params, function (err) {
                 if (err) {
                     console.error('SQL çalıştırma hatası:', err);
                     reject(err);
@@ -608,8 +613,10 @@ class Database {
 
     // === SİPARİŞ İŞLEMLERİ ===
 
-    async getAllOrders() {
-        const sql = `
+    _buildOrderQuery({ where, orderBy } = {}) {
+        const whereClause = where ? `WHERE ${where}` : '';
+        const orderByClause = orderBy || 'o.created_at DESC';
+        return `
             SELECT o.id, o.user_id as userId, o.total_amount as totalAmount, o.status,
                    o.payment_status as paymentStatus, o.payment_provider as paymentProvider,
                    o.payment_reference as paymentReference, o.payment_amount as paymentAmount,
@@ -627,63 +634,26 @@ class Database {
                     ) as items
             FROM orders o
             LEFT JOIN order_items oi ON o.id = oi.order_id
+            ${whereClause}
             GROUP BY o.id
-            ORDER BY o.created_at DESC
+            ORDER BY ${orderByClause}
         `;
+    }
+
+    async getAllOrders() {
+        const sql = this._buildOrderQuery();
         const orders = await this.all(sql);
         return orders.map((order) => this.normalizeOrderRow(order));
     }
 
     async getOrdersByUserId(userId) {
-        const sql = `
-            SELECT o.id, o.user_id as userId, o.total_amount as totalAmount, o.status,
-                   o.payment_status as paymentStatus, o.payment_provider as paymentProvider,
-                   o.payment_reference as paymentReference, o.payment_amount as paymentAmount,
-                   o.payment_currency as paymentCurrency, o.payment_failed_reason as paymentFailedReason,
-                   o.paid_at as paidAt,
-                   o.shipment_provider as shipmentProvider,
-                   o.shipment_tracking_number as shipmentTrackingNumber,
-                   o.fulfillment_source as fulfillmentSource,
-                   o.fulfillment_updated_at as fulfillmentUpdatedAt,
-                   o.customer_name as customerName, o.customer_email as customerEmail,
-                   o.shipping_address as shippingAddress, o.created_at as createdAt,
-                     json_group_array(
-                         json_object('id', oi.product_id, 'name', oi.product_name, 'productId', oi.product_id, 'productName', oi.product_name,
-                                     'quantity', oi.quantity, 'price', oi.price, 'image', oi.image)
-                    ) as items
-            FROM orders o
-            LEFT JOIN order_items oi ON o.id = oi.order_id
-            WHERE o.user_id = ?
-            GROUP BY o.id
-            ORDER BY o.created_at DESC
-        `;
-
+        const sql = this._buildOrderQuery({ where: 'o.user_id = ?' });
         const orders = await this.all(sql, [userId]);
         return orders.map((order) => this.normalizeOrderRow(order));
     }
 
     async getOrderById(id) {
-        const sql = `
-            SELECT o.id, o.user_id as userId, o.total_amount as totalAmount, o.status,
-                   o.payment_status as paymentStatus, o.payment_provider as paymentProvider,
-                   o.payment_reference as paymentReference, o.payment_amount as paymentAmount,
-                   o.payment_currency as paymentCurrency, o.payment_failed_reason as paymentFailedReason,
-                   o.paid_at as paidAt,
-                   o.shipment_provider as shipmentProvider,
-                   o.shipment_tracking_number as shipmentTrackingNumber,
-                   o.fulfillment_source as fulfillmentSource,
-                   o.fulfillment_updated_at as fulfillmentUpdatedAt,
-                   o.customer_name as customerName, o.customer_email as customerEmail,
-                   o.shipping_address as shippingAddress, o.created_at as createdAt,
-                     json_group_array(
-                         json_object('id', oi.product_id, 'name', oi.product_name, 'productId', oi.product_id, 'productName', oi.product_name,
-                                     'quantity', oi.quantity, 'price', oi.price, 'image', oi.image)
-                    ) as items
-            FROM orders o
-            LEFT JOIN order_items oi ON o.id = oi.order_id
-            WHERE o.id = ?
-            GROUP BY o.id
-        `;
+        const sql = this._buildOrderQuery({ where: 'o.id = ?' });
         const order = await this.get(sql, [id]);
         return this.normalizeOrderRow(order);
     }
@@ -1330,245 +1300,245 @@ class Database {
         });
     }
 
-async deleteBlogPost(id) {
-    const sql = 'DELETE FROM blog_posts WHERE id = ?';
-    return this.run(sql, [id]);
-}
+    async deleteBlogPost(id) {
+        const sql = 'DELETE FROM blog_posts WHERE id = ?';
+        return this.run(sql, [id]);
+    }
 
-// === PRESS RELEASES İŞLEMLERİ ===
+    // === PRESS RELEASES İŞLEMLERİ ===
 
-async getAllPressReleases() {
-    const sql = `
+    async getAllPressReleases() {
+        const sql = `
         SELECT id, title, content, excerpt, author, publish_date as publishDate,
                status, images, created_at as createdAt, updated_at as updatedAt
         FROM press_releases
         ORDER BY created_at DESC
     `;
-    const releases = await this.all(sql);
-    return releases.map(release => ({
-        ...release,
-        images: release.images ? this.safeJsonParse(release.images, []) : []
-    }));
-}
+        const releases = await this.all(sql);
+        return releases.map(release => ({
+            ...release,
+            images: release.images ? this.safeJsonParse(release.images, []) : []
+        }));
+    }
 
-async getPressReleaseById(id) {
-    const sql = `
+    async getPressReleaseById(id) {
+        const sql = `
         SELECT id, title, content, excerpt, author, publish_date as publishDate,
                status, images, created_at as createdAt, updated_at as updatedAt
         FROM press_releases
         WHERE id = ?
     `;
-    const release = await this.get(sql, [id]);
-    if (release && release.images) {
-        release.images = this.safeJsonParse(release.images, []);
+        const release = await this.get(sql, [id]);
+        if (release && release.images) {
+            release.images = this.safeJsonParse(release.images, []);
+        }
+        return release;
     }
-    return release;
-}
 
-async createPressRelease(pressRelease) {
-    const sql = `
+    async createPressRelease(pressRelease) {
+        const sql = `
         INSERT INTO press_releases (id, title, content, excerpt, author, publish_date, status, images, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    await this.run(sql, [
-        pressRelease.id,
-        pressRelease.title,
-        pressRelease.content,
-        pressRelease.excerpt,
-        pressRelease.author,
-        pressRelease.publishDate,
-        pressRelease.status,
-        JSON.stringify(pressRelease.images || []),
-        pressRelease.createdAt,
-        pressRelease.updatedAt
-    ]);
+        await this.run(sql, [
+            pressRelease.id,
+            pressRelease.title,
+            pressRelease.content,
+            pressRelease.excerpt,
+            pressRelease.author,
+            pressRelease.publishDate,
+            pressRelease.status,
+            JSON.stringify(pressRelease.images || []),
+            pressRelease.createdAt,
+            pressRelease.updatedAt
+        ]);
 
-    return this.getPressReleaseById(pressRelease.id);
-}
-
-async updatePressRelease(id, pressRelease) {
-    const fields = [];
-    const values = [];
-
-    if (pressRelease.title !== undefined) {
-        fields.push('title = ?');
-        values.push(pressRelease.title);
-    }
-    if (pressRelease.content !== undefined) {
-        fields.push('content = ?');
-        values.push(pressRelease.content);
-    }
-    if (pressRelease.excerpt !== undefined) {
-        fields.push('excerpt = ?');
-        values.push(pressRelease.excerpt);
-    }
-    if (pressRelease.author !== undefined) {
-        fields.push('author = ?');
-        values.push(pressRelease.author);
-    }
-    if (pressRelease.publishDate !== undefined) {
-        fields.push('publish_date = ?');
-        values.push(pressRelease.publishDate);
-    }
-    if (pressRelease.status !== undefined) {
-        fields.push('status = ?');
-        values.push(pressRelease.status);
-    }
-    if (pressRelease.images !== undefined) {
-        fields.push('images = ?');
-        values.push(JSON.stringify(pressRelease.images || []));
+        return this.getPressReleaseById(pressRelease.id);
     }
 
-    fields.push('updated_at = ?');
-    values.push(pressRelease.updatedAt || new Date().toISOString());
+    async updatePressRelease(id, pressRelease) {
+        const fields = [];
+        const values = [];
 
-    values.push(id);
-    const sql = `UPDATE press_releases SET ${fields.join(', ')} WHERE id = ?`;
-    const result = await this.run(sql, values);
-    if (result.changes === 0) {
-        return null;
+        if (pressRelease.title !== undefined) {
+            fields.push('title = ?');
+            values.push(pressRelease.title);
+        }
+        if (pressRelease.content !== undefined) {
+            fields.push('content = ?');
+            values.push(pressRelease.content);
+        }
+        if (pressRelease.excerpt !== undefined) {
+            fields.push('excerpt = ?');
+            values.push(pressRelease.excerpt);
+        }
+        if (pressRelease.author !== undefined) {
+            fields.push('author = ?');
+            values.push(pressRelease.author);
+        }
+        if (pressRelease.publishDate !== undefined) {
+            fields.push('publish_date = ?');
+            values.push(pressRelease.publishDate);
+        }
+        if (pressRelease.status !== undefined) {
+            fields.push('status = ?');
+            values.push(pressRelease.status);
+        }
+        if (pressRelease.images !== undefined) {
+            fields.push('images = ?');
+            values.push(JSON.stringify(pressRelease.images || []));
+        }
+
+        fields.push('updated_at = ?');
+        values.push(pressRelease.updatedAt || new Date().toISOString());
+
+        values.push(id);
+        const sql = `UPDATE press_releases SET ${fields.join(', ')} WHERE id = ?`;
+        const result = await this.run(sql, values);
+        if (result.changes === 0) {
+            return null;
+        }
+
+        return this.getPressReleaseById(id);
     }
 
-    return this.getPressReleaseById(id);
-}
+    async updatePressReleaseStatus(id, status) {
+        return this.updatePressRelease(id, {
+            status,
+            updatedAt: new Date().toISOString(),
+        });
+    }
 
-async updatePressReleaseStatus(id, status) {
-    return this.updatePressRelease(id, {
-        status,
-        updatedAt: new Date().toISOString(),
-    });
-}
+    async deletePressRelease(id) {
+        const sql = 'DELETE FROM press_releases WHERE id = ?';
+        return this.run(sql, [id]);
+    }
 
-async deletePressRelease(id) {
-    const sql = 'DELETE FROM press_releases WHERE id = ?';
-    return this.run(sql, [id]);
-}
+    // === MEDIA COVERAGE İŞLEMLERİ ===
 
-// === MEDIA COVERAGE İŞLEMLERİ ===
-
-async getAllMediaCoverages() {
-    const sql = `
+    async getAllMediaCoverages() {
+        const sql = `
         SELECT id, title, content, excerpt, source_name as sourceName, source_url as sourceUrl, author, publish_date as publishDate,
                status, images, created_at as createdAt, updated_at as updatedAt
         FROM media_coverage
         ORDER BY created_at DESC
     `;
-    const coverages = await this.all(sql);
-    return coverages.map(coverage => ({
-        ...coverage,
-        images: coverage.images ? this.safeJsonParse(coverage.images, []) : []
-    }));
-}
+        const coverages = await this.all(sql);
+        return coverages.map(coverage => ({
+            ...coverage,
+            images: coverage.images ? this.safeJsonParse(coverage.images, []) : []
+        }));
+    }
 
-async getMediaCoverageById(id) {
-    const sql = `
+    async getMediaCoverageById(id) {
+        const sql = `
         SELECT id, title, content, excerpt, source_name as sourceName, source_url as sourceUrl, author, publish_date as publishDate,
                status, images, created_at as createdAt, updated_at as updatedAt
         FROM media_coverage
         WHERE id = ?
     `;
-    const coverage = await this.get(sql, [id]);
-    if (coverage && coverage.images) {
-        coverage.images = this.safeJsonParse(coverage.images, []);
+        const coverage = await this.get(sql, [id]);
+        if (coverage && coverage.images) {
+            coverage.images = this.safeJsonParse(coverage.images, []);
+        }
+        return coverage;
     }
-    return coverage;
-}
 
-async createMediaCoverage(mediaCoverage) {
-    const sourceName = mediaCoverage.sourceName || '';
-    const sourceUrl = mediaCoverage.sourceUrl || '';
-    const sql = `
+    async createMediaCoverage(mediaCoverage) {
+        const sourceName = mediaCoverage.sourceName || '';
+        const sourceUrl = mediaCoverage.sourceUrl || '';
+        const sql = `
         INSERT INTO media_coverage (id, title, content, excerpt, source_name, source_url, author, publish_date, status, images, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    await this.run(sql, [
-        mediaCoverage.id,
-        mediaCoverage.title,
-        mediaCoverage.content,
-        mediaCoverage.excerpt,
-        sourceName,
-        sourceUrl,
-        mediaCoverage.author,
-        mediaCoverage.publishDate,
-        mediaCoverage.status,
-        JSON.stringify(mediaCoverage.images || []),
-        mediaCoverage.createdAt,
-        mediaCoverage.updatedAt
-    ]);
+        await this.run(sql, [
+            mediaCoverage.id,
+            mediaCoverage.title,
+            mediaCoverage.content,
+            mediaCoverage.excerpt,
+            sourceName,
+            sourceUrl,
+            mediaCoverage.author,
+            mediaCoverage.publishDate,
+            mediaCoverage.status,
+            JSON.stringify(mediaCoverage.images || []),
+            mediaCoverage.createdAt,
+            mediaCoverage.updatedAt
+        ]);
 
-    return this.getMediaCoverageById(mediaCoverage.id);
-}
-
-async updateMediaCoverage(id, mediaCoverage) {
-    const fields = [];
-    const values = [];
-
-    if (mediaCoverage.title !== undefined) {
-        fields.push('title = ?');
-        values.push(mediaCoverage.title);
-    }
-    if (mediaCoverage.content !== undefined) {
-        fields.push('content = ?');
-        values.push(mediaCoverage.content);
-    }
-    if (mediaCoverage.excerpt !== undefined) {
-        fields.push('excerpt = ?');
-        values.push(mediaCoverage.excerpt);
-    }
-    if (mediaCoverage.sourceName !== undefined) {
-        fields.push('source_name = ?');
-        values.push(mediaCoverage.sourceName || '');
-    }
-    if (mediaCoverage.sourceUrl !== undefined) {
-        fields.push('source_url = ?');
-        values.push(mediaCoverage.sourceUrl || '');
-    }
-    if (mediaCoverage.author !== undefined) {
-        fields.push('author = ?');
-        values.push(mediaCoverage.author);
-    }
-    if (mediaCoverage.publishDate !== undefined) {
-        fields.push('publish_date = ?');
-        values.push(mediaCoverage.publishDate);
-    }
-    if (mediaCoverage.status !== undefined) {
-        fields.push('status = ?');
-        values.push(mediaCoverage.status);
-    }
-    if (mediaCoverage.images !== undefined) {
-        fields.push('images = ?');
-        values.push(JSON.stringify(mediaCoverage.images || []));
+        return this.getMediaCoverageById(mediaCoverage.id);
     }
 
-    fields.push('updated_at = ?');
-    values.push(mediaCoverage.updatedAt || new Date().toISOString());
+    async updateMediaCoverage(id, mediaCoverage) {
+        const fields = [];
+        const values = [];
 
-    values.push(id);
-    const sql = `UPDATE media_coverage SET ${fields.join(', ')} WHERE id = ?`;
-    const result = await this.run(sql, values);
-    if (result.changes === 0) {
-        return null;
+        if (mediaCoverage.title !== undefined) {
+            fields.push('title = ?');
+            values.push(mediaCoverage.title);
+        }
+        if (mediaCoverage.content !== undefined) {
+            fields.push('content = ?');
+            values.push(mediaCoverage.content);
+        }
+        if (mediaCoverage.excerpt !== undefined) {
+            fields.push('excerpt = ?');
+            values.push(mediaCoverage.excerpt);
+        }
+        if (mediaCoverage.sourceName !== undefined) {
+            fields.push('source_name = ?');
+            values.push(mediaCoverage.sourceName || '');
+        }
+        if (mediaCoverage.sourceUrl !== undefined) {
+            fields.push('source_url = ?');
+            values.push(mediaCoverage.sourceUrl || '');
+        }
+        if (mediaCoverage.author !== undefined) {
+            fields.push('author = ?');
+            values.push(mediaCoverage.author);
+        }
+        if (mediaCoverage.publishDate !== undefined) {
+            fields.push('publish_date = ?');
+            values.push(mediaCoverage.publishDate);
+        }
+        if (mediaCoverage.status !== undefined) {
+            fields.push('status = ?');
+            values.push(mediaCoverage.status);
+        }
+        if (mediaCoverage.images !== undefined) {
+            fields.push('images = ?');
+            values.push(JSON.stringify(mediaCoverage.images || []));
+        }
+
+        fields.push('updated_at = ?');
+        values.push(mediaCoverage.updatedAt || new Date().toISOString());
+
+        values.push(id);
+        const sql = `UPDATE media_coverage SET ${fields.join(', ')} WHERE id = ?`;
+        const result = await this.run(sql, values);
+        if (result.changes === 0) {
+            return null;
+        }
+
+        return this.getMediaCoverageById(id);
     }
 
-    return this.getMediaCoverageById(id);
-}
+    async updateMediaCoverageStatus(id, status) {
+        return this.updateMediaCoverage(id, {
+            status,
+            updatedAt: new Date().toISOString(),
+        });
+    }
 
-async updateMediaCoverageStatus(id, status) {
-    return this.updateMediaCoverage(id, {
-        status,
-        updatedAt: new Date().toISOString(),
-    });
-}
+    async deleteMediaCoverage(id) {
+        const sql = 'DELETE FROM media_coverage WHERE id = ?';
+        return this.run(sql, [id]);
+    }
 
-async deleteMediaCoverage(id) {
-    const sql = 'DELETE FROM media_coverage WHERE id = ?';
-    return this.run(sql, [id]);
-}
+    // === EVENTS İŞLEMLERİ ===
 
-// === EVENTS İŞLEMLERİ ===
-
-async getAllEvents() {
-    const sql = `
+    async getAllEvents() {
+        const sql = `
         SELECT id, title, description, excerpt, start_date as startDate, end_date as endDate,
                venue_name as venueName, venue_address as venueAddress, venue_city as venueCity,
                venue_state as venueState, venue_zip_code as venueZipCode, venue_country as venueCountry,
@@ -1578,8 +1548,8 @@ async getAllEvents() {
         FROM events
         ORDER BY start_date DESC
     `;
-    return this.all(sql);
-}
+        return this.all(sql);
+    }
 
     async getEventById(id) {
         const sql = `

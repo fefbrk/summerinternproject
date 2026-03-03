@@ -70,6 +70,8 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - `shipping` durumuna geciste `carrier + tracking` zorunludur; `delivered` varsayilan olarak carrier webhook ile guncellenir.
 - Admin dashboard'da payment alanlari operasyonel olarak read-only tutulur; fulfillment adimlari tek update aksiyonuyla yonetilir.
 - Lokal prompt yardimci dosyalari (`agentsmdpromptu.txt`, `güvenlikodyazmapromptu.txt`, `optimizasyonpromptu.txt`) gitignore altindadir.
+- Content-Security-Policy header aktif; CARRIER_WEBHOOK_SECRET prod'da zorunlu.
+- CMS ID uretimi UUID v4 ile yapilir; SQLite WAL mode aktif.
 
 ### Backend Ortam Değişkenleri
 
@@ -132,9 +134,13 @@ contacts
 │   │   └── products/  # Ürün kategorileri
 │   ├── assets/        # Görsel ve medya dosyaları
 │   ├── context/       # Global state
-│   └── services/      # API çağrıları
+│   ├── services/      # API çağrıları
+│   └── routes.tsx     # Route tanimlari ve lazy import'lar
 ├── server/
-│   ├── database/      # Veritabanı
+│   ├── database/      # Veritabanı (WAL mode)
+│   ├── routes/        # Endpoint gruplari
+│   ├── utils/         # Paylasilan yardimci fonksiyonlar
+│   ├── fixtures/      # Demo veri JSON dosyalari
 │   └── server.js      # Express sunucu
 └── public/            # Statik dosyalar
 ```

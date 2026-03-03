@@ -1,0 +1,32 @@
+Staj Defteri Ozet (c42f1fa -> d14539b)
+
+Bu ozet, ilk commit olan c42f1fa ile mevcut son commit arasindaki calismalari kisa ve anlasilir sekilde toplar.
+
+Madde Madde Yapilanlar
+
+- Backend yapi monolitikten moduler mimariye tasindi (routes, middleware, services ayristirildi).
+- Auth ve guvenlik katmani guclendirildi (token dogrulama, role kontrolu, sanitize, rate-limit, env guard).
+- Siparis alani payment + fulfillment domain olarak genisletildi.
+- Fulfillment akisi operasyon gercegine uygun hale getirildi:
+  admin tarafi received -> preparing -> shipping,
+  delivered tarafi carrier webhook odakli.
+- Shipping asamasinda carrier ve tracking bilgisi zorunlu hale getirildi.
+- Carrier webhook endpointi eklendi ve idempotent event kaydi icin fulfillment_events tablosu eklendi.
+- Admin dashboard buyuk refactor gecirdi; ekranlar ve modallar component bazli parcalandi.
+- Order modal sadeletildi; payment alani read-only snapshot olarak birakildi, fulfillment icin tek update aksiyonu korundu.
+- Frontend tarafinda admin dashboard component testleri eklendi, smoke test kapsami guclendirildi.
+- Backend integration testleri artirildi, CI sureci lint + test + build ile guclendirildi.
+- Dokumantasyon dosyalari (AGENT.md, AGENTS.md, HANDOFF.md, README.md) guncel kod davranisi ile senkronlandi.
+
+Metin Ozeti
+
+Bu surecte proje, ilk haline gore daha guvenli, daha bakimi kolay ve daha operasyonel bir yapiya getirildi.
+Ozellikle siparis yonetimi tarafinda odak netlestirildi: admin ekip siparisi hazirlama ve kargoya verme adimlarini yonetirken,
+teslimat sonrasi durumlar carrier verisi ile izlenir hale getirildi. Bu sayede hem veri butunlugu korundu hem de paneldeki
+is akisinda gereksiz karmasa azaltildi. Ayni zamanda test kapsami ve CI kontrolleri guclendirildigi icin yapilan degisikliklerin
+kaliciligi ve regresyonlara karsi dayanimi da artmis oldu.
+
+Kisa Sonuc
+
+Ilk committen bugune kadar temel hedef, projeyi production'a daha yakin, test edilebilir ve ekip tarafindan surdurulebilir bir
+seviyeye cikarmak oldu. Bu hedefe uygun sekilde backend, frontend, test ve dokumantasyon taraflari birlikte gelistirildi.

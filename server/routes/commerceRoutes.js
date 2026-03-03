@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const { resolvePagination, paginateRows } = require('../utils/pagination');
 
 const registerCommerceRoutes = (app, deps) => {
   const {
@@ -19,32 +20,11 @@ const registerCommerceRoutes = (app, deps) => {
     throw new Error('productCatalogService is required for commerce routes');
   }
 
-  const MAX_PAGE_SIZE = 1000;
-  const DEFAULT_PAGE_SIZE = 1000;
   const effectivePaymentStatuses = paymentStatuses instanceof Set
     ? paymentStatuses
     : new Set(['pending', 'paid', 'failed', 'refunded']);
 
-  const resolvePagination = (query, defaultLimit = DEFAULT_PAGE_SIZE) => {
-    const rawLimit = Number(query?.limit);
-    const rawPage = Number(query?.page);
 
-    const limit = Number.isFinite(rawLimit) && rawLimit > 0
-      ? Math.min(Math.floor(rawLimit), MAX_PAGE_SIZE)
-      : defaultLimit;
-
-    const page = Number.isFinite(rawPage) && rawPage > 0
-      ? Math.floor(rawPage)
-      : 1;
-
-    const offset = (page - 1) * limit;
-
-    return { limit, page, offset };
-  };
-
-  const paginateRows = (rows, pagination) => {
-    return rows.slice(pagination.offset, pagination.offset + pagination.limit);
-  };
 
   const toCents = (amount) => Math.round(Number(amount) * 100);
   const fromCents = (amountInCents) => amountInCents / 100;
