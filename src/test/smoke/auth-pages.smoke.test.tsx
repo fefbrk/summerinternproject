@@ -8,7 +8,7 @@ import Register from '@/pages/Register';
 
 const renderWithAuth = (ui: ReactNode) => {
   return render(
-    <MemoryRouter>
+    <MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>{ui}</AuthProvider>
     </MemoryRouter>
   );
