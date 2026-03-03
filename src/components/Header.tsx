@@ -20,13 +20,10 @@ const Header = () => {
   const { user, logout } = useAuth();
   const [itemCount, setItemCount] = useState(0);
   const [badgeBump, setBadgeBump] = useState(false);
-  
+
   // Sepet sayısını güncellemek için useEffect
   useEffect(() => {
-    const count = cart.cartItems.reduce((total, item) => total + item.quantity, 0);
-    setItemCount(count);
-    console.log('Header useEffect - Cart item count updated:', count);
-    console.log('Header useEffect - Cart items:', cart.cartItems);
+    setItemCount(cart.cartItems.reduce((total, item) => total + item.quantity, 0));
   }, [cart.cartItems]);
 
   // Rozet için kısa bir büyüme animasyonu (count değişince)
@@ -89,7 +86,7 @@ const Header = () => {
                   </span>
                 )}
               </div>
-              
+
               {/* Login/Logout Button */}
               {user ? (
                 <div className="flex items-center ml-2">
@@ -131,27 +128,27 @@ const Header = () => {
 
             {/* Mobile Menu & Cart Button */}
             <div className="flex items-center md:hidden">
-                <div className="relative mr-2 group">
-                    <Link to="/cart">
-                        <Button variant="ghost" size="icon">
-                            <FontAwesomeIcon icon={faCartShopping} className="h-6 w-6 transition-colors group-hover:text-kibo-purple" />
-                        </Button>
-                    </Link>
-                    {itemCount > 0 && (
-                        <span
-                          className={`absolute top-0 right-0 bg-kibo-orange text-white text-[11px] rounded-full h-4 min-w-[18px] px-[5px] flex items-center justify-center z-10 ring-2 ring-white shadow-sm transition-colors transition-transform duration-200 group-hover:text-kibo-purple ${badgeBump ? 'scale-110' : 'scale-100'}`}
-                        >
-                            {itemCount}
-                        </span>
-                    )}
-                </div>
-                <Button
+              <div className="relative mr-2 group">
+                <Link to="/cart">
+                  <Button variant="ghost" size="icon">
+                    <FontAwesomeIcon icon={faCartShopping} className="h-6 w-6 transition-colors group-hover:text-kibo-purple" />
+                  </Button>
+                </Link>
+                {itemCount > 0 && (
+                  <span
+                    className={`absolute top-0 right-0 bg-kibo-orange text-white text-[11px] rounded-full h-4 min-w-[18px] px-[5px] flex items-center justify-center z-10 ring-2 ring-white shadow-sm transition-colors transition-transform duration-200 group-hover:text-kibo-purple ${badgeBump ? 'scale-110' : 'scale-100'}`}
+                  >
+                    {itemCount}
+                  </span>
+                )}
+              </div>
+              <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                >
+              >
                 {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-                </Button>
+              </Button>
             </div>
           </div>
 
@@ -165,7 +162,7 @@ const Header = () => {
                 <Link to="/shop">
                   <Button variant="ghost" className="justify-start w-full">Shop</Button>
                 </Link>
-                
+
                 {/* Mobile Login/Logout Button */}
                 {user ? (
                   <div className="border-t pt-2">

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import privacyBanner from '@/assets/privacy/Screen-Shot-2022-11-06-at-12.webp';
@@ -52,7 +52,7 @@ const PrivacyPolicy = () => {
                     collected offline or via channels other than this website.
                   </p>
                   <p className="mt-4">
-                    Our website address is: <a href="http://localhost:8080" className="text-kibo-orange hover:underline">https://www.kinderlabrobotics.com</a>.
+                    Our website address is: <a href="" className="text-kibo-orange hover:underline">https://www.kinderlabrobotics.com</a>.
                   </p>
                 </div>
               </div>

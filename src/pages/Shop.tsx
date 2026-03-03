@@ -15,16 +15,13 @@ import { useState } from 'react';
 
 const Shop = () => {
   const { category: categorySlug } = useParams<{ category?: string }>();
-  const { addToCart, cartItems, getCartItemCount } = useCart();
+  const { addToCart } = useCart();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
 
   const handleAddToCart = (product: (typeof products)[0]) => {
-    console.log('Adding to cart:', product);
     addToCart(product);
-    console.log('Cart items (may be stale immediately after add):', cartItems);
-    console.log('Item count (may be stale immediately after add):', getCartItemCount());
     toast({
       title: "Added to Cart",
       description: `${product.name} has been added to your cart.`,
@@ -107,7 +104,7 @@ const Shop = () => {
                   className="pl-10 w-full bg-purple-200 border-purple-200 focus:bg-orange-50 focus:border-orange-200"
                 />
               </div>
-              
+
               <h2 className="text-2xl font-bold mb-4">Categories</h2>
               <div className="space-y-4">
                 {/* All Products Button */}
@@ -157,86 +154,86 @@ const Shop = () => {
                   {filteredProducts.map(product => (
                     <Link to={
                       product.id === '1' ? '/products/kibo-10-kit' :
-                      product.id === '2' ? '/products/kibo-15-kit' :
-                      product.id === '3' ? '/products/kibo-18-kit' :
-                      product.id === '4' ? '/products/kibo-21-kit' :
-                      product.id === '801' ? '/products/kibo-10-home-edition' :
-                      product.id === '802' ? '/products/kibo-15-home-edition' :
-                      product.id === '101' ? '/products/activity-center-kibo-21-steam-explorer' :
-                      product.id === '102' ? '/products/small-classroom-kibo-21-steam-explorer' :
-                      product.id === '103' ? '/products/full-classroom-kibo-21-steam-explorer' :
-                      product.id === '104' ? '/products/activity-center-kibo-21' :
-                      product.id === '105' ? '/products/small-classroom-kibo-21' :
-                      product.id === '106' ? '/products/full-classroom-kibo-21' :
-                      product.id === '107' ? '/products/activity-center-kibo-18' :
-                      product.id === '108' ? '/products/small-classroom-kibo-18' :
-                      product.id === '109' ? '/products/full-classroom-kibo-18' :
-                      product.id === '201' ? '/products/advanced-coding-extension-set' :
-                      product.id === '202' ? '/products/building-brick-extension-set-basic' :
-                      product.id === '203' ? '/products/building-brick-extension-set-deluxe' :
-                      product.id === '204' ? '/products/bundle-of-fun-extension-package' :
-                      product.id === '205' ? '/products/expression-module' :
-                      product.id === '206' ? '/products/free-throw-extension-set' :
-                      product.id === '207' ? '/products/kibo-18-to-kibo-21-upgrade-package' :
-                      product.id === '208' ? '/products/kibo-costumes' :
-                      product.id === '209' ? '/products/marker-extension-set' :
-                      product.id === '210' ? '/products/marker-extension-set-extras' :
-                      product.id === '211' ? '/products/sound-record-playback-module' :
-                      product.id === '301' ? '/products/beep-block' :
-                      product.id === '302' ? '/products/begin-and-end-blocks' :
-                      product.id === '303' ? '/products/block-sticker-upgrade' :
-                      product.id === '304' ? '/products/block-sticker-upgrade-for-kibo-18' :
-                      product.id === '305' ? '/products/block-sticker-upgrade-for-kibo-21' :
-                      product.id === '306' ? '/products/clap-sound-sensor-ear' :
-                      product.id === '307' ? '/products/conditional-blocks' :
-                      product.id === '308' ? '/products/distance-sensor-telescope' :
-                      product.id === '309' ? '/products/firmware-update-cable' :
-                      product.id === '310' ? '/products/forward-block' :
-                      product.id === '311' ? '/products/if-and-end-if-blocks' :
-                      product.id === '312' ? '/products/light-on-blocks' :
-                      product.id === '313' ? '/products/light-output-sensor-lightbulb' :
-                      product.id === '314' ? '/products/light-sensor-eye' :
-                      product.id === '315' ? '/products/motion-blocks' :
-                      product.id === '316' ? '/products/motor-module' :
-                      product.id === '317' ? '/products/parameters-for-if-then-blocks' :
-                      product.id === '318' ? '/products/parameters-for-repeat-blocks' :
-                      product.id === '319' ? '/products/parameters-for-repeat-blocks-numbers-only' :
-                      product.id === '320' ? '/products/sing-block' :
-                      product.id === '321' ? '/products/spin-block' :
-                      product.id === '322' ? '/products/stage-art-platform' :
-                      product.id === '323' ? '/products/stage-pedestal' :
-                      product.id === '324' ? '/products/stage-support' :
-                      product.id === '325' ? '/products/turntable-art-platform' :
-                      product.id === '326' ? '/products/wait-for-clap-block' :
-                      product.id === '327' ? '/products/wheel' :
-                      product.id === '401' ? '/products/growing-with-kibo' :
-                      product.id === '402' ? '/products/exploring-with-kibo' :
-                      product.id === '403' ? '/products/kibo-coding-cards' :
-                      product.id === '404' ? '/products/activity-center-guidebook' :
-                      product.id === '405' ? '/products/creating-with-kibo-guide' :
-                      product.id === '406' ? '/products/kibo-activity-cards' :
-                      product.id === '407' ? '/products/kibo-says-game' :
-                      product.id === '408' ? '/products/ask-and-imagine-guide' :
-                      product.id === '409' ? '/products/assessment-workbook' :
-                      product.id === '410' ? '/products/blended-learning-bundle' :
-                      product.id === '411' ? '/products/build-it-better-guide' :
-                      product.id === '412' ? '/products/engineering-design-journals' :
-                      product.id === '413' ? '/products/express-yourself-guide' :
-                      product.id === '414' ? '/products/make-learning-visible-guide' :
-                      product.id === '415' ? '/products/module-curriculum-guides-bundle' :
-                      product.id === '416' ? '/products/showtime-with-kibo-guide' :
-                      product.id === '417' ? '/products/teaching-materials-package' :
-                      product.id === '418' ? '/products/two-posters' :
-                      product.id === '419' ? '/products/kibo-home-robotics-guide' :
-                      product.id === '501' ? '/products/training-one-hour-web-conference' :
-                      product.id === '601' ? '/products/activity-cards-1st-edition-clearance' :
-                      product.id === '602' ? '/products/assessment-workbook-1st-edition-clearance' :
-                      product.id === '603' ? '/products/build-it-better-clearance' :
-                      product.id === '604' ? '/products/express-yourself-clearance' :
-                      product.id === '605' ? '/products/make-learning-visible-clearance' :
-                      product.id === '606' ? '/products/showtime-with-kibo-clearance' :
-                      product.id === '701' ? '/products/kibo-repair-service' :
-                      `/product/${product.id}`
+                        product.id === '2' ? '/products/kibo-15-kit' :
+                          product.id === '3' ? '/products/kibo-18-kit' :
+                            product.id === '4' ? '/products/kibo-21-kit' :
+                              product.id === '801' ? '/products/kibo-10-home-edition' :
+                                product.id === '802' ? '/products/kibo-15-home-edition' :
+                                  product.id === '101' ? '/products/activity-center-kibo-21-steam-explorer' :
+                                    product.id === '102' ? '/products/small-classroom-kibo-21-steam-explorer' :
+                                      product.id === '103' ? '/products/full-classroom-kibo-21-steam-explorer' :
+                                        product.id === '104' ? '/products/activity-center-kibo-21' :
+                                          product.id === '105' ? '/products/small-classroom-kibo-21' :
+                                            product.id === '106' ? '/products/full-classroom-kibo-21' :
+                                              product.id === '107' ? '/products/activity-center-kibo-18' :
+                                                product.id === '108' ? '/products/small-classroom-kibo-18' :
+                                                  product.id === '109' ? '/products/full-classroom-kibo-18' :
+                                                    product.id === '201' ? '/products/advanced-coding-extension-set' :
+                                                      product.id === '202' ? '/products/building-brick-extension-set-basic' :
+                                                        product.id === '203' ? '/products/building-brick-extension-set-deluxe' :
+                                                          product.id === '204' ? '/products/bundle-of-fun-extension-package' :
+                                                            product.id === '205' ? '/products/expression-module' :
+                                                              product.id === '206' ? '/products/free-throw-extension-set' :
+                                                                product.id === '207' ? '/products/kibo-18-to-kibo-21-upgrade-package' :
+                                                                  product.id === '208' ? '/products/kibo-costumes' :
+                                                                    product.id === '209' ? '/products/marker-extension-set' :
+                                                                      product.id === '210' ? '/products/marker-extension-set-extras' :
+                                                                        product.id === '211' ? '/products/sound-record-playback-module' :
+                                                                          product.id === '301' ? '/products/beep-block' :
+                                                                            product.id === '302' ? '/products/begin-and-end-blocks' :
+                                                                              product.id === '303' ? '/products/block-sticker-upgrade' :
+                                                                                product.id === '304' ? '/products/block-sticker-upgrade-for-kibo-18' :
+                                                                                  product.id === '305' ? '/products/block-sticker-upgrade-for-kibo-21' :
+                                                                                    product.id === '306' ? '/products/clap-sound-sensor-ear' :
+                                                                                      product.id === '307' ? '/products/conditional-blocks' :
+                                                                                        product.id === '308' ? '/products/distance-sensor-telescope' :
+                                                                                          product.id === '309' ? '/products/firmware-update-cable' :
+                                                                                            product.id === '310' ? '/products/forward-block' :
+                                                                                              product.id === '311' ? '/products/if-and-end-if-blocks' :
+                                                                                                product.id === '312' ? '/products/light-on-blocks' :
+                                                                                                  product.id === '313' ? '/products/light-output-sensor-lightbulb' :
+                                                                                                    product.id === '314' ? '/products/light-sensor-eye' :
+                                                                                                      product.id === '315' ? '/products/motion-blocks' :
+                                                                                                        product.id === '316' ? '/products/motor-module' :
+                                                                                                          product.id === '317' ? '/products/parameters-for-if-then-blocks' :
+                                                                                                            product.id === '318' ? '/products/parameters-for-repeat-blocks' :
+                                                                                                              product.id === '319' ? '/products/parameters-for-repeat-blocks-numbers-only' :
+                                                                                                                product.id === '320' ? '/products/sing-block' :
+                                                                                                                  product.id === '321' ? '/products/spin-block' :
+                                                                                                                    product.id === '322' ? '/products/stage-art-platform' :
+                                                                                                                      product.id === '323' ? '/products/stage-pedestal' :
+                                                                                                                        product.id === '324' ? '/products/stage-support' :
+                                                                                                                          product.id === '325' ? '/products/turntable-art-platform' :
+                                                                                                                            product.id === '326' ? '/products/wait-for-clap-block' :
+                                                                                                                              product.id === '327' ? '/products/wheel' :
+                                                                                                                                product.id === '401' ? '/products/growing-with-kibo' :
+                                                                                                                                  product.id === '402' ? '/products/exploring-with-kibo' :
+                                                                                                                                    product.id === '403' ? '/products/kibo-coding-cards' :
+                                                                                                                                      product.id === '404' ? '/products/activity-center-guidebook' :
+                                                                                                                                        product.id === '405' ? '/products/creating-with-kibo-guide' :
+                                                                                                                                          product.id === '406' ? '/products/kibo-activity-cards' :
+                                                                                                                                            product.id === '407' ? '/products/kibo-says-game' :
+                                                                                                                                              product.id === '408' ? '/products/ask-and-imagine-guide' :
+                                                                                                                                                product.id === '409' ? '/products/assessment-workbook' :
+                                                                                                                                                  product.id === '410' ? '/products/blended-learning-bundle' :
+                                                                                                                                                    product.id === '411' ? '/products/build-it-better-guide' :
+                                                                                                                                                      product.id === '412' ? '/products/engineering-design-journals' :
+                                                                                                                                                        product.id === '413' ? '/products/express-yourself-guide' :
+                                                                                                                                                          product.id === '414' ? '/products/make-learning-visible-guide' :
+                                                                                                                                                            product.id === '415' ? '/products/module-curriculum-guides-bundle' :
+                                                                                                                                                              product.id === '416' ? '/products/showtime-with-kibo-guide' :
+                                                                                                                                                                product.id === '417' ? '/products/teaching-materials-package' :
+                                                                                                                                                                  product.id === '418' ? '/products/two-posters' :
+                                                                                                                                                                    product.id === '419' ? '/products/kibo-home-robotics-guide' :
+                                                                                                                                                                      product.id === '501' ? '/products/training-one-hour-web-conference' :
+                                                                                                                                                                        product.id === '601' ? '/products/activity-cards-1st-edition-clearance' :
+                                                                                                                                                                          product.id === '602' ? '/products/assessment-workbook-1st-edition-clearance' :
+                                                                                                                                                                            product.id === '603' ? '/products/build-it-better-clearance' :
+                                                                                                                                                                              product.id === '604' ? '/products/express-yourself-clearance' :
+                                                                                                                                                                                product.id === '605' ? '/products/make-learning-visible-clearance' :
+                                                                                                                                                                                  product.id === '606' ? '/products/showtime-with-kibo-clearance' :
+                                                                                                                                                                                    product.id === '701' ? '/products/kibo-repair-service' :
+                                                                                                                                                                                      `/product/${product.id}`
                     } key={product.id} className="block border-2 border-kibo-purple/30 rounded-lg overflow-hidden shadow-lg transition-all duration-300 hover:border-kibo-purple hover:shadow-xl">
                       <div className="flex flex-col h-full">
                         <div className="h-48 bg-white">
@@ -247,16 +244,15 @@ const Shop = () => {
                           <p className="text-xl font-bold text-kibo-purple mb-4">
                             {`$${product.price.toFixed(2)}`}
                           </p>
-                          <Button 
-                            className={`w-full transition-colors duration-100 focus:outline-none focus:ring-0 hover:shadow-none ${
-                              (justAddedId === product.id)
-                                ? 'bg-kibo-purple text-kibo-orange'
-                                : 'bg-kibo-orange text-white hover:bg-kibo-orange hover:text-kibo-purple'
-                            }`}
+                          <Button
+                            className={`w-full transition-colors duration-100 focus:outline-none focus:ring-0 hover:shadow-none ${(justAddedId === product.id)
+                              ? 'bg-kibo-purple text-kibo-orange'
+                              : 'bg-kibo-orange text-white hover:bg-kibo-orange hover:text-kibo-purple'
+                              }`}
                             onClick={(e) => {
                               e.preventDefault(); // Prevent navigation when clicking the button
                               handleAddToCart(product);
-                            }}  
+                            }}
                           >
                             <FontAwesomeIcon icon={faCartPlus} className="mr-2" />
                             {(justAddedId === product.id) ? 'Added to Cart' : 'Add to Cart'}

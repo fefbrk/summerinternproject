@@ -58,7 +58,7 @@ const SettingsContent = () => {
       return;
     }
 
-    
+
     // Save profile information
     const profileData = {
       fullName: formData.fullName,
@@ -67,7 +67,6 @@ const SettingsContent = () => {
       companyName: ''
     };
     updateProfileInfo(profileData);
-    console.log('Saving user settings:', formData);
     toast.success('Profile updated successfully!');
   };
 
@@ -89,19 +88,19 @@ const SettingsContent = () => {
       toast.error('New passwords do not match');
       return;
     }
-    
+
     if (!user) {
       toast.error('User not found');
       return;
     }
-    
+
     setIsChangingPassword(true);
-    
+
     try {
       // Backend API'yi kullanarak şifre değiştir
       await apiService.changePassword(user.id, formData.currentPassword, formData.newPassword);
       toast.success('Password changed successfully!');
-      
+
       // Clear password fields
       setFormData(prev => ({
         ...prev,
@@ -117,13 +116,13 @@ const SettingsContent = () => {
       setIsChangingPassword(false);
     }
   };
-  
+
   const handleDeleteAccount = async () => {
     if (!showDeleteConfirm) {
       setShowDeleteConfirm(true);
       return;
     }
-    
+
     if (!user) {
       toast.error('User not found');
       return;
@@ -135,14 +134,14 @@ const SettingsContent = () => {
       setShowDeleteConfirm(false);
       return;
     }
-    
+
     setIsDeletingAccount(true);
-    
+
     try {
       // Backend API'yi kullanarak hesabı sil
       await apiService.deleteUser(user.id);
       toast.success('Account deleted successfully');
-      
+
       // Log out the user and redirect to home page
       logout();
       navigate('/');
@@ -173,7 +172,7 @@ const SettingsContent = () => {
               <Input
                 id="fullName"
                 value={formData.fullName}
-                onChange={(e) => setFormData({...formData, fullName: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                 placeholder="Enter your full name"
                 autoComplete="off"
                 required
@@ -186,7 +185,7 @@ const SettingsContent = () => {
                 id="email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="Enter your email address"
                 autoComplete="off"
                 required
@@ -205,7 +204,7 @@ const SettingsContent = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5" />
-Change Password
+            Change Password
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -216,7 +215,7 @@ Change Password
                 id="currentPassword"
                 type={showPassword ? "text" : "password"}
                 value={formData.currentPassword}
-                onChange={(e) => setFormData({...formData, currentPassword: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, currentPassword: e.target.value })}
                 placeholder="Enter your current password"
                 autoComplete="off"
                 className="bg-orange-50"
@@ -238,7 +237,7 @@ Change Password
                 id="newPassword"
                 type="password"
                 value={formData.newPassword}
-                onChange={(e) => setFormData({...formData, newPassword: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
                 placeholder="Enter your new password"
                 autoComplete="off"
                 className="bg-orange-50"
@@ -250,7 +249,7 @@ Change Password
                 id="confirmPassword"
                 type="password"
                 value={formData.confirmPassword}
-                onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 placeholder="Confirm your new password"
                 autoComplete="off"
                 className="bg-orange-50"
@@ -277,8 +276,8 @@ Change Password
               This action cannot be undone. All your data will be permanently deleted.
             </p>
             <div className="flex items-center gap-2">
-              <Button 
-                variant={showDeleteConfirm ? "outline" : "destructive"} 
+              <Button
+                variant={showDeleteConfirm ? "outline" : "destructive"}
                 size="sm"
                 onClick={handleDeleteAccount}
                 disabled={isDeletingAccount}
@@ -296,8 +295,8 @@ Change Password
                 )}
               </Button>
               {showDeleteConfirm && (
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => setShowDeleteConfirm(false)}
                   disabled={isDeletingAccount}

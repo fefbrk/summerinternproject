@@ -4,7 +4,7 @@ import React, { createContext, useState, useContext, ReactNode, useEffect } from
 export interface Product {
   id: number | string;
   category: string;
-  name:string;
+  name: string;
   price: number | { min: number; max: number };
   image: string;
   description: string;
@@ -41,18 +41,15 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     try {
       const localData = window.localStorage.getItem('cart');
-      console.log('Local storage cart data:', localData);
       if (!localData) return [];
-      
+
       const parsedData: (Product & { quantity: number })[] = JSON.parse(localData);
-      console.log('Parsed cart data:', parsedData);
-      
+
       const migratedData = parsedData.map(item => {
         const price = typeof item.price === 'number' ? item.price : item.price.min;
         return { ...item, price };
       });
 
-      console.log('Migrated cart data:', migratedData);
       return migratedData;
     } catch (error) {
       console.error("Could not parse or migrate cart data from localStorage", error);
@@ -66,8 +63,6 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   useEffect(() => {
     try {
       window.localStorage.setItem('cart', JSON.stringify(cartItems));
-      console.log('Cart items updated:', cartItems);
-      console.log('Cart item count updated:', cartItems.reduce((count, item) => count + item.quantity, 0));
     } catch (error) {
       console.error("Could not save cart data to localStorage", error);
     }
@@ -81,10 +76,10 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
           item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
-      
+
       const priceToAdd = typeof product.price === 'number' ? product.price : product.price.min;
       const newItem: CartItem = { ...product, price: priceToAdd, quantity: 1 };
-      
+
       return [...prevItems, newItem];
     });
   };
@@ -104,7 +99,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       );
     }
   };
-  
+
   const clearCart = () => {
     setCartItems([]);
     setAppliedCoupon('');
@@ -131,9 +126,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   };
 
   const getCartItemCount = () => {
-    const count = cartItems.reduce((count, item) => count + item.quantity, 0);
-    console.log('getCartItemCount called. Cart items:', cartItems, 'Count:', count);
-    return count;
+    return cartItems.reduce((count, item) => count + item.quantity, 0);
   };
 
   return (

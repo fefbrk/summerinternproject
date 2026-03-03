@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -100,7 +100,7 @@ const experiences = [
             
             <br>
             
-            <p>We remembered that KIBO is a robot, not a human, so we had to guide it with the directional programming blocks since it can't think on its own. We refreshed our understanding of the language KIBO employs – barcodes found on the blocks! We emphasized the importance of beginning with the start block and ending with the end block for KIBO to comprehend instructions accurately.</p>
+            <p>We remembered that KIBO is a robot, not a human, so we had to guide it with the directional programming blocks since it can't think on its own. We refreshed our understanding of the language KIBO employs â€“ barcodes found on the blocks! We emphasized the importance of beginning with the start block and ending with the end block for KIBO to comprehend instructions accurately.</p>
             
             <br>
             
@@ -108,7 +108,7 @@ const experiences = [
             
             <br>
             
-            <p>The task involved programming KIBO and Buzz Buzz to reach the flowers. Working in small groups, our children eagerly tackled the challenge. Initially, they tried using the forward block, but KIBO only managed to take a single step, falling short of reaching the flowers. They ingeniously overcame this by repeatedly pressing the button to advance KIBO step by step until Buzz Buzz reached the flowers, where they joyfully deposited the pollen. Subsequently, we introduced another method. We looked on a new block – the repeat block – explained its function. We counted the required repetitions until KIBO and Buzz Buzz reached the flowers, which turned out to be four times. We inserted the "four times" parameter card into the repeat block, and it worked like a charm.</p>
+            <p>The task involved programming KIBO and Buzz Buzz to reach the flowers. Working in small groups, our children eagerly tackled the challenge. Initially, they tried using the forward block, but KIBO only managed to take a single step, falling short of reaching the flowers. They ingeniously overcame this by repeatedly pressing the button to advance KIBO step by step until Buzz Buzz reached the flowers, where they joyfully deposited the pollen. Subsequently, we introduced another method. We looked on a new block â€“ the repeat block â€“ explained its function. We counted the required repetitions until KIBO and Buzz Buzz reached the flowers, which turned out to be four times. We inserted the "four times" parameter card into the repeat block, and it worked like a charm.</p>
             
             <br>
             
@@ -184,11 +184,11 @@ const experiences = [
         contributorLink: 'https://www.satapos.com/',
         videoUrl: 'https://youtu.be/-Taowap7mRE',
         fullContent: `
-            <p>This video shows the preschoolers from Science Akademeia – The Atlanta Preschool of Science researching the African Continent. The preschoolers explored the art and culture of the Ndebele people of Southern Africa. They made Ndebele dolls and drums, coded a dance sequence using KIBO by Kinderlab Robotics, and played drums to accompanied the movement of the dance.</p>
+            <p>This video shows the preschoolers from Science Akademeia â€“ The Atlanta Preschool of Science researching the African Continent. The preschoolers explored the art and culture of the Ndebele people of Southern Africa. They made Ndebele dolls and drums, coded a dance sequence using KIBO by Kinderlab Robotics, and played drums to accompanied the movement of the dance.</p>
             <br>
             <p>This geography lesson pulls in coding and robotics, arts, crafts, design, music and more! Such a creative way to integrate KIBO into the classroom!</p>
             <br>
-            <p>Science Akademeia – The Atlanta Preschool of Science offers The Seeds of STEM curriculum which integrates science concepts with engineering practices and supports the development of STEM foundational skills. Throughout the process, the children share their work (ideas, plans, and prototypes) with their peers. This process introduces children to the early concepts of the engineering design process.</p>
+            <p>Science Akademeia â€“ The Atlanta Preschool of Science offers The Seeds of STEM curriculum which integrates science concepts with engineering practices and supports the development of STEM foundational skills. Throughout the process, the children share their work (ideas, plans, and prototypes) with their peers. This process introduces children to the early concepts of the engineering design process.</p>
             <br>
             
         `,
@@ -198,36 +198,36 @@ const experiences = [
     },
     {
         id: '6',
-        title: 'Celebrating Tu B’Shevat, the Jewish New Year of Trees',
-description: 'To celebrate Tu B’Shevat, 1st and 2nd graders created 4 trees representing the seasons and programmed KIBO to care for the trees.',
+        title: 'Celebrating Tu Bâ€™Shevat, the Jewish New Year of Trees',
+description: 'To celebrate Tu Bâ€™Shevat, 1st and 2nd graders created 4 trees representing the seasons and programmed KIBO to care for the trees.',
 
         contributor: 'Helen Schwartz & Adam Wilkinson, New England Jewish Academy, CT,',
         contributorLink: 'https://neja.org/',
         fullContent: `
-            <p>In celebration of Tu B’Shevat, the Jewish New Year of Trees, the first and second graders at New England Jewish Academy (NEJA), along with their Hebrew teacher, Mrs. Maya Schwartz, their Judaic Studies teacher, Mrs. Shifra Silver and the General Studies teacher, Mrs. Helen Schwartz, combined lessons to have the students celebrate the holiday by creating artwork with recycled materials to create 4 trees representing the four seasons and then programmed KIBO to work with the trees to help them.</p>
+            <p>In celebration of Tu Bâ€™Shevat, the Jewish New Year of Trees, the first and second graders at New England Jewish Academy (NEJA), along with their Hebrew teacher, Mrs. Maya Schwartz, their Judaic Studies teacher, Mrs. Shifra Silver and the General Studies teacher, Mrs. Helen Schwartz, combined lessons to have the students celebrate the holiday by creating artwork with recycled materials to create 4 trees representing the four seasons and then programmed KIBO to work with the trees to help them.</p>
             <br>
             <p><strong>The activity consisted of:</strong>
 <p>1) The history of the holiday, the Hebrew words for tree parts, customs and rituals were covered in Hebrew and Judaic Studies classes. The recycling and robotics focus was taught during science class.
-<p>2) Students the used recycled materials to create 4 trees to represent the four seasons – long and short cardboard tubes, packing material (that made great nests), an old white shirt that when cut up became great snow and eggs for the nests, as well as left over construction paper for leaves and fruit.
+<p>2) Students the used recycled materials to create 4 trees to represent the four seasons â€“ long and short cardboard tubes, packing material (that made great nests), an old white shirt that when cut up became great snow and eggs for the nests, as well as left over construction paper for leaves and fruit.
 <p>3) The students then programmed KIBO to approach each tree and share what it needed. For instance:</p>
             <ul>
-                <li>– when the light bulb was blue, it was “watering” the tree</li>
-                <li>– when the light bulb was white, it was snow for the tree</li>
-                <li>– when the light bulb was red, it was the sun</li>
-                <li>– when KIBO shook, it was either shaking down fruit or planting some seeds</li>
-                <li>– when KIBO turned in a circle, it was replicating playing in the leaves</li>
-                <li>– when KIBO sang it was making the trees happy</li><br>
+                <li>â€“ when the light bulb was blue, it was â€œwateringâ€ the tree</li>
+                <li>â€“ when the light bulb was white, it was snow for the tree</li>
+                <li>â€“ when the light bulb was red, it was the sun</li>
+                <li>â€“ when KIBO shook, it was either shaking down fruit or planting some seeds</li>
+                <li>â€“ when KIBO turned in a circle, it was replicating playing in the leaves</li>
+                <li>â€“ when KIBO sang it was making the trees happy</li><br>
             </ul>
             <br><p><br><p><br><p>
             <p><strong>Some of the comments from the students:</p></strong>
             <br>
-            <p>“It was a creative idea and we worked well as a team. It was a fun experience making KIBO find the right things for each tree.”<p>
-            <p>“I liked working with kids from the rest of my pod that are not in my class.”</p>
-            <p>“I liked this activity because I like trees and plants.”</p>
-            <p>“It was fun making the trees.”</p>
-            <p>“We can also use these trees and KIBO for celebrating spring.”</p>
+            <p>â€œIt was a creative idea and we worked well as a team. It was a fun experience making KIBO find the right things for each tree.â€<p>
+            <p>â€œI liked working with kids from the rest of my pod that are not in my class.â€</p>
+            <p>â€œI liked this activity because I like trees and plants.â€</p>
+            <p>â€œIt was fun making the trees.â€</p>
+            <p>â€œWe can also use these trees and KIBO for celebrating spring.â€</p>
             <br>
-            <p>The classes enjoyed this multi-day project and worked well in small and large groups as well as planning together for what they were going to do and what KIBO’s parts could represent.</p>
+            <p>The classes enjoyed this multi-day project and worked well in small and large groups as well as planning together for what they were going to do and what KIBOâ€™s parts could represent.</p>
             <br>
             <p>To create your own activity, see the KIBO Lesson Plan, <a href="/KIBO-Tu-Bshevat-lesson-New-Year-for-the-Trees.pdf" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">"New Year for the Trees"</a>.</p>
         `,
@@ -240,23 +240,23 @@ description: 'To celebrate Tu B’Shevat, 1st and 2nd graders created 4 trees re
         title: 'Robotics and Mathematics Go Hand in Hand',
 description: 'See some examples of using KIBO with math problems; for young learners to explore critical problem solving and learning through practical experiences.',
 
-        contributor: 'Celestino Magalhães, Teacher of Robotics and Coding, Externato de Vila Meã, Portugal,',
+        contributor: 'Celestino MagalhÃ£es, Teacher of Robotics and Coding, Externato de Vila MeÃ£, Portugal,',
         contributorLink: 'https://externatovilamea.pt/',
         fullContent: `
-            <p>Our KIBO Ambassador, Celestino Magalhães, shares a few examples of how he uses KIBO with math instruction with his young learners. He says, “The use of KIBO robots allows 5-year-old children to explore and create different scenarios, thus exploring their critical thoughts in solving real problems and situations, exploring different solutions to the problem, managing to create valid and profound knowledge, through practical experiences.”</p>
+            <p>Our KIBO Ambassador, Celestino MagalhÃ£es, shares a few examples of how he uses KIBO with math instruction with his young learners. He says, â€œThe use of KIBO robots allows 5-year-old children to explore and create different scenarios, thus exploring their critical thoughts in solving real problems and situations, exploring different solutions to the problem, managing to create valid and profound knowledge, through practical experiences.â€</p>
             <br>
             <p>With the introduction of robotics in an educational environment students are able to:
 <p>(1) think critically
 <p>(2) imagine several solutions for solving the same problem
 <p>(3) select and plan the implementation of the chosen solution
 <p>(4) build and test the results, presenting them if the solution works or reformulating them, because if a robot did not perform as expected, the student can adjust or program it by redoing the entire process.</p>
-<br><p>“Students integrate robot kits, composed of parts, motors, sensors, to achieve deeper learning of technology, providing moments for the student to learn by doing, by themselves, in a tactile way, relating his ideas to the artifacts, and where students can visualize immediate results.”</p>            
+<br><p>â€œStudents integrate robot kits, composed of parts, motors, sensors, to achieve deeper learning of technology, providing moments for the student to learn by doing, by themselves, in a tactile way, relating his ideas to the artifacts, and where students can visualize immediate results.â€</p>            
 
             <br><p><br><p><br>
             <p><strong>Below are examples of his students using KIBO:</p></strong>
             <br>
-            <p>1) <strong>Math </strong>– The use of KIBO robots allow children to explore and create different scenarios, exploring their critical thoughts in solving real problems and situations, in collaboration with Mathematics, exploring different solutions to the problem.
-<p>2)<strong> Within Regular Instruction </strong>– Integrating KIBO in an educational context allows the creation of diversified learning scenarios, which combine technology with artifacts, allow developing creativity, support process planning to help students build their own knowledge.</p>
+            <p>1) <strong>Math </strong>â€“ The use of KIBO robots allow children to explore and create different scenarios, exploring their critical thoughts in solving real problems and situations, in collaboration with Mathematics, exploring different solutions to the problem.
+<p>2)<strong> Within Regular Instruction </strong>â€“ Integrating KIBO in an educational context allows the creation of diversified learning scenarios, which combine technology with artifacts, allow developing creativity, support process planning to help students build their own knowledge.</p>
         `,
         images: [experience7Image1, experience7Image2, experience7Image3, experience7Image4, experience7Image5],
         categories: ['Experiences', 'Collaboration'],
@@ -276,7 +276,7 @@ description: 'Inspired by reading Balloons Over Broadway, 1st and 2nd graders cr
             <p>Our KIBO Ambassador, Helen Schwartz, shares a fun fall activity inspired by reading Balloons Over Broadway by Melissa Sweet.</p>
           
             <br>
-            <p>Her first and second graders created their own balloons (dressed up as a turkey) and then faced the challenge of attaching it to their KIBO, then programming KIBO to walk in a parade like the Macy’s Thanksgiving Day Parade. The children came up with many different ideas for attaching the balloon’s yarn string. Some attached it directly to the platform, some to the motor and some to the pedestal. The second graders were successful in getting their robots to “march” by using the repeat program. The first graders added some turns and shakes in their program.</p>
+            <p>Her first and second graders created their own balloons (dressed up as a turkey) and then faced the challenge of attaching it to their KIBO, then programming KIBO to walk in a parade like the Macyâ€™s Thanksgiving Day Parade. The children came up with many different ideas for attaching the balloonâ€™s yarn string. Some attached it directly to the platform, some to the motor and some to the pedestal. The second graders were successful in getting their robots to â€œmarchâ€ by using the repeat program. The first graders added some turns and shakes in their program.</p>
             <br>
             <p>What a great way to combine the holiday of Thanksgiving and their new KIBO robots!</p>
         `,
@@ -328,7 +328,7 @@ description: 'This video documents an integrated STEAM unit on the Chinese New Y
         
             <p>This video documents an integrated STEAM unit on the Chinese New Year using KIBO in a Boise preschool environment.</p>
             <br>
-            <p>KIBO Ambassador, Heather Lee, is the Early STEM Education Coordinator of the Idaho STEM Action Center. This video was developed in partnership between Boise State University’s College of Education and Idaho STEM Action Center. Follow her work at    .</p>
+            <p>KIBO Ambassador, Heather Lee, is the Early STEM Education Coordinator of the Idaho STEM Action Center. This video was developed in partnership between Boise State Universityâ€™s College of Education and Idaho STEM Action Center. Follow her work at    .</p>
         `,
         images: [],
         categories: ['Experiences'],
@@ -344,9 +344,9 @@ description: 'Students recreate a scene with Mo Willems\' Elephant and Piggie ch
 
         fullContent: `
        
-            <p>KIBO is a wonderful tool for storytelling – and for re-telling favorite stories. In a “Robotic Reader’s Theater” activity, art, literacy, and coding come together to support early literacy skills with KIBO!</p>
+            <p>KIBO is a wonderful tool for storytelling â€“ and for re-telling favorite stories. In a â€œRobotic Readerâ€™s Theaterâ€ activity, art, literacy, and coding come together to support early literacy skills with KIBO!</p>
             <br>
-            <p>In this project, students at JCDS Boston re-told a scene involving <a href="https://www.pigeonpresents.com/books/" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Mo Willems' Elephant and Piggie </a>characters. The KIBO <a href="http://localhost:8080/shop" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Sound Record/Playback Module</a> allowed the students' voices to become part of the story.</p>
+            <p>In this project, students at JCDS Boston re-told a scene involving <a href="https://www.pigeonpresents.com/books/" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Mo Willems' Elephant and Piggie </a>characters. The KIBO <a href="/shop" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Sound Record/Playback Module</a> allowed the students' voices to become part of the story.</p>
         `,
         images: [],
         categories: ['Experiences'],
@@ -363,15 +363,15 @@ description: 'Students programmed KIBO to tour the solar system, under the comma
         
             <p>As part of our computer programming and coding curriculum at Friends School of Baltimore, kindergarten/pre-first (K/P1) students explore ways to communicate, talk to, and control our robot friends, Bee Bot, and now our good friend, KIBO. This past winter, we used an integrative approach to our coding curriculum and looked for opportunities to teach coding in all content areas, whether it was language arts, math, science, art, or music.</p>
             <br>
-            <p>Each year, students in K/P1 learn about various figures in history, paying particular attention to the roles of women and African Americans. One of the more prominent figures we introduce the children to  is Dr. Mae Jemison, the first African-American astronaut who traveled to space aboard the Space Shuttle Endeavour. After our initial project with KIBO in the fall, creating and coding the migration path of the red knot bird, students organically came up with the idea to have KIBO serve as the Endeavour. In doing so, we could then take Dr. Jemison, in LEGO form, on another voyage into space! Using Twitter, we asked Dr. Jemison, “If you could go back into space, where would you go?”</p>
+            <p>Each year, students in K/P1 learn about various figures in history, paying particular attention to the roles of women and African Americans. One of the more prominent figures we introduce the children to  is Dr. Mae Jemison, the first African-American astronaut who traveled to space aboard the Space Shuttle Endeavour. After our initial project with KIBO in the fall, creating and coding the migration path of the red knot bird, students organically came up with the idea to have KIBO serve as the Endeavour. In doing so, we could then take Dr. Jemison, in LEGO form, on another voyage into space! Using Twitter, we asked Dr. Jemison, â€œIf you could go back into space, where would you go?â€</p>
         <br>
-        <p>After students conducted research about the planets, they came to the Makerspace in order to design and create the solar system. Students used balled up construction paper as the planets, and, in a brilliant moment of spontaneity, students made use of non-fiction books to double check their facts about the rings on Saturn, Jupiter’s great red spot, and other facts they needed to know in order to create realistic looking planets. Students collaborated in teams to design and create the planets and place them on our board, which served as the backdrop of the solar system. The children measured, cut, glued, and discussed in their groups the details that differentiated their planets. The children took pride and joy in finding the perfect materials, and then designing a method to attach the rings on to Saturn. The challenge was met!
+        <p>After students conducted research about the planets, they came to the Makerspace in order to design and create the solar system. Students used balled up construction paper as the planets, and, in a brilliant moment of spontaneity, students made use of non-fiction books to double check their facts about the rings on Saturn, Jupiterâ€™s great red spot, and other facts they needed to know in order to create realistic looking planets. Students collaborated in teams to design and create the planets and place them on our board, which served as the backdrop of the solar system. The children measured, cut, glued, and discussed in their groups the details that differentiated their planets. The children took pride and joy in finding the perfect materials, and then designing a method to attach the rings on to Saturn. The challenge was met!
         <br><p><br>
         <p>Once the solar system was created, students agreed on and plotted out a path for the LEGO Dr. Jemison, and the KIBO Endeavour. The children decided the flight path would begin at Earth, fly to its moon, travel to Mars, circle around Saturn, slingshot around Uranus, pass by Jupiter, and then finally fly back to Earth. This was quite the journey and our coding skills would be stretched and tested.
         <br>
-        <br><br><p>At this point, students needed to critically think about how to code KIBO on the flight. The children began to recognize patterns which allowed them to use the repeat blocks. We decided that LEGO Dr. Jemison should celebrate each part of the mission, so LEGO Dr. Jemison did that by having KIBO Endeavour light up, make a noise, or “dance” at each stop. Students needed to collaboratively discuss the sequencing of blocks. We were challenged in how to make KIBO Endeavour turn, but not turn too far to take us off course. Wow! This was a lot of code, but our K/P1 class was excited now, and determined to take LEGO Dr. Jemison and KIBO Endeavour around the planets. Students scanned the blocks and made KIBO Endeavour blast around the solar system, turning, looping code, beeping, lighting up, and “dancing.” After exploring the solar system, LEGO Dr. Jemison safely returned back to Earth aboard the KIBO Endeavour.
+        <br><br><p>At this point, students needed to critically think about how to code KIBO on the flight. The children began to recognize patterns which allowed them to use the repeat blocks. We decided that LEGO Dr. Jemison should celebrate each part of the mission, so LEGO Dr. Jemison did that by having KIBO Endeavour light up, make a noise, or â€œdanceâ€ at each stop. Students needed to collaboratively discuss the sequencing of blocks. We were challenged in how to make KIBO Endeavour turn, but not turn too far to take us off course. Wow! This was a lot of code, but our K/P1 class was excited now, and determined to take LEGO Dr. Jemison and KIBO Endeavour around the planets. Students scanned the blocks and made KIBO Endeavour blast around the solar system, turning, looping code, beeping, lighting up, and â€œdancing.â€ After exploring the solar system, LEGO Dr. Jemison safely returned back to Earth aboard the KIBO Endeavour.
         <br><p>
-        <br><br><p>This K/P1 class was visibly proud of their collaboration, creativity, design thinking, and programming skills. They hugged each other and jumped up and down as Mae Jemison circled the planets in the Endeavour. I am not sure what subject this was, but I am sure that it didn’t matter what it was called. Our young coders researched, artistically designed, communicated with each other, and critically thought about their mistakes on their learning journey. They may have become artists, or scientists, or computer programmers in this class, or possibly all three. It was really up to them. We, the teachers, just had the privilege of traveling with them.
+        <br><br><p>This K/P1 class was visibly proud of their collaboration, creativity, design thinking, and programming skills. They hugged each other and jumped up and down as Mae Jemison circled the planets in the Endeavour. I am not sure what subject this was, but I am sure that it didnâ€™t matter what it was called. Our young coders researched, artistically designed, communicated with each other, and critically thought about their mistakes on their learning journey. They may have become artists, or scientists, or computer programmers in this class, or possibly all three. It was really up to them. We, the teachers, just had the privilege of traveling with them.
         
             `,  
         images: [
@@ -387,17 +387,17 @@ description: 'Students programmed KIBO to tour the solar system, under the comma
     {
         id: '14',
        title: 'KIBO Obstacle Bowling Activity',
-description: '2nd graders put their KIBO coding knowledge to the test in the ultimate game of “obstacle bowling!”',
+description: '2nd graders put their KIBO coding knowledge to the test in the ultimate game of â€œobstacle bowling!â€',
 
         fullContent: `
            
-            <p>2nd graders put their coding knowledge to the test in the ultimate game of “obstacle bowling!” Teams of 3 worked together to first code their KIBOS to go and hit down as many bowling pins (paper towel rolls) as possible. Here, they learned the importance of aim, as well as the concept of scanning the same block multiple times (or using the repeat blocks) in order to get the KIBO from one end of the lane to the other.</p>
+            <p>2nd graders put their coding knowledge to the test in the ultimate game of â€œobstacle bowling!â€ Teams of 3 worked together to first code their KIBOS to go and hit down as many bowling pins (paper towel rolls) as possible. Here, they learned the importance of aim, as well as the concept of scanning the same block multiple times (or using the repeat blocks) in order to get the KIBO from one end of the lane to the other.</p>
             <br>
-            <p>Once students successfully programmed their robot to get to the end of the lane and knock down the pins, an obstacle was added. We used a beanie baby toy. Groups then had to create a much more complex code sequence and use trial and error to successfully avoid hitting the beanie baby then making it to the end of the lane to hit down their pins. Students exclaimed that it was “hard but fun!”</p>
+            <p>Once students successfully programmed their robot to get to the end of the lane and knock down the pins, an obstacle was added. We used a beanie baby toy. Groups then had to create a much more complex code sequence and use trial and error to successfully avoid hitting the beanie baby then making it to the end of the lane to hit down their pins. Students exclaimed that it was â€œhard but fun!â€</p>
             <br>
             <p><strong>Tip:</strong> Give your students dry erase boards and markers so that they can keep track of their codes as they go through the testing stage of the challenge.
             <br><p><br>
-            <br><strong>Check out a <a href="https://x.com/MsKellyKnight/status/1040580236382019584" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">video of the students’ bowling success</a> at Kelly’s Twitter feed.</strong>
+            <br><strong>Check out a <a href="https://x.com/MsKellyKnight/status/1040580236382019584" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">video of the studentsâ€™ bowling success</a> at Kellyâ€™s Twitter feed.</strong>
             <br><p>
             P.S. Our new KIBO Activity Center Guidebook includes a lesson plan on KIBO Bowling.
         
@@ -417,9 +417,9 @@ description: 'This cross curricular activity brings research, science, arts and 
 
         fullContent: `
            
-            <p>As part of the Tuft’s University Graduate Certificate Program in Early Childhood Technology, music teacher and KIBO Ambassador Kitty Rea developed a STEAM (Science, Technology, Engineering, Arts, and Math) summer camp called Coding and Making with the Gray Whales. Kitty’s music school is located just south of San Francisco along the California coast in Half Moon Bay. Gray whales are regularly from there on their 12,000-mile round-trip migration from the nursery lagoons in Baja, Mexico, to the Arctic feeding grounds in the Bering Sea.</p>
+            <p>As part of the Tuftâ€™s University Graduate Certificate Program in Early Childhood Technology, music teacher and KIBO Ambassador Kitty Rea developed a STEAM (Science, Technology, Engineering, Arts, and Math) summer camp called Coding and Making with the Gray Whales. Kittyâ€™s music school is located just south of San Francisco along the California coast in Half Moon Bay. Gray whales are regularly from there on their 12,000-mile round-trip migration from the nursery lagoons in Baja, Mexico, to the Arctic feeding grounds in the Bering Sea.</p>
             <br>
-            <p>During the five full days of camp, students sang and played along to songs about the gray whale, KIBO and the engineering and design process; planned, designed and stocked a “Baja Bus” to take us on our imaginary drive and camping trip to Mexico; read books and watched videos about gray whales; experiments and practiced programming a KIBO; studied the migration route on a painted floor map and Google maps; made lagoons for the whales to feed and frolick during their 20-hour-a-day eight-week-long migration; measured and drew a lifesize baby whale (15 feet long) and momma (50 feet); built prototype baby whales from aluminium foil to learn about whale anatomy; created larger whales from paper mache; and finally programmed their KIBO with their whale on top to migrate from Baja to the Pacific Northwest. All successfully completed their migration and were rewarded with Goldfish snacks all aroud.</p>
+            <p>During the five full days of camp, students sang and played along to songs about the gray whale, KIBO and the engineering and design process; planned, designed and stocked a â€œBaja Busâ€ to take us on our imaginary drive and camping trip to Mexico; read books and watched videos about gray whales; experiments and practiced programming a KIBO; studied the migration route on a painted floor map and Google maps; made lagoons for the whales to feed and frolick during their 20-hour-a-day eight-week-long migration; measured and drew a lifesize baby whale (15 feet long) and momma (50 feet); built prototype baby whales from aluminium foil to learn about whale anatomy; created larger whales from paper mache; and finally programmed their KIBO with their whale on top to migrate from Baja to the Pacific Northwest. All successfully completed their migration and were rewarded with Goldfish snacks all aroud.</p>
             <br>
             <p>Campers earned "Expert Badges" in gray whales, engineering, programming, KIBO, kindness and, a teacher favorite, clean-up. Everyone went home with a design and information journal, their own lagoon, two whales and brains filled with gray whale facts and new coding skills.
         
@@ -438,8 +438,8 @@ description: 'This cross curricular activity brings research, science, arts and 
     },
     {
         id: '16',
-       title: 'Rainforest Animal Stories with KIBO’s Sound Recorder',
-description: 'Students used KIBO’s Sound/Record Playback Module to tell stories about their rainforest animals.',
+       title: 'Rainforest Animal Stories with KIBOâ€™s Sound Recorder',
+description: 'Students used KIBOâ€™s Sound/Record Playback Module to tell stories about their rainforest animals.',
 
         fullContent: `
         
@@ -475,7 +475,7 @@ description: 'KIBO Dances the Virginia Reel! KIBO is programmed to perform a do-
 
         fullContent: `
            
-            <p>KIBO Dances the Virginia Reel! For this dance program, we programmed a series of “figures” (circle with your partner, do-si-do, etc) individually, then linked them together into one long program separated by Wait for Clap blocks. This way the KIBO robots stayed synchronized; it also represented the role of the “caller” in this type of folk dance, who tells the dancers when to start each figure.</p>
+            <p>KIBO Dances the Virginia Reel! For this dance program, we programmed a series of â€œfiguresâ€ (circle with your partner, do-si-do, etc) individually, then linked them together into one long program separated by Wait for Clap blocks. This way the KIBO robots stayed synchronized; it also represented the role of the â€œcallerâ€ in this type of folk dance, who tells the dancers when to start each figure.</p>
             <br>
             <p>Here are images of the program sections:</p><br>
             <p>For more about KIBO curriculum based on dance, check out <a href="/assets/resources/experiences/Dances-Around-the-World-KIBO-Curriculum.pdf" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">"Dances from Around the World"</a> from DevTech Research Group. Music in video: "Virginia Reel" recorded by Mark Geslison and Geoff Groberg <a href="https://geslisongroberg.com/" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">(http://geslisongroberg.com/)</a>
@@ -493,7 +493,7 @@ description: 'KIBO Dances the Virginia Reel! KIBO is programmed to perform a do-
     {
         id: '18',
         title: 'Big Robots for Little Kids',
-description: 'See the research and development of “Big KIBO”, and the impact of scale on kids’ engagement with robotics.',
+description: 'See the research and development of â€œBig KIBOâ€, and the impact of scale on kidsâ€™ engagement with robotics.',
 
         fullContent: `
         
@@ -510,16 +510,16 @@ description: 'See the research and development of “Big KIBO”, and the impact
     },
     {
         id: '19',
-        title: 'KIBO Coding at Kohl Children’s Museum',
-description: 'During “Toying with Tech” kids created a coding program and tested and debugged the code to get KIBO through a maze!',
+        title: 'KIBO Coding at Kohl Childrenâ€™s Museum',
+description: 'During â€œToying with Techâ€ kids created a coding program and tested and debugged the code to get KIBO through a maze!',
 
         fullContent: `
            
-            <p><a href="https://www.kohlchildrensmuseum.org/programming/dovertechplaylab/" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Toying with Tech</a> is a bi-weekly drop in program at the Kohl Children’s Museum, located in Glenview, IL (outside Chicago). It is the “T” in Kohl Children’s Museum’s STEAM Explorers program. Lesson plans focus on foundational coding skills for children 2 through 8 years of age. Toying with Tech activities build on each other, but not all participants have attended previous sessions. Each activity must stand alone and be flexible enough to engage beginners as well as more advanced young coders. To meet the needs of our diverse visitor population and align with the museum’s philosophy of learning through play, Toying with Tech activities must be open-ended and hands-on while promoting creativity and encouraging collaboration. Some of our younger visitors are not yet readers, and there are many home languages spoken by our visitor families. KIBO, with physical blocks that include pictures and words, is a perfect fit for the museum’s philosophy and our visitors.</p>
+            <p><a href="https://www.kohlchildrensmuseum.org/programming/dovertechplaylab/" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Toying with Tech</a> is a bi-weekly drop in program at the Kohl Childrenâ€™s Museum, located in Glenview, IL (outside Chicago). It is the â€œTâ€ in Kohl Childrenâ€™s Museumâ€™s STEAM Explorers program. Lesson plans focus on foundational coding skills for children 2 through 8 years of age. Toying with Tech activities build on each other, but not all participants have attended previous sessions. Each activity must stand alone and be flexible enough to engage beginners as well as more advanced young coders. To meet the needs of our diverse visitor population and align with the museumâ€™s philosophy of learning through play, Toying with Tech activities must be open-ended and hands-on while promoting creativity and encouraging collaboration. Some of our younger visitors are not yet readers, and there are many home languages spoken by our visitor families. KIBO, with physical blocks that include pictures and words, is a perfect fit for the museumâ€™s philosophy and our visitors.</p>
             <br>
             <p>During the month of August, visitors were able to create mazes with foam blocks and code KIBO through the mazes. Children and adults were busy creating their codes, testing, debugging and creating all over again. The open-ended nature of the activity allowed children to start at their comfort level and continue to increase the level of complexity at their pace. Coding with KIBO blocks instead of on a tablet or computer allowed for more interaction and collaboration. Children created mazes for others to code KIBO to navigate, and more experienced peers assisted new KIBO users.</p>
             <br>
-            <p>Learn more about “Toying with Tech” at <a href="https://www.kohlchildrensmuseum.org/" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Kohl Children’s Museum</a>.
+            <p>Learn more about â€œToying with Techâ€ at <a href="https://www.kohlchildrensmuseum.org/" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Kohl Childrenâ€™s Museum</a>.
         
             `,
         images: [
@@ -537,13 +537,13 @@ description: 'See how second grade students used KIBO within an integrated Greek
 
         fullContent: `
             
-            <p>Daedalus and Icarus stand poised to fly away from the island of Crete. Daedalus warns Icarus not to fly too high lest the shining sun melt the wax holding his carefully crafted wings together, or too low where the swirling blue waves of the ocean would dampen his feathers and weigh him down. At the sound of clapping hands, the characters begin their “flight” across a large paper map. Icarus flies higher and higher and then suddenly changes direction and heads for the sea. He spins and beeps and stops on the blue water.</p>
+            <p>Daedalus and Icarus stand poised to fly away from the island of Crete. Daedalus warns Icarus not to fly too high lest the shining sun melt the wax holding his carefully crafted wings together, or too low where the swirling blue waves of the ocean would dampen his feathers and weigh him down. At the sound of clapping hands, the characters begin their â€œflightâ€ across a large paper map. Icarus flies higher and higher and then suddenly changes direction and heads for the sea. He spins and beeps and stops on the blue water.</p>
             <br>
-            <p>This is all taking place during an integrated STEAM lesson in a second grade classroom. The characters in this Greek myth are made of cardboard tubes, pipe cleaners, feathers, and other craft materials. They sit atop student-assembled robots called KIBOs. The students have written their own versions of familiar myths and programmed the KIBOs to travel through their “story spaces” (giant floor maps they’ve drawn).</p>
+            <p>This is all taking place during an integrated STEAM lesson in a second grade classroom. The characters in this Greek myth are made of cardboard tubes, pipe cleaners, feathers, and other craft materials. They sit atop student-assembled robots called KIBOs. The students have written their own versions of familiar myths and programmed the KIBOs to travel through their â€œstory spacesâ€ (giant floor maps theyâ€™ve drawn).</p>
             <br>
             <p>I teach computational thinking and robotics at <a href="https://stewardschool.org/" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">The Steward School</a> in Richmond, VA. and this year we introduced the use of KIBOs in our Lower School classes. These ingenious robotics kits offer young children the chance to design, build, customize, and program robots in many configurations. They include a variety of input sensors and outputs such as sounds and lights. The code is constructed by lining up a series of wooden command blocks, each of which has a command symbol, word, and barcode. Students upload the code to the robot by scanning the barcode on each block.
             <br><p><br>
-            <p>When the second grade teachers asked if we could collaborate on an integrated study of Greek myths, we considered the KIBO’s potential for fostering the engineering design process, creativity, collaboration, and computational thinking and decided they were the perfect tool to tie everything together. We wanted to create an experience that allowed the children to bring their own ideas and creativity to the table to create something that was personally meaningful. This is at the heart of the the constructionist theory of learning developed by Seymour Papert, a computer science and mathematics professor and researcher at MIT. In fact the KIBO robotics kit was developed by Dr. Marina Bers, a student of Dr. Papert and now a Boston College professor specializing in both child development and computer science.
+            <p>When the second grade teachers asked if we could collaborate on an integrated study of Greek myths, we considered the KIBOâ€™s potential for fostering the engineering design process, creativity, collaboration, and computational thinking and decided they were the perfect tool to tie everything together. We wanted to create an experience that allowed the children to bring their own ideas and creativity to the table to create something that was personally meaningful. This is at the heart of the the constructionist theory of learning developed by Seymour Papert, a computer science and mathematics professor and researcher at MIT. In fact the KIBO robotics kit was developed by Dr. Marina Bers, a student of Dr. Papert and now a Boston College professor specializing in both child development and computer science.
             <br>
             <p>With any skill or concept, if it is taught in isolation, it has less meaning to a child than when the lesson is presented as a problem involving a personal interest or creation. The child naturally has more of a personal investment in this kind of an activity. They build upon a scaffolding of existing knowledge and interests, constructing new knowledge that is personally meaningful. When the lesson is structured this way, their understanding of the subject will go a lot deeper.
             <br><p><br>
@@ -575,7 +575,7 @@ description: 'See how second grade students used KIBO within an integrated Greek
            <br><p><br>
            <p>On the final day of the project, students gathered around each story map as the authors ran their KIBO programs and read the accompanying scripts. When everyone was finished, we then allowed time to debrief the whole process, reflecting on the challenges they faced and the strategies they developed to overcome these challenges. To our surprise, almost every group focused on the social-emotional challenges this project presented. They pointed out how important it is to give each member of the group time to express their ideas and their frustrations and to acknowledge in a respectful way that each person is heard and their thoughts are valued. They talked about their strategies for collaborating on story writing, robot construction, map drawing, and how to program the KIBO. They also talked about how to deal with group members whose behaviors they found frustrating.
            <br><p><br>
-           <p>We all agreed it was a valuable experience. The new school year began last week and we are already making plans for this year’s integrated KIBO project.
+           <p>We all agreed it was a valuable experience. The new school year began last week and we are already making plans for this yearâ€™s integrated KIBO project.
            <br><p><br>
            <p>More photos are available here: <a href="http://www.stewardsnaps.org/2016-17-School-Year/Lower-School/Grade-2-Greek-Mythology-Robots/" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">http://www.stewardsnaps.org/2016-17-School-Year/Lower-School/Grade-2-Greek-Mythology-Robots/</a>
 
@@ -595,17 +595,17 @@ description: 'See how second grade students used KIBO within an integrated Greek
     },
     {
         id: '21',
-        title: 'Going on a Bear Hunt – with KIBO!',
+        title: 'Going on a Bear Hunt â€“ with KIBO!',
 description: 'Watch as children read the children\'s book "We\'re Going on a Bear Hunt" and use KIBO to reenact the story!',
         videoUrl: 'https://youtu.be/_xnAmXLRJK4',
 
         fullContent: `
            
-            <p>During the month of August, we completed our last week-long KIBO Robotics Camp here in Washington state. We used the children’s book “We’re Going on a Bear Hunt” as our theme for the week. The children mapped out the road to the bear cave on a long strip of white banner paper. We then colored in The River, The Forest, The SnowStorm. We used the Expression module for each team to make a picture of their “person” going on the bear hunt. Children then coded their KIBO robot to navigate through the road. We used the KIBO’s <a href="http://localhost:8080/shop/extensions" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Sound Recorder/Playback Module</a> to record the children saying:</p>
+            <p>During the month of August, we completed our last week-long KIBO Robotics Camp here in Washington state. We used the childrenâ€™s book â€œWeâ€™re Going on a Bear Huntâ€ as our theme for the week. The children mapped out the road to the bear cave on a long strip of white banner paper. We then colored in The River, The Forest, The SnowStorm. We used the Expression module for each team to make a picture of their â€œpersonâ€ going on the bear hunt. Children then coded their KIBO robot to navigate through the road. We used the KIBOâ€™s <a href="/shop/extensions" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Sound Recorder/Playback Module</a> to record the children saying:</p>
             <br>
-            <p>1) “Oh, no! Can’t go over it; can’t go under it… Gotta go through it!” (Repeat 4 times as KIBO went up to and through the River, Forest, Snow Storm)
-<p>2) “Oh, no! It’s a BEAR!!” (As they reached the bear cave and we uncovered the bear cave to reveal a Teddy Bear.)
-<p> 3) “We’re not going on a bear hunt again!!” (After KIBO reverses back to where he began, crashing into a long body pillow using the Distance Sensor on the back portal.)</p>
+            <p>1) â€œOh, no! Canâ€™t go over it; canâ€™t go under itâ€¦ Gotta go through it!â€ (Repeat 4 times as KIBO went up to and through the River, Forest, Snow Storm)
+<p>2) â€œOh, no! Itâ€™s a BEAR!!â€ (As they reached the bear cave and we uncovered the bear cave to reveal a Teddy Bear.)
+<p> 3) â€œWeâ€™re not going on a bear hunt again!!â€ (After KIBO reverses back to where he began, crashing into a long body pillow using the Distance Sensor on the back portal.)</p>
         `,
         images: [
             '/assets/resources/experiences/21/Planning-150x150.jpg',
@@ -641,9 +641,9 @@ description: 'First Graders and their KIBO robots celebrated the 100th Day of Sc
         fullContent: `
             <h2><strong>First Graders at Yavneh Academy, in Paramus, New Jersey, celebrate the 100th Day of School with KIBO!</h2></strong>
             <br>
-            <p>Not only were the students excited for the 100th day of school, but so were our KIBO robots! During the week of the 100th day of school, our engineering design challenge was to program the KIBOs to dance a happy dance and make their way down a path to Yavneh Academy to celebrate with our school mascot – the Redhawk!</p>
+            <p>Not only were the students excited for the 100th day of school, but so were our KIBO robots! During the week of the 100th day of school, our engineering design challenge was to program the KIBOs to dance a happy dance and make their way down a path to Yavneh Academy to celebrate with our school mascot â€“ the Redhawk!</p>
             <br>
-            <p>New programming options were introduced for this experience. The students learned about repeats, loops, and parameters; as well as new vocabulary, as we discussed destination icons. Working in teams, the students selected their favorite ways to make 100 and wrote their math equations on KIBO’s new expression modules! It was amazing to watch the teamwork in action, as the students created complex sequences with the blocks. Each KIBO danced with varying styles, and it was a magical sight to watch the children cheer on the robots as they partied all the way to Yavneh! 100th day of school – here we come!</p>
+            <p>New programming options were introduced for this experience. The students learned about repeats, loops, and parameters; as well as new vocabulary, as we discussed destination icons. Working in teams, the students selected their favorite ways to make 100 and wrote their math equations on KIBOâ€™s new expression modules! It was amazing to watch the teamwork in action, as the students created complex sequences with the blocks. Each KIBO danced with varying styles, and it was a magical sight to watch the children cheer on the robots as they partied all the way to Yavneh! 100th day of school â€“ here we come!</p>
         `,
         images: [
             '/assets/resources/experiences/23/2b9343b3-98db-4204-ae6d-ceb05659d41a.jpeg',
@@ -657,14 +657,14 @@ description: 'First Graders and their KIBO robots celebrated the 100th Day of Sc
     {
         id: '24',
         title: 'Introducing KIBO to 2nd Graders',
-description: 'KIBO is introduced in a step by step approach – from learning the features of robots, to basic programming and then onto creating more complex “programs”.',
+description: 'KIBO is introduced in a step by step approach â€“ from learning the features of robots, to basic programming and then onto creating more complex â€œprogramsâ€.',
 
         fullContent: `
-            <h2>I used the KIBO to introduce second graders to coding concepts. We started with a discussion about the features of robots, then I introduced KIBO to them and we talked about how it is a robot. Initially, I only gave them the movement, sound, light and wait for clap blocks and allowed them to become familiar with creating “programs” to control KIBO.</h2>
+            <h2>I used the KIBO to introduce second graders to coding concepts. We started with a discussion about the features of robots, then I introduced KIBO to them and we talked about how it is a robot. Initially, I only gave them the movement, sound, light and wait for clap blocks and allowed them to become familiar with creating â€œprogramsâ€ to control KIBO.</h2>
             <br>
             <p>On the second day, I introduced the REPEAT block, first with the numbers, then gave them to UNTIL NEAR and UNTIL LIGHT tiles (along with flashlights) and related to how we are constantly using repeat-until logic in real life.</p>
             <br>
-            <p>On day 3, I handed out the IF block and the tiles that go with that. Finally, we got into the nested IF inside the REPEAT loop. Students had challenges along the way – make a square, make a zigzag, make a crazy car that looks like it bounces off the walls and backs up and spins when it encounters an obstacle, make a school bus that stops each time you shine your light and continues on its way when you clap, etc. Students loved working with the KIBOs and were able to grasp these coding and logic concepts as well as a good dose of teamwork and perseverance!</p>
+            <p>On day 3, I handed out the IF block and the tiles that go with that. Finally, we got into the nested IF inside the REPEAT loop. Students had challenges along the way â€“ make a square, make a zigzag, make a crazy car that looks like it bounces off the walls and backs up and spins when it encounters an obstacle, make a school bus that stops each time you shine your light and continues on its way when you clap, etc. Students loved working with the KIBOs and were able to grasp these coding and logic concepts as well as a good dose of teamwork and perseverance!</p>
         `,
         images: [
             '/assets/resources/experiences/24/IMG_2665.jpg',
@@ -678,22 +678,22 @@ description: 'KIBO is introduced in a step by step approach – from learning th
     {
         id: '25',
         title: 'Engineering a KIBO Carousel',
-description: 'The students at the First Skool created a carousel with KIBO – by going through the design process, coding, collaboration, and problem solving.',
+description: 'The students at the First Skool created a carousel with KIBO â€“ by going through the design process, coding, collaboration, and problem solving.',
 
         fullContent: `
             <h2>The PlayMaker Programme launched by the Singapore Infocomm Media Development Authority of Singapore (IMDA) introduced a suite of technology-enabled toys to pilot at 160 preschool centres as a start. KIBO was selected as one of tech toys, and Westgate Centre was one of the preschool centres that embarked on PlayMaker. The centre has been championing the use of tech-enabled toys and constantly reviewed the use of these tech-enabled toys for teaching and learning. They shared the following description of a KIBO activity the students and teachers undertook together.<h2>
             <br>
-            <p>“Recently, the K1 children from Westgate Centre have shown curiosity and interest in a carousel ride that was set up near Westgate Mall (where the centre is located) during one of their outdoor lessons. They were particular curious about the way the carousel moved. The teachers and children then decided to create a carousel as part of their project to showcase the use of technology at an upcoming Learning and Sharing Festival.
+            <p>â€œRecently, the K1 children from Westgate Centre have shown curiosity and interest in a carousel ride that was set up near Westgate Mall (where the centre is located) during one of their outdoor lessons. They were particular curious about the way the carousel moved. The teachers and children then decided to create a carousel as part of their project to showcase the use of technology at an upcoming Learning and Sharing Festival.
             <br><p><br>
             <p>Various pictures of carousels were shown to the children as a reference. The children and teachers planned and decided on the design and colours of the carousel, working together in creating a carousel of their own. After designing, the children decided that they wanted to make the carousel spin like the real carousel they saw at the mall.
             <br><p><br>
-            <p>The K1 children and teachers tried to make the carousel spin by programming KIBO with the “spin” and “repeat” blocks (i.e. repeat spinning). They observed that this programming caused KIBO to spin too quickly and the carousel kept “flying” off.
+            <p>The K1 children and teachers tried to make the carousel spin by programming KIBO with the â€œspinâ€ and â€œrepeatâ€ blocks (i.e. repeat spinning). They observed that this programming caused KIBO to spin too quickly and the carousel kept â€œflyingâ€ off.
             <br><p><br>
-            <p>The K1 teachers decided to seek other level teachers’ opinions. Teachers discussed collaboratively and tried different programming blocks such as “begin”, “repeat”, “forever”, “turn right”, “end repeat” and “end”. They noticed that the spinning slowed with pauses in between each right turn, but the carousel was still falling off. After various attempts, the teachers observed that the movement of the wheels were spinning the carousel off KIBO. So in their final attempt, they removed KIBO’s wheels (who said KIBO always need wheels?) and found that the carousel stayed intact and was able to spin at the same place!
+            <p>The K1 teachers decided to seek other level teachersâ€™ opinions. Teachers discussed collaboratively and tried different programming blocks such as â€œbeginâ€, â€œrepeatâ€, â€œforeverâ€, â€œturn rightâ€, â€œend repeatâ€ and â€œendâ€. They noticed that the spinning slowed with pauses in between each right turn, but the carousel was still falling off. After various attempts, the teachers observed that the movement of the wheels were spinning the carousel off KIBO. So in their final attempt, they removed KIBOâ€™s wheels (who said KIBO always need wheels?) and found that the carousel stayed intact and was able to spin at the same place!
             <br><p><br>
-            <p>Westgate carousel was finally spinning like a carousel, but one of the K1 children highlighted to her teachers on the use of light bulb to light up the carousel like the real one. “Light” blocks were immediately put to good use together with the 4 coloured light bulbs and Westgate carousel was finally completed!
+            <p>Westgate carousel was finally spinning like a carousel, but one of the K1 children highlighted to her teachers on the use of light bulb to light up the carousel like the real one. â€œLightâ€ blocks were immediately put to good use together with the 4 coloured light bulbs and Westgate carousel was finally completed!
             <br><p><br>
-            <p>Though it may appear to be a simple carousel, the teachers and children went through a process to solve different problems they encountered throughout the project, and they were also required to communicate with their peers and teachers on the design and to solve the problems they faced. The used of tech-enabled toys allowed teachers and children to “tinker” with opportunities to constantly try and redo. This project helped both our teachers and children learn through play and also built a wonderful carousel that they were very proud to showcase at the Learning and Sharing Festival.”
+            <p>Though it may appear to be a simple carousel, the teachers and children went through a process to solve different problems they encountered throughout the project, and they were also required to communicate with their peers and teachers on the design and to solve the problems they faced. The used of tech-enabled toys allowed teachers and children to â€œtinkerâ€ with opportunities to constantly try and redo. This project helped both our teachers and children learn through play and also built a wonderful carousel that they were very proud to showcase at the Learning and Sharing Festival.â€
         `,
         images: [
             '/assets/resources/experiences/25/KIBO-Carousel.jpg'
@@ -709,27 +709,27 @@ description: 'The students at the First Skool created a carousel with KIBO – b
 description: 'Read about a first grade classroom experience blending engineering, arts, and Judaic studies. The KinderLab Engineering Design Process guided this experience.',
 
         fullContent: `
-            <h2>As the first graders in my class at Yavneh Academy studied the biblical story of Noah and the ark, we integrated the introductory lesson of engineering from KinderLab Robotics. The children learned about the building of the ark and all the challenges that Noah encountered while constructing it. The ark’s blueprints were given to him by God and he had to follow the instructions. Similarly, the students were introduced to the engineering process: ask, imagine, plan, create, test, improve and share.</h2>
+            <h2>As the first graders in my class at Yavneh Academy studied the biblical story of Noah and the ark, we integrated the introductory lesson of engineering from KinderLab Robotics. The children learned about the building of the ark and all the challenges that Noah encountered while constructing it. The arkâ€™s blueprints were given to him by God and he had to follow the instructions. Similarly, the students were introduced to the engineering process: ask, imagine, plan, create, test, improve and share.</h2>
             <br>
-            <p>They were exposed to different objects that have been engineered. They compared objects which were created to others which are found in nature. We discussed the process of engineering while observing the objects. For example, we looked at a glue stick, scissors, crayons and a desk. These were all objects that were relatable to the students. The question was asked, “Why were these invented?”.</p>
+            <p>They were exposed to different objects that have been engineered. They compared objects which were created to others which are found in nature. We discussed the process of engineering while observing the objects. For example, we looked at a glue stick, scissors, crayons and a desk. These were all objects that were relatable to the students. The question was asked, â€œWhy were these invented?â€.</p>
             <br>
-            <p>What was the need to create these items? After much discussion and conversation, the challenge for the students was to build a boat that will be sturdy, three stories high, and strong enough to float for three minutes. Additionally, it needed to accommodate Noah, his family and a few plastic animals. The ark must allow for supplies for the animals and Noah’s family.</p>
+            <p>What was the need to create these items? After much discussion and conversation, the challenge for the students was to build a boat that will be sturdy, three stories high, and strong enough to float for three minutes. Additionally, it needed to accommodate Noah, his family and a few plastic animals. The ark must allow for supplies for the animals and Noahâ€™s family.</p>
             <br>
-            <p>Various materials were available for the challenge, including recyclable containers of different sizes, popsicle sticks, colorful duck tape, paper options, pipe cleaners, cotton balls, bottle caps, etc.. The students worked cooperatively in small groups. Teamwork guidance was provided and collaborative work was highlighted. Conversations amongst the students were echoing in the classroom as they planned their groups’ arks.
+            <p>Various materials were available for the challenge, including recyclable containers of different sizes, popsicle sticks, colorful duck tape, paper options, pipe cleaners, cotton balls, bottle caps, etc.. The students worked cooperatively in small groups. Teamwork guidance was provided and collaborative work was highlighted. Conversations amongst the students were echoing in the classroom as they planned their groupsâ€™ arks.
             <br>
             <p>Following the construction process, the students tested their models in a tub of water. Using a timer for three minutes, the students waited patiently to see if their ark was a successful construction. For those that did not succeed the challenge, they went back to the drawing board to figure out what improvements needed to be made to meet the challenge.
             <br>
             <p>Each group shared their plan in detail, their challenges, tests and outcomes. Some quotes were:
-<p>“It was fun to work together because we all had different ideas and then it turns out really nice”
-<p>“We put the people on the top floor to be away from the smelly animals on the first floor”
-<p>“We made a basket to catch fish from the water”
-<p>“We felt like Noah building his ark”
-<p>“It tilted a little so we put another pipe to balance it”
-<p>“Where will the toxins go?”
+<p>â€œIt was fun to work together because we all had different ideas and then it turns out really niceâ€
+<p>â€œWe put the people on the top floor to be away from the smelly animals on the first floorâ€
+<p>â€œWe made a basket to catch fish from the waterâ€
+<p>â€œWe felt like Noah building his arkâ€
+<p>â€œIt tilted a little so we put another pipe to balance itâ€
+<p>â€œWhere will the toxins go?â€
         <br><p><br>
         <p>What an amazing experience as the first step of our year long journey of incorporating the engineering process into our Judaic Studies first grade curriculum.
         <br><p><br>
-        <p>Note: The Engineering Design Process is central to the KIBO curriculum, and it applies to lots of different activities. You can purchase KIBO’s <a href="http://localhost:8080/shop/learning-materials" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Engineering Design Journals</a> and the <a href="http://localhost:8080/shop/learning-materials" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Engineering Design Process classroom poster</a> from our shop!
+        <p>Note: The Engineering Design Process is central to the KIBO curriculum, and it applies to lots of different activities. You can purchase KIBOâ€™s <a href="/shop/learning-materials" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Engineering Design Journals</a> and the <a href="/shop/learning-materials" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Engineering Design Process classroom poster</a> from our shop!
         
             `,
         images: [
@@ -748,31 +748,31 @@ description: 'Read about a first grade classroom experience blending engineering
 description: 'Learn how PreK kids used KIBO and its Engineering Design Journals during an exciting four-day STEM summer program focused on simple machines and creativity.',
 
         fullContent: `
-            <h2>I used KIBO and it’s Engineering Design Journals in a four-day STEM summer program for Pre-K kids this summer. I wanted to focus on Simple Machines and include the KIBO robot which has wheels. I decided to focus on “Force” <strong>my first day</strong>. We swung a beach ball pendulum and talked about how things need force in order to move. We explored friction by pushing a brick on the rug with nothing under it, then placing some pencils under it and pushing it over the pencils. The children noted how much easier the brick moved with the pencils underneath.</h2>
+            <h2>I used KIBO and itâ€™s Engineering Design Journals in a four-day STEM summer program for Pre-K kids this summer. I wanted to focus on Simple Machines and include the KIBO robot which has wheels. I decided to focus on â€œForceâ€ <strong>my first day</strong>. We swung a beach ball pendulum and talked about how things need force in order to move. We explored friction by pushing a brick on the rug with nothing under it, then placing some pencils under it and pushing it over the pencils. The children noted how much easier the brick moved with the pencils underneath.</h2>
             <br>
-            <p>We broke into groups and my helpers did activities with different simple machines such as inclined planes and marbles (marble mazes), horizontal and vertical pulleys (carrying a load over a paper river, and using a wand magnet on a vertical pulley to pick up metal objects), using different weights of pendulums to “bowl” over different sized and weighted bottles, and my station, which was learning about how the KIBO robot moves. We learned the robot parts song and learned that the batteries provide the force necessary to make the robot move. I gave each child (4 or 5 in each group) his own robot and a few blocks. I told them that the ‘begin’ block means ‘go’ and is like using a capital letter at the beginning of a sentence and the ‘end’ block means ‘stop’ and is like using a period. After telling them they always needed a begin and end block, I let them arrange the movement blocks any way they desired. I then helped them scan their programs. I also introduced the “output” sensors during this first session.</p>
+            <p>We broke into groups and my helpers did activities with different simple machines such as inclined planes and marbles (marble mazes), horizontal and vertical pulleys (carrying a load over a paper river, and using a wand magnet on a vertical pulley to pick up metal objects), using different weights of pendulums to â€œbowlâ€ over different sized and weighted bottles, and my station, which was learning about how the KIBO robot moves. We learned the robot parts song and learned that the batteries provide the force necessary to make the robot move. I gave each child (4 or 5 in each group) his own robot and a few blocks. I told them that the â€˜beginâ€™ block means â€˜goâ€™ and is like using a capital letter at the beginning of a sentence and the â€˜endâ€™ block means â€˜stopâ€™ and is like using a period. After telling them they always needed a begin and end block, I let them arrange the movement blocks any way they desired. I then helped them scan their programs. I also introduced the â€œoutputâ€ sensors during this first session.</p>
             <br>
-            <p>Using the individual journals, I had them make a plan for what they would like to turn their robot into – a vehicle, and animal, or a person. I had recycled materials available for them to make one of those things. I also prepped some cardboard circles and rectangles so the children could build their creation on the cardboard and clip it onto the rotating or stationary platforms.</p>
+            <p>Using the individual journals, I had them make a plan for what they would like to turn their robot into â€“ a vehicle, and animal, or a person. I had recycled materials available for them to make one of those things. I also prepped some cardboard circles and rectangles so the children could build their creation on the cardboard and clip it onto the rotating or stationary platforms.</p>
             <br><br><p><br><br><p><br>
             <p>On <strong>Day Two</strong>, right when the children came in, I had set up the craft materials on the tables. The children who had planned to make people had materials such as paper towel tubes, styrofoam balls, yarn, google eyes, pompoms, paint, and construction paper. My three helpers and I helped each child complete what they wanted to make, taping them onto the cardboard platforms I had cut. We had 17 pre-k kids making their creations at one time!
             <br><br><p><br>
-            <p>After each child had gotten a good start on their creation, I put them aside and we went to Circle. At Circle we sang the robot parts song and the Engineering Design Process song (to Twinkle Twinkle). When we broke into groups, each of the previous day’s groups used the simple machines to make something to take home. The ‘inclined planes’ group made marble mazes on large cardboard pieces using masking tape and towel rolls. The ‘pendulum’ group used cone pendulums filled with paint and made paintings by swinging the different colored paint pendulums different ways over a poster board sheet. The ‘pulley’ group used a shoe box and a straw and some string with a paper egg carton bucket to make a vertical pulley to lift a load of pompoms.
+            <p>After each child had gotten a good start on their creation, I put them aside and we went to Circle. At Circle we sang the robot parts song and the Engineering Design Process song (to Twinkle Twinkle). When we broke into groups, each of the previous dayâ€™s groups used the simple machines to make something to take home. The â€˜inclined planesâ€™ group made marble mazes on large cardboard pieces using masking tape and towel rolls. The â€˜pendulumâ€™ group used cone pendulums filled with paint and made paintings by swinging the different colored paint pendulums different ways over a poster board sheet. The â€˜pulleyâ€™ group used a shoe box and a straw and some string with a paper egg carton bucket to make a vertical pulley to lift a load of pompoms.
             <br><br><p><br>
-            <p>The KIBO group with me learned how to use the ‘input’ sensor – the ear. I showed the children how to program the ‘wait for clap’ command in. We worked on learning to become master ‘scanners’ and ‘programmers’ and I stamped each child’s checklist as they accomplished a different level in programming.
+            <p>The KIBO group with me learned how to use the â€˜inputâ€™ sensor â€“ the ear. I showed the children how to program the â€˜wait for clapâ€™ command in. We worked on learning to become master â€˜scannersâ€™ and â€˜programmersâ€™ and I stamped each childâ€™s checklist as they accomplished a different level in programming.
             <br><p><br>
             <p>Beginning from the first day, I had spread a very large cardboard sheet out on the floor for us to work with the robots on. The plan was to invite the children to create a road on which their robots would drive. The children used construction paper an glued it down using glue pots with paint brushes. Each group took turns adding to it. They used unit blocks to build houses, playground equipment, and added toy people to the scene.
             <br><br><p><br>
-            <p><strong>Day Three</strong>, when the children came in, they finished up making their creations so we could concentrate on developing their final program for day four when their parents would come to watch. At Circle we sang the two songs again and also sang the KIBO pokey song, performing it. I used the command cards and let each child add a command, then we all performed the program. I used the blocks and showed them how to program the robot to do the KIBO Hokey Pokey. All the groups continued rotating through the different activities, and played with K’nex, Magformers, Wooden marble toys, and legos during down time. I might add that I had purchased several books on force, friction, inclined planes, pulleys, etc. and read one each day.
+            <p><strong>Day Three</strong>, when the children came in, they finished up making their creations so we could concentrate on developing their final program for day four when their parents would come to watch. At Circle we sang the two songs again and also sang the KIBO pokey song, performing it. I used the command cards and let each child add a command, then we all performed the program. I used the blocks and showed them how to program the robot to do the KIBO Hokey Pokey. All the groups continued rotating through the different activities, and played with Kâ€™nex, Magformers, Wooden marble toys, and legos during down time. I might add that I had purchased several books on force, friction, inclined planes, pulleys, etc. and read one each day.
             <br><br><p><br> 
-            <p>My KIBO groups worked on programming and scanning and learned to use “repeat/end repeat” blocks. My assistant had finished pendulum painting with all the kids, so I had her help each child complete pages in their Journal – she took dictation about what their creation was, and I had copied extra pages with the programming icons, cutting them and placing them on trays for the children to pick up and glue in their journal to show the program they wrote. She helped them do this and also they also told her which sensors and attachments they had used. We didn’t have time to revise programs in the journal or finish all of the pages but I thought they could work on the ‘quiz’ at home with parents.
+            <p>My KIBO groups worked on programming and scanning and learned to use â€œrepeat/end repeatâ€ blocks. My assistant had finished pendulum painting with all the kids, so I had her help each child complete pages in their Journal â€“ she took dictation about what their creation was, and I had copied extra pages with the programming icons, cutting them and placing them on trays for the children to pick up and glue in their journal to show the program they wrote. She helped them do this and also they also told her which sensors and attachments they had used. We didnâ€™t have time to revise programs in the journal or finish all of the pages but I thought they could work on the â€˜quizâ€™ at home with parents.
             <br><br><p><br>
-            <p><strong>Day Four</strong>, we continued singing the songs and discussing force and friction. Each day we had gone outside and used a couple of very large sheets of cardboard to make a slide on the grass hill. We had races – sitting on our shorts, sitting on a piece of cardboard, and sitting on a piece of waxed paper. The children concluded that the waxed paper was fastest because there was less friction. I wanted to get into the wheel and axle, making little milk bottle cars with a straw axle and milk cap wheels, but we just ran out of time.
+            <p><strong>Day Four</strong>, we continued singing the songs and discussing force and friction. Each day we had gone outside and used a couple of very large sheets of cardboard to make a slide on the grass hill. We had races â€“ sitting on our shorts, sitting on a piece of cardboard, and sitting on a piece of waxed paper. The children concluded that the waxed paper was fastest because there was less friction. I wanted to get into the wheel and axle, making little milk bottle cars with a straw axle and milk cap wheels, but we just ran out of time.
             <br><br><p><br>
             <p>While children chose different STEM activities, one of my helpers made catapults with them out of old markers, tongue depressors, plastic spoons, and rubber bands. They made a target and shot pompoms at it.
             <br><br><p><br>
             <p>My assistant continued helping children finish in their journals, while I let the kids work on decorating the stage for their robot performances. When it came time for the parents, each child used two bull-nosed clips to clip their cardboard platform onto the wooden platform. They demonstrated making the block sentence, then scanning it and making KIBO move.
             <br><br><p><br>
-            <p>Some of the children mastered scanning by themselves. I was really impressed! Especially since we had only 4 mornings to work on programming! All of the parents were so impressed, and daily children were heard on more than one occasion saying, “<strong>This is the best camp I’ve ever been to!!!</strong>” I had lots of great comments from parents, too.
+            <p>Some of the children mastered scanning by themselves. I was really impressed! Especially since we had only 4 mornings to work on programming! All of the parents were so impressed, and daily children were heard on more than one occasion saying, â€œ<strong>This is the best camp Iâ€™ve ever been to!!!</strong>â€ I had lots of great comments from parents, too.
 
             `,
         images: [
@@ -790,23 +790,23 @@ description: 'Learn how PreK kids used KIBO and its Engineering Design Journals 
 description: 'Kids use the engineering design process to develop a KIBO robot cave explorer and learn communication skills, collaboration, problem solving skills, and perseverance.',
 
         fullContent: `
-            <h2>I’ve been working with New York City public schools as a STEM curriculum writer, and teacher for the past 10 years. Two years ago, a new and wonderful opportunity to teach lessons in coding using KIBO robots came to me. Since then I’ve recognized that KIBO is not only a fantastic tool for teaching coding, but it’s also a great tool for teaching students about the role of technology in our lives, communication skills, working in groups, problem solving skills, perseverance, and much more.</h2>
+            <h2>Iâ€™ve been working with New York City public schools as a STEM curriculum writer, and teacher for the past 10 years. Two years ago, a new and wonderful opportunity to teach lessons in coding using KIBO robots came to me. Since then Iâ€™ve recognized that KIBO is not only a fantastic tool for teaching coding, but itâ€™s also a great tool for teaching students about the role of technology in our lives, communication skills, working in groups, problem solving skills, perseverance, and much more.</h2>
             <br>
-            <p>Today, robots are firefighters, explorers, and they help in the operating room too. With KIBO our youngest students can start to realize the great potential robots have for improving our lives. The curriculum I’ve written for KIBO uses the roles robots play now and will play in the future as a unifying theme.</p>
+            <p>Today, robots are firefighters, explorers, and they help in the operating room too. With KIBO our youngest students can start to realize the great potential robots have for improving our lives. The curriculum Iâ€™ve written for KIBO uses the roles robots play now and will play in the future as a unifying theme.</p>
             <br>
-            <p>Our KIBO’s take on some important jobs. In one lesson, students program them to rescue baby bears that are lost in deep dark caves. (Our caves are constructed with old cardboard boxes, the imagination of the students dresses them up.) They love to train KIBO to navigate the twists and turns of our caves. Most of all, they love programming with the light sensor and the light- if the cave gets dark and scary, then KIBO should turn on her flashlight!</p>
+            <p>Our KIBOâ€™s take on some important jobs. In one lesson, students program them to rescue baby bears that are lost in deep dark caves. (Our caves are constructed with old cardboard boxes, the imagination of the students dresses them up.) They love to train KIBO to navigate the twists and turns of our caves. Most of all, they love programming with the light sensor and the light- if the cave gets dark and scary, then KIBO should turn on her flashlight!</p>
             <br>
             <p>To get through those caves students need to measure. How will they measure? Will they simply guess the measurement? Will they use some prior measurement knowledge, or use another method? KIBO allows you to introduce problem solving techniques that students can rely on for the rest of their lives. Some ones that we go over are:
             <br><p><br>
-            <p>* Trial and Error – If students haven’t seen anything like your current situation you can expect to be teaching a lesson about TRIAL AND ERROR problem solving.
+            <p>* Trial and Error â€“ If students havenâ€™t seen anything like your current situation you can expect to be teaching a lesson about TRIAL AND ERROR problem solving.
             <br><p><br>
-            <p>* “Have I seen this before?” – If students have seen something comparable you can emphasize that they should use what they know to solve the problem. When faced with a problem it’s so important for students to ask “Have I seen something like this before?”
+            <p>* â€œHave I seen this before?â€ â€“ If students have seen something comparable you can emphasize that they should use what they know to solve the problem. When faced with a problem itâ€™s so important for students to ask â€œHave I seen something like this before?â€
             <br><p><br>
-            <p>* Little Bite Size Pieces – For the caves we use cardboard boxes. We stitch them together to make one huge cave that has lots of twists and turns. Students see a big problem. That’s a great time to teach students how to break a big problem into little bite size pieces.
+            <p>* Little Bite Size Pieces â€“ For the caves we use cardboard boxes. We stitch them together to make one huge cave that has lots of twists and turns. Students see a big problem. Thatâ€™s a great time to teach students how to break a big problem into little bite size pieces.
             <br><p><br>
-            <p>From my perspective, the most valuable lesson students learn with KIBO is how to deal with something that doesn’t go exactly the way they wanted it to. They learn about perseverance. When a group’s KIBO doesn’t do the things they want it to do, the group understands that it’s time to ask a few questions “What worked? What didn’t?“ and “How can I fix it?”. They learn to evaluate a situation, reprogram KIBO, and try again. Our class mantra is – “No Tears Just Good Idears”.
+            <p>From my perspective, the most valuable lesson students learn with KIBO is how to deal with something that doesnâ€™t go exactly the way they wanted it to. They learn about perseverance. When a groupâ€™s KIBO doesnâ€™t do the things they want it to do, the group understands that itâ€™s time to ask a few questions â€œWhat worked? What didnâ€™t?â€œ and â€œHow can I fix it?â€. They learn to evaluate a situation, reprogram KIBO, and try again. Our class mantra is â€“ â€œNo Tears Just Good Idearsâ€.
             <br><p><br>
-            <p>Keri Goldberg, a first grade teacher at PS 321, said “<strong>The students in my class couldn’t wait to get their hands on the coding blocks that would make their KIBO robots go. The lessons had a true spirit of experimentation – there were no mistakes, just lots of trials, observations, and cheers to get back to work! I wouldn’t be surprised if the future programmers and scientists among them remember this experience as one that sparked their interest in coding and creative problem solving.</strong>”
+            <p>Keri Goldberg, a first grade teacher at PS 321, said â€œ<strong>The students in my class couldnâ€™t wait to get their hands on the coding blocks that would make their KIBO robots go. The lessons had a true spirit of experimentation â€“ there were no mistakes, just lots of trials, observations, and cheers to get back to work! I wouldnâ€™t be surprised if the future programmers and scientists among them remember this experience as one that sparked their interest in coding and creative problem solving.</strong>â€
             <br><p><br>
             <p>A class with KIBO weaves together so many essential skills. This little robot gives our youngest students the opportunity to have a deep, and exciting engineering experience.
             
@@ -822,23 +822,23 @@ description: 'Kids use the engineering design process to develop a KIBO robot ca
     },
     {
         id: '29',
-        title: 'A First Grade Class’ KIBO Journey',
+        title: 'A First Grade Classâ€™ KIBO Journey',
 description: 'Using KIBO, first graders learned to sequence, analyze, and organize their ideas, and learned programming, collaboration skills and an appreciation of roles.',
 
         fullContent: `
-            <h2>When first graders at Yavneh Academy in Paramus, NJ use KIBO, they learn a whole new form of communication that translates into every aspect of their academic and social activities. The first graders in Laya Levine and Rahel Grebler’s class used KIBO to further their thinking about various units of study. In the process, they learned to sequence, analyze,  and organize their ideas. They also gained introductory programming, collaboration skills and an appreciation of roles.</h2>
+            <h2>When first graders at Yavneh Academy in Paramus, NJ use KIBO, they learn a whole new form of communication that translates into every aspect of their academic and social activities. The first graders in Laya Levine and Rahel Greblerâ€™s class used KIBO to further their thinking about various units of study. In the process, they learned to sequence, analyze,  and organize their ideas. They also gained introductory programming, collaboration skills and an appreciation of roles.</h2>
             <br><p>
-            <p>Yavneh’s first graders used their KIBO robots to explore and enhance their units of study. For example, while learning about the Native Americans, KIBO visited model teepees, a Pilgrim home, and a garden.  After some practice with the basics skills of programming and scanning, the class began to incorporate the light sensor into their thinking about animals. The students learned that birds migrate south in the winter. They created birds which they used to decorate their KIBOs. Then, they used the light sensors to help their robotic birds travel to warmer climates. Similarly, while studying nocturnal animals, the parameter “until light” was incorporated so that the “animals” would not come out of their homes until the light of the moon appeared.</p>
+            <p>Yavnehâ€™s first graders used their KIBO robots to explore and enhance their units of study. For example, while learning about the Native Americans, KIBO visited model teepees, a Pilgrim home, and a garden.  After some practice with the basics skills of programming and scanning, the class began to incorporate the light sensor into their thinking about animals. The students learned that birds migrate south in the winter. They created birds which they used to decorate their KIBOs. Then, they used the light sensors to help their robotic birds travel to warmer climates. Similarly, while studying nocturnal animals, the parameter â€œuntil lightâ€ was incorporated so that the â€œanimalsâ€ would not come out of their homes until the light of the moon appeared.</p>
             <br><p>
-            <p>Additionally, students worked in small groups and became familiar with the sound sensors and the Wait for Clap block. While the students sang “If You’re Happy and You Know It” they programmed their KIBO to dance upon hearing the clap.</p>
+            <p>Additionally, students worked in small groups and became familiar with the sound sensors and the Wait for Clap block. While the students sang â€œIf Youâ€™re Happy and You Know Itâ€ they programmed their KIBO to dance upon hearing the clap.</p>
             <br><p>
-            <p>At the end of each session, the students gather in a circle on the floor and express their learning, any problems they encountered and the solutions they developed while programming their KIBOs.  Each student kept a journal entry for every lesson in their <a href="http://localhost:8080/shop/learning-materials" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Engineering Design Journal</a>. This enhanced their writing skills and kept them focused on the topic at hand.  With each lesson the students have become more proficient in programming, scanning, problem solving and collaborating.  The atmosphere continues to be engaging and inspiring, where everyone is successful.
+            <p>At the end of each session, the students gather in a circle on the floor and express their learning, any problems they encountered and the solutions they developed while programming their KIBOs.  Each student kept a journal entry for every lesson in their <a href="/shop/learning-materials" target="_blank" rel="noopener noreferrer" style="color: #ff6b35; text-decoration: underline; font-weight: 500;">Engineering Design Journal</a>. This enhanced their writing skills and kept them focused on the topic at hand.  With each lesson the students have become more proficient in programming, scanning, problem solving and collaborating.  The atmosphere continues to be engaging and inspiring, where everyone is successful.
             <br><p><br>
             <p>The collaboration and high level planning and problem solving skills are evident throughout this process. When the KIBOs are being used, the energy in the room is charged with the students working together to learn the new programing skills and combine it with previous knowledge.
             <br><p><br>
-            <p>“<strong>There is so much teamwork, planning, strategizing, and trial and error. The room is alive with children completely engaged in hands on learning. It is an incredible opportunity for our class, </strong>“ Laya Levine, a first grade teacher at Yavneh Academy, expressed. Through KIBO, the students have learned coping and persistence. They have gained skills that will support them throughout their academic careers in and outside of school.
+            <p>â€œ<strong>There is so much teamwork, planning, strategizing, and trial and error. The room is alive with children completely engaged in hands on learning. It is an incredible opportunity for our class, </strong>â€œ Laya Levine, a first grade teacher at Yavneh Academy, expressed. Through KIBO, the students have learned coping and persistence. They have gained skills that will support them throughout their academic careers in and outside of school.
             <br><p><br>
-            <p>In the same class, Rahel Grebler, the Judaic studies teacher, incorporates KIBO programming in her curriculum throughout the year. As a culminating project, the students are divided into small groups. Each group is responsible to “dress” their KIBO for Yom Yerushalayim (Jerusalem Day).  Then students plan for their road trip from different locations in Israel  to their specific gates of Jerusalem.  A large visual map is placed in the center of the classroom floor, with roads leading to the gates. Each KIBO is then programmed to leave their specific location, for example, Tel Aviv or Haifa, and continue down the road through their respective gates. Each group has a special Israeli song which they sing as the KIBOs arrive. The excitement in the room is palpable and adds to the mood of this exciting day. The learning that takes place as a result of KIBO is concrete and makes the students’ understanding of the subject quite clear.
+            <p>In the same class, Rahel Grebler, the Judaic studies teacher, incorporates KIBO programming in her curriculum throughout the year. As a culminating project, the students are divided into small groups. Each group is responsible to â€œdressâ€ their KIBO for Yom Yerushalayim (Jerusalem Day).  Then students plan for their road trip from different locations in Israel  to their specific gates of Jerusalem.  A large visual map is placed in the center of the classroom floor, with roads leading to the gates. Each KIBO is then programmed to leave their specific location, for example, Tel Aviv or Haifa, and continue down the road through their respective gates. Each group has a special Israeli song which they sing as the KIBOs arrive. The excitement in the room is palpable and adds to the mood of this exciting day. The learning that takes place as a result of KIBO is concrete and makes the studentsâ€™ understanding of the subject quite clear.
             
         
         
@@ -854,10 +854,10 @@ description: 'Using KIBO, first graders learned to sequence, analyze, and organi
     {
         id: '30',
         title: 'KIBO Engineering with RAPP',
-description: 'Watch a small group lesson of 4-year olds working with KIBO – learning programming concepts, estimating distances, coding, and debugging.',
+description: 'Watch a small group lesson of 4-year olds working with KIBO â€“ learning programming concepts, estimating distances, coding, and debugging.',
 
         fullContent: `
-            <h2>In this video, Dr. Deborah Carlson is teaching a small group lesson to 4-year olds at the All Saints Early Learning Center, Jacksonville, FL. They are focusing on concepts the children have been working on for the past month: estimating distances; order of a programming sequence for KIBO; scanning KIBO’s program and matching it to the program KIBO acts out; and reviewing/sharing what went right and what needed to be fixed.</h2>
+            <h2>In this video, Dr. Deborah Carlson is teaching a small group lesson to 4-year olds at the All Saints Early Learning Center, Jacksonville, FL. They are focusing on concepts the children have been working on for the past month: estimating distances; order of a programming sequence for KIBO; scanning KIBOâ€™s program and matching it to the program KIBO acts out; and reviewing/sharing what went right and what needed to be fixed.</h2>
             <br><p>
             <p>This KIBO Experience is part of the Robotics and Programming for Pre-K (RAPP) initiative at the Florida Institution of Education at the University of North Florida.</p>
             
@@ -893,9 +893,9 @@ description: 'In this video, watch as first grade students reenacting the famous
 description: 'In this KIBO Experience, third graders introduce their Kindergarten buddies to KIBO and instruct them to learn coding!',
 
         fullContent: `
-            <p>Last year, when my school placed an order for its first KIBO, I thought I’d test it and then it might take residence in a kindergarten or first grade homeroom.
+            <p>Last year, when my school placed an order for its first KIBO, I thought Iâ€™d test it and then it might take residence in a kindergarten or first grade homeroom.
             <br><p><br>
-            <p>UPS delivered the KIBO box and it was waiting to be unpacked in the computer lab. That’s where my colleague and I store robots and maker supplies, and also where we teach our third through eighth grade design, programming, and robotics classes.
+            <p>UPS delivered the KIBO box and it was waiting to be unpacked in the computer lab. Thatâ€™s where my colleague and I store robots and maker supplies, and also where we teach our third through eighth grade design, programming, and robotics classes.
             <br><p><br>
             <p>When the third graders discovered the unopened package, they were curious. To build upon a teachable moment, that group of eight and nine-year-olds and I unpacked the KIBO parts and immediately started constructing programs with the wooden blocks. We scanned them and set our first KIBO into motion.
             <br><p><br>
@@ -903,41 +903,41 @@ description: 'In this KIBO Experience, third graders introduce their Kindergarte
             <br><p><br>
             <p>This school year when I worked with our Academic Dean and our Technology Director to purchase four more KIBOs, I had a plan. The third grade tech students would become facile with our fleet of five KIBOs, develop some sample programs, and create original outfits. During their scheduled time with their kindergarten buddies, the third graders would introduce the five and six-year-olds to KIBO.
             <br><p><br>
-            <p>In their Tech class, I asked the third graders to come up with three sample programs for the kindergarteners: one easy, one medium and one that they considered hard. Here are three of their “easy programs:”
+            <p>In their Tech class, I asked the third graders to come up with three sample programs for the kindergarteners: one easy, one medium and one that they considered hard. Here are three of their â€œeasy programs:â€
             <br><p><br>
             <p>They considered these two programs to be of medium difficulty:
             <br><p><br>
-            <p>Not surprisingly, when I first asked students to construct difficult programs, most of the groups made very, very, very long combinations of blocks. They weren’t necessarily using the syntax and commands that I, as their programming instructor, considered the most challenging.
+            <p>Not surprisingly, when I first asked students to construct difficult programs, most of the groups made very, very, very long combinations of blocks. They werenâ€™t necessarily using the syntax and commands that I, as their programming instructor, considered the most challenging.
             <br><p><br>
             <p>I moved around to different groups and posed questions:
             <br><p><br>
-            <p>– Is there a way to get KIBO to respond to user input, i.e. a clap?
+            <p>â€“ Is there a way to get KIBO to respond to user input, i.e. a clap?
             <br><p><br>
-            <p>– What if your KIBO only started singing when it became light?
+            <p>â€“ What if your KIBO only started singing when it became light?
             <br><p><br>
-            <p>– How can you code KIBO so it backs up when it hits a wall?
+            <p>â€“ How can you code KIBO so it backs up when it hits a wall?
             <br><p><br>
-            <p>After these targeted questions, some different types of problems started to get solved. Children began to create sample difficult programs that were shorter but that included “if”, “end if”, “wait for clap”, “light” and “near”.
+            <p>After these targeted questions, some different types of problems started to get solved. Children began to create sample difficult programs that were shorter but that included â€œifâ€, â€œend ifâ€, â€œwait for clapâ€, â€œlightâ€ and â€œnearâ€.
             <br><p><br>
-            <p>As we got ready to teach KIBO to the kindergarteners, we also compared Scratch and KIBO commands. For example, they remarked that placing a start block in the code and then touching KIBO’s green arrow was the equivalent of placing the “When green flag clicked” block in Scratch and then actually clicking on the green flag on the top right side of a Scratch window. Using “If near” was like dragging out the “if touching” Scratch block like they had done for an earlier Scratch assignment.
+            <p>As we got ready to teach KIBO to the kindergarteners, we also compared Scratch and KIBO commands. For example, they remarked that placing a start block in the code and then touching KIBOâ€™s green arrow was the equivalent of placing the â€œWhen green flag clickedâ€ block in Scratch and then actually clicking on the green flag on the top right side of a Scratch window. Using â€œIf nearâ€ was like dragging out the â€œif touchingâ€ Scratch block like they had done for an earlier Scratch assignment.
             <br><p><br>
             <p><strong>Problems, Solutions, and Surprises</strong>
             <br><p><br>
-            <p>I can’t say that at every moment my third grade students were solving higher level problems. A visitor to my classroom noticed that at times they were simply excited about the playful and age-appropriate challenge of getting KIBO to reach a target which was a friend stationed at the other side of the room. At times the groups had difficulty collaborating. This could happen when it was taking a long time to scan a very long sequence of commands, when the students were encountering low battery issues and needed to change them, or when they constructed a string of code with a syntax error. Another frustration that students encountered was a spinning KIBO that wasn’t programmed to spin. We learned that this problem was caused by one of the wheels being upside-down. When they fixed this by putting the wheel in the opposite way, it was satisfying! Sometimes when children were waiting for someone else to scan, they peeled off to design and construct an outfit.
+            <p>I canâ€™t say that at every moment my third grade students were solving higher level problems. A visitor to my classroom noticed that at times they were simply excited about the playful and age-appropriate challenge of getting KIBO to reach a target which was a friend stationed at the other side of the room. At times the groups had difficulty collaborating. This could happen when it was taking a long time to scan a very long sequence of commands, when the students were encountering low battery issues and needed to change them, or when they constructed a string of code with a syntax error. Another frustration that students encountered was a spinning KIBO that wasnâ€™t programmed to spin. We learned that this problem was caused by one of the wheels being upside-down. When they fixed this by putting the wheel in the opposite way, it was satisfying! Sometimes when children were waiting for someone else to scan, they peeled off to design and construct an outfit.
             <br><p><br>
             <p>Despite the logistical or technical problems we encountered along the way, on the day we were to go to the kindergarteners with KIBO, excitement ran high. Watching the kindergarteners get to know KIBO with their buddies was a delight for me and the homeroom teachers who were there.
             <br><p><br>
             <p>In addition, new opportunities for learning through troubleshooting arose as the third graders taught their buddies about KIBO.
             <br><p><br>
-            <p>One group of students was having trouble getting their “hard” program to work. They had come up with code that caused KIBO to make sounds and move when it was exposed to a light source. In the computer lab, they tested this program by bringing KIBO to a strong fluorescent light high on the wall. During buddy time, the kindergarten room was beautifully sunny, but its natural light was more diffuse. With no single light source as concentrated as the one in the computer room, the “hard” program that the group planned to show their buddies didn’t work. This group adroitly changed their code so that KIBO began to move and make sound when it was in a darker rather than a lighter space. To create that dark space for KIBO, they used a kindergarten smock over a large plastic container.
+            <p>One group of students was having trouble getting their â€œhardâ€ program to work. They had come up with code that caused KIBO to make sounds and move when it was exposed to a light source. In the computer lab, they tested this program by bringing KIBO to a strong fluorescent light high on the wall. During buddy time, the kindergarten room was beautifully sunny, but its natural light was more diffuse. With no single light source as concentrated as the one in the computer room, the â€œhardâ€ program that the group planned to show their buddies didnâ€™t work. This group adroitly changed their code so that KIBO began to move and make sound when it was in a darker rather than a lighter space. To create that dark space for KIBO, they used a kindergarten smock over a large plastic container.
             <br><p><br>
-            <p>By the end of this project, the third graders had been exposed to fundamental programming concepts such as “if”, “until”, and “forever,” and they learned about the importance of proper syntax. They had done a lot of on-the-fly troubleshooting. We talked about these concepts and fixes as an entire group. In creating outfits, the costumers were beginning to solve their engineering problems such as how to get a costume to stand up straight like a ship’s figurehead or the face of Thomas the Train, or how to create an overhang on the art platform that did not interfere with KIBO’s controls or scanning mechanism.
+            <p>By the end of this project, the third graders had been exposed to fundamental programming concepts such as â€œifâ€, â€œuntilâ€, and â€œforever,â€ and they learned about the importance of proper syntax. They had done a lot of on-the-fly troubleshooting. We talked about these concepts and fixes as an entire group. In creating outfits, the costumers were beginning to solve their engineering problems such as how to get a costume to stand up straight like a shipâ€™s figurehead or the face of Thomas the Train, or how to create an overhang on the art platform that did not interfere with KIBOâ€™s controls or scanning mechanism.
             <br><p><br>
             <p><strong>Plans for the Next Time</strong>
             <br><p><br>
-            <p>I am grateful to the administrators and teachers of Friends Seminary – our Principal, our Academic Dean, our Technology Director, Lower School Head, and the Third Grade and Kindergarten teachers – for their support for trying out new materials with the children and for their understanding that new materials and activities do not always run without a hitch the very first time. Our Lower School robotics curriculum is still a work in progress. We had a delightful time getting to know KIBO, programming it to do very interesting things, and making sure that it has plenty of fabulous outfits to wear on outings in and around our school.
+            <p>I am grateful to the administrators and teachers of Friends Seminary â€“ our Principal, our Academic Dean, our Technology Director, Lower School Head, and the Third Grade and Kindergarten teachers â€“ for their support for trying out new materials with the children and for their understanding that new materials and activities do not always run without a hitch the very first time. Our Lower School robotics curriculum is still a work in progress. We had a delightful time getting to know KIBO, programming it to do very interesting things, and making sure that it has plenty of fabulous outfits to wear on outings in and around our school.
             <br><p><br>
-            <p>Next year, when the third graders prepare to take KIBO to the kindergarten, I will create activity cards with the programming questions that I asked informally. It might also be helpful to provide more guidance to the costumers, to encourage them to confront and begin to solve interesting engineering challenges. I think that the third graders naturally gave the kindergarteners an opportunity to begin to create their own programs, but next time around I think I’ll be more explicit about the importance of letting the kindergarteners try out some of their own ideas.
+            <p>Next year, when the third graders prepare to take KIBO to the kindergarten, I will create activity cards with the programming questions that I asked informally. It might also be helpful to provide more guidance to the costumers, to encourage them to confront and begin to solve interesting engineering challenges. I think that the third graders naturally gave the kindergarteners an opportunity to begin to create their own programs, but next time around I think Iâ€™ll be more explicit about the importance of letting the kindergarteners try out some of their own ideas.
             <br><p><br>
             <p>I will also be careful not to provide so much structure that I prevent the children from making their own connections and bringing their natural playfulness to the process.
             
@@ -956,7 +956,7 @@ description: 'Watch early childhood educators and practitioners across Singapore
         fullContent: `
             <p>Watch this training event that was given to over 200 early childhood educators and practitioners from 68 preschools across Singapore. This KIBO training shared how robotics can be easly integrated in the classroom in a playful developmentally appropriate way.
             <br><p><br>
-            <p>The training was part of the PlayMaker Symposium, led by the Education Team at the Infocomm Development Authority of Singapore (IDA), which introduced a suite of technology-enabled toys to preschool centers to enrich the learning experience for the children fostering creativity, problem solving and confident learning. During the training educators created, desgined and programmed KIBO robotic animals, and “trained”  them to perform tricks, similar to the ones they be observed at the Singapore Zoo.
+            <p>The training was part of the PlayMaker Symposium, led by the Education Team at the Infocomm Development Authority of Singapore (IDA), which introduced a suite of technology-enabled toys to preschool centers to enrich the learning experience for the children fostering creativity, problem solving and confident learning. During the training educators created, desgined and programmed KIBO robotic animals, and â€œtrainedâ€  them to perform tricks, similar to the ones they be observed at the Singapore Zoo.
     
         `,
         videoUrl: 'https://youtu.be/1r0SDBXZbpY',
@@ -968,11 +968,11 @@ description: 'Watch early childhood educators and practitioners across Singapore
     },
     {
         id: '34',
-       title: 'Children’s Museum Implements KIBO',
-description: 'See how the Knock Knock Children’s Museum has playfully implemented the KIBO robot. Check out the fun KIBOwling activity during the Cardboard Challenge.',
+       title: 'Childrenâ€™s Museum Implements KIBO',
+description: 'See how the Knock Knock Childrenâ€™s Museum has playfully implemented the KIBO robot. Check out the fun KIBOwling activity during the Cardboard Challenge.',
 
         fullContent: `
-            <p>Cate Heroman, Education Chair of Knock Knock Children’s Museum in Baton Rouge, LA, is helping the museum implement KIBO! To see one example of how Cate has playful incorporated the KIBO robot at the musuem, check out the KIBOwling activity during the Cardboard Challenge.
+            <p>Cate Heroman, Education Chair of Knock Knock Childrenâ€™s Museum in Baton Rouge, LA, is helping the museum implement KIBO! To see one example of how Cate has playful incorporated the KIBO robot at the musuem, check out the KIBOwling activity during the Cardboard Challenge.
 
         `,
         videoUrl: 'https://vimeo.com/366082145',
@@ -985,7 +985,7 @@ description: 'See how the Knock Knock Children’s Museum has playfully implemen
     {
         id: '35',
        title: 'Introducing KIBO in a Classroom',
-description: 'This 30–45 minute lesson introduces KIBO, its pieces, how to build the robot, how to build a sequence, and how to scan and code.',
+description: 'This 30â€“45 minute lesson introduces KIBO, its pieces, how to build the robot, how to build a sequence, and how to scan and code.',
 
         fullContent: `
             <p>I love introducing KIBO to young students. The design that includes familiar materials such as wood and blocks makes it feel comfortable to the students while the clear bottom allows them to explore the guts of the robot. I start by passing the KIBO body around a circle of 6 or 7 students asking them to take a quick look at the top, bottom, and sides and to hold their observations until all students have a chance to take a look. Their comments range from concrete descriptions of the materials and shapes to connections between KIBO and other parts of their life. One student recently said that the body looked like a piece of bread!
@@ -1016,7 +1016,7 @@ description: 'See KIBO being integrated with literacy and science instruction wi
         fullContent: `
             <p>This project was a collaboration between the DevTech Research Group and Lesley University. They teamed up to share KIBO with the kindergarten though second grade students at Kennedy-Longfellow Elementary in Cambridge, MA. They learned about KIBO, its parts, how to scan and code with KIBO, and integrating coding within the curriculum.
             <br><p><br>
-            <p>- When reading “Brown Bear, Brwon Bear, What do you See?” the kindergarters recreated the story with their KIBOs, including decorating their robots as characters from the book.
+            <p>- When reading â€œBrown Bear, Brwon Bear, What do you See?â€ the kindergarters recreated the story with their KIBOs, including decorating their robots as characters from the book.
             <p>- The first graders incorporated KIBO into their Science Curriculum when they used KIBO to learn about the life cycles of frogs and butterflies.
             <p>- The second graders used KIBO to explore the movement of worms in their environment.
             <br><p><br>
@@ -1178,30 +1178,30 @@ const Experiences = () => {
             const page1Content = `
                 <p>Educators are always looking for ways to get students problem-solving, collaborating and sharing ideas. Consider making physical computing with robots part of your makerspaces program to engage students in their STEAM learning.</p>
                 <br>
-                <p>In my work with schools to design makerspaces and STEM programs, I’ve found a few key features that help when introducing robots to young learners. First, the activities should quickly engage students and bring them into the learning process. Second, teachers should consider time and space requirements for robotics activities. And lastly, activities should be aligned to grade-level standards as much as possible. Time with students in the classroom is limited so teachers are always looking to get the most out of formal and informal learning opportunities.
+                <p>In my work with schools to design makerspaces and STEM programs, Iâ€™ve found a few key features that help when introducing robots to young learners. First, the activities should quickly engage students and bring them into the learning process. Second, teachers should consider time and space requirements for robotics activities. And lastly, activities should be aligned to grade-level standards as much as possible. Time with students in the classroom is limited so teachers are always looking to get the most out of formal and informal learning opportunities.
             <br><br><p><strong>Where to start? The Robot</strong>
-            <br><br><p>The robots I’ve found most effective for introducing prek-1 students to physical computing in a highly engaging way are KIBOs from Kinderlab Robotics. Students are drawn to the tactile features in KIBO – it has a wooden top and thick plastic sides that make it approachable and easy for young students to grip as they develop fine motor skills. It’s also screen-free! We all know that students have had plenty of screen time over the past two years, and KIBO offers an alternate way for teaching physical computing without screens. Students program KIBO with blocks that are also made of wood, similar to building blocks. And, KIBO is a blank slate. It doesn’t have features that make it easy to fit into a gender, which avoids the biases that can push girls out of STEM. Finally, KIBO doesn’t have what I call a pre-made “personality.” Some robots designed for young learners are already an animal or have features that limit creative imagination. Students are drawn to KIBO and quickly discover that it can be anything they want it to be.
+            <br><br><p>The robots Iâ€™ve found most effective for introducing prek-1 students to physical computing in a highly engaging way are KIBOs from Kinderlab Robotics. Students are drawn to the tactile features in KIBO â€“ it has a wooden top and thick plastic sides that make it approachable and easy for young students to grip as they develop fine motor skills. Itâ€™s also screen-free! We all know that students have had plenty of screen time over the past two years, and KIBO offers an alternate way for teaching physical computing without screens. Students program KIBO with blocks that are also made of wood, similar to building blocks. And, KIBO is a blank slate. It doesnâ€™t have features that make it easy to fit into a gender, which avoids the biases that can push girls out of STEM. Finally, KIBO doesnâ€™t have what I call a pre-made â€œpersonality.â€ Some robots designed for young learners are already an animal or have features that limit creative imagination. Students are drawn to KIBO and quickly discover that it can be anything they want it to be.
                 `;
 
             const page2Content = `
                 <p><strong>Storytelling Hits All the Key Features</strong>
-                <br><br><p>Once students have been introduced to KIBO’s parts and basic programming features, like getting KIBO to move, teachers can increase engagement through storytelling. An introductory activity that I like, which is included in Kinderlab’s curriculum, incorporates the book “Move!,” by Steve Jenkins and Robin Page. In the makerspace, teachers read the story, which involves descriptions of different animals and how they move. Students are asked to draw a picture of an animal, either from the story or one they know about, and tape it to the top of KIBO. Then, students design a program with motion blocks to have KIBO move like their animal. Having students work in pairs can promote productive talk, and teachers will hear students reflecting on parts of the story as they work to sketch and design the movement for their animal. An assessment might involve interviewing students to find out why they made a certain animal, how their computer program works, or how the story influenced their project.
-                <br><br><p>I like this activity for other reasons, too. Depending on school bell schedules, reading and drawing can be done one day, and programming the next. Drawings can be easily stored, which helps with managing the activity. Students can work in defined areas of the makerspace that don’t require a lot of room. The activity relies on simple materials – paper, crayons, and tape. There’s potential to align it with content standards, like reading, talking and writing. And, there’s a high ceiling for creative thinking. I once observed two kindergarten girls imagine KIBO as a polar bear. They built an ice wall with the wooden programming blocks and screamed with delight when they got their program working, and the bear smashed through the ice wall!
+                <br><br><p>Once students have been introduced to KIBOâ€™s parts and basic programming features, like getting KIBO to move, teachers can increase engagement through storytelling. An introductory activity that I like, which is included in Kinderlabâ€™s curriculum, incorporates the book â€œMove!,â€ by Steve Jenkins and Robin Page. In the makerspace, teachers read the story, which involves descriptions of different animals and how they move. Students are asked to draw a picture of an animal, either from the story or one they know about, and tape it to the top of KIBO. Then, students design a program with motion blocks to have KIBO move like their animal. Having students work in pairs can promote productive talk, and teachers will hear students reflecting on parts of the story as they work to sketch and design the movement for their animal. An assessment might involve interviewing students to find out why they made a certain animal, how their computer program works, or how the story influenced their project.
+                <br><br><p>I like this activity for other reasons, too. Depending on school bell schedules, reading and drawing can be done one day, and programming the next. Drawings can be easily stored, which helps with managing the activity. Students can work in defined areas of the makerspace that donâ€™t require a lot of room. The activity relies on simple materials â€“ paper, crayons, and tape. Thereâ€™s potential to align it with content standards, like reading, talking and writing. And, thereâ€™s a high ceiling for creative thinking. I once observed two kindergarten girls imagine KIBO as a polar bear. They built an ice wall with the wooden programming blocks and screamed with delight when they got their program working, and the bear smashed through the ice wall!
             `;
 
             const page3Content = `
                <p><strong>Self-directed Learning through Bowling</strong><br>
-               <br><p>After students have gained some proficiency with KIBO programming, teachers can set up self-directed learning stations in makerspaces that incorporate different skills. One of my favorites is KIBO bowling, which is also included in Kinderlab’s curriculum materials. To set it up, teachers can cordon off a small area along a wall in the makerspace to define the bowling alley, about 8 feet by 4 feet. I’ve used foam tubing from packing materials to outline the space, and recycled water bottles for pins. With blue tape, teachers can create block lettering to write out “KIBO” on one end and “PINS” on the other. Blue tape arrows can show the direction for the robot to follow. Students will program KIBO to roll down the lane and knock down the pins. Sometimes, they add a “shake” or a “turn” to sweep pins at the edges. Students need very little direction, as knocking down pins is pretty straightforward, and the space is well defined.
-               <br><br><p>Besides being accessible to different types of learners, KIBO bowling involves Common Core math practices, like trial and error, estimation, prediction and measurement. During formal learning time, teachers might ask students to actually measure how far KIBO travels when they program one “forward” command. Activities can be extended to estimate how far KIBO might travel with multiple commands, depending on math learning objectives.
-               <br><br><p><strong>What’s next? Get creative with content standards alignment</strong>
-               <br><br><p>As I’ve discussed, creative expression is a key feature of design challenges involving robotics. Students are quick to imagine different solutions to the challenges that teachers present. But teachers can also be creative in how they use robots in makerspaces to meet content standards.
+               <br><p>After students have gained some proficiency with KIBO programming, teachers can set up self-directed learning stations in makerspaces that incorporate different skills. One of my favorites is KIBO bowling, which is also included in Kinderlabâ€™s curriculum materials. To set it up, teachers can cordon off a small area along a wall in the makerspace to define the bowling alley, about 8 feet by 4 feet. Iâ€™ve used foam tubing from packing materials to outline the space, and recycled water bottles for pins. With blue tape, teachers can create block lettering to write out â€œKIBOâ€ on one end and â€œPINSâ€ on the other. Blue tape arrows can show the direction for the robot to follow. Students will program KIBO to roll down the lane and knock down the pins. Sometimes, they add a â€œshakeâ€ or a â€œturnâ€ to sweep pins at the edges. Students need very little direction, as knocking down pins is pretty straightforward, and the space is well defined.
+               <br><br><p>Besides being accessible to different types of learners, KIBO bowling involves Common Core math practices, like trial and error, estimation, prediction and measurement. During formal learning time, teachers might ask students to actually measure how far KIBO travels when they program one â€œforwardâ€ command. Activities can be extended to estimate how far KIBO might travel with multiple commands, depending on math learning objectives.
+               <br><br><p><strong>Whatâ€™s next? Get creative with content standards alignment</strong>
+               <br><br><p>As Iâ€™ve discussed, creative expression is a key feature of design challenges involving robotics. Students are quick to imagine different solutions to the challenges that teachers present. But teachers can also be creative in how they use robots in makerspaces to meet content standards.
                `;
 
             const page4Content = `
-            <p>For example, teachers can sometimes align a single robotics activity to multiple standards. I’ve done this with California’s Kindergarten standards in history related to people and places from other times, and NGSS for pushes and pulls. A station for building a covered wagon is set up with preassembled wheels and axles. Students are challenged to attach their wagons to KIBO and program the robot to pull it across the room. In the makerspace, we emphasized use of the phrase “now and long ago,” to have students identify a modern method of transportation with robots and an older method in the covered wagons. We also had students describe the action of KIBO to “pull” the wagon, as opposed to pushing it.
-            <br><br><p>Once they’ve accomplished moving the wagon, students can be challenged to create obstacles, like cardboard ramps, for the wagon to negotiate. To make this manageable in the makerspace, it might be necessary to work outside the classroom, and have students working on different parts of the project at the same time. For instance, one group could be building a ramp, while another is programming their robot to move over it.
-            <br><br><p>A logical progression would be an activity for “pushing” materials. I’ve done this with KIBO snow plows, where students use cardboard and tape to design a structure that attaches to KIBO and can push objects around or over obstacles. Teachers can add complexity by setting up design constraints, where students can’t use tape to attach their plows, and must use pipe cleaners or other materials.
-            <br><br><p>When working with teachers of young learners on robotics activities, I often hear them say, “I’ve never seen students so engaged!” That’s the wonderful thing about robotics. If you create design challenges with engagement and creative expression in mind, students will dive right in. They will rise to meet expectations in unique and unexpected ways. While at the same time, teachers can meet learning goals for students at any age level.
+            <p>For example, teachers can sometimes align a single robotics activity to multiple standards. Iâ€™ve done this with Californiaâ€™s Kindergarten standards in history related to people and places from other times, and NGSS for pushes and pulls. A station for building a covered wagon is set up with preassembled wheels and axles. Students are challenged to attach their wagons to KIBO and program the robot to pull it across the room. In the makerspace, we emphasized use of the phrase â€œnow and long ago,â€ to have students identify a modern method of transportation with robots and an older method in the covered wagons. We also had students describe the action of KIBO to â€œpullâ€ the wagon, as opposed to pushing it.
+            <br><br><p>Once theyâ€™ve accomplished moving the wagon, students can be challenged to create obstacles, like cardboard ramps, for the wagon to negotiate. To make this manageable in the makerspace, it might be necessary to work outside the classroom, and have students working on different parts of the project at the same time. For instance, one group could be building a ramp, while another is programming their robot to move over it.
+            <br><br><p>A logical progression would be an activity for â€œpushingâ€ materials. Iâ€™ve done this with KIBO snow plows, where students use cardboard and tape to design a structure that attaches to KIBO and can push objects around or over obstacles. Teachers can add complexity by setting up design constraints, where students canâ€™t use tape to attach their plows, and must use pipe cleaners or other materials.
+            <br><br><p>When working with teachers of young learners on robotics activities, I often hear them say, â€œIâ€™ve never seen students so engaged!â€ Thatâ€™s the wonderful thing about robotics. If you create design challenges with engagement and creative expression in mind, students will dive right in. They will rise to meet expectations in unique and unexpected ways. While at the same time, teachers can meet learning goals for students at any age level.
             <br><br><p>Bryan Flaig is an educational consultant specializing in makerspaces and STEM curriculum.
             `;
 

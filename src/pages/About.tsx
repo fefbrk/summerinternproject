@@ -1,4 +1,4 @@
-import Header from "@/components/Header";
+﻿import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
 const About = () => {
@@ -35,7 +35,7 @@ const About = () => {
               </p>
 
               <p className="text-gray-600 leading-relaxed">
-                During a walk with her friend Mitch Rosenberg, a veteran executive at several robotic start-up companies, one afternoon at Walden Pond, near Boston, they decided to join forces to fulfill an old-dream of his: improving STEM education for young children. During that walk, KinderLab Robotics and <a href="http://localhost:8080/kibo" className="text-kibo-purple underline">KIBO</a> was born.
+                During a walk with her friend Mitch Rosenberg, a veteran executive at several robotic start-up companies, one afternoon at Walden Pond, near Boston, they decided to join forces to fulfill an old-dream of his: improving STEM education for young children. During that walk, KinderLab Robotics and <a href="/kibo" className="text-kibo-purple underline">KIBO</a> was born.
               </p>
             </div>
 
@@ -113,7 +113,7 @@ const About = () => {
             <div className="grid md:grid-cols-2 gap-8 items-center">
               <div className="space-y-6">
                 <p className="text-gray-600 leading-relaxed">
-                  Marina Bers' philosophy and theoretical approach for creating KinderLab, the early childhood STEM company, and developing KIBO, can be found in her many <a href="http://localhost:8080/kibo/why/research" className="text-kibo-purple underline">research projects and published books</a>. Our curriculum and assessment methods are also rooted in this research.
+                  Marina Bers' philosophy and theoretical approach for creating KinderLab, the early childhood STEM company, and developing KIBO, can be found in her many <a href="/kibo/why/research" className="text-kibo-purple underline">research projects and published books</a>. Our curriculum and assessment methods are also rooted in this research.
                 </p>
 
                 <p className="text-gray-600 leading-relaxed">

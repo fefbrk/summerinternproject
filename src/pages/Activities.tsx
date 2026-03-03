@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -140,7 +140,7 @@ const activities: ActivityCard[] = [
             
             <br>
             
-            <p>We remembered that KIBO is a robot, not a human, so we had to guide it with the directional programming blocks since it can't think on its own. We refreshed our understanding of the language KIBO employs – barcodes found on the blocks! We emphasized the importance of beginning with the start block and ending with the end block for KIBO to comprehend instructions accurately.</p>
+            <p>We remembered that KIBO is a robot, not a human, so we had to guide it with the directional programming blocks since it can't think on its own. We refreshed our understanding of the language KIBO employs â€“ barcodes found on the blocks! We emphasized the importance of beginning with the start block and ending with the end block for KIBO to comprehend instructions accurately.</p>
             
             <br>
             
@@ -148,7 +148,7 @@ const activities: ActivityCard[] = [
             
             <br>
             
-            <p>The task involved programming KIBO and Buzz Buzz to reach the flowers. Working in small groups, our children eagerly tackled the challenge. Initially, they tried using the forward block, but KIBO only managed to take a single step, falling short of reaching the flowers. They ingeniously overcame this by repeatedly pressing the button to advance KIBO step by step until Buzz Buzz reached the flowers, where they joyfully deposited the pollen. Subsequently, we introduced another method. We looked on a new block – the repeat block – explained its function. We counted the required repetitions until KIBO and Buzz Buzz reached the flowers, which turned out to be four times. We inserted the "four times" parameter card into the repeat block, and it worked like a charm.</p>
+            <p>The task involved programming KIBO and Buzz Buzz to reach the flowers. Working in small groups, our children eagerly tackled the challenge. Initially, they tried using the forward block, but KIBO only managed to take a single step, falling short of reaching the flowers. They ingeniously overcame this by repeatedly pressing the button to advance KIBO step by step until Buzz Buzz reached the flowers, where they joyfully deposited the pollen. Subsequently, we introduced another method. We looked on a new block â€“ the repeat block â€“ explained its function. We counted the required repetitions until KIBO and Buzz Buzz reached the flowers, which turned out to be four times. We inserted the "four times" parameter card into the repeat block, and it worked like a charm.</p>
             
             <br>
             
@@ -218,10 +218,10 @@ const activities: ActivityCard[] = [
     },
     {
         id: '5',
-        title: 'Thinking with KIBO Curriculum – Introducing Artificial Intelligence in Early Grades',
+        title: 'Thinking with KIBO Curriculum â€“ Introducing Artificial Intelligence in Early Grades',
         description: '',
         fullContent: `
-            <h2>Thinking with KIBO Curriculum – Introducing Artificial Intelligence in Early Grades</h2>
+            <h2>Thinking with KIBO Curriculum â€“ Introducing Artificial Intelligence in Early Grades</h2>
             <p>Explore artificial intelligence concepts with young learners through hands-on KIBO programming activities designed for early childhood education.</p>
             <p>This comprehensive curriculum introduces AI concepts in age-appropriate ways, helping students understand how computers can "think" and make decisions.</p>
             <h3>Curriculum Components:</h3>
@@ -270,19 +270,19 @@ const activities: ActivityCard[] = [
     },
     {
         id: '7',
-        title: 'Our Block, Our Dance – Using KIBOs Advanced Blocks',
+        title: 'Our Block, Our Dance â€“ Using KIBOs Advanced Blocks',
         description: 'Teach KIBO some dance moves! Create a dance step subroutine and create an icon on the programming block with KIBO\'s Advanced Coding Extension Set.',
         contributor: 'KinderLab Robotics',
         contributorLink: 'https://kinderlabrobotics.com/',
 
         fullContent: `
-            <p>In this activity, Our Block, Our Dance, let's teach KIBO some dance moves! Using KIBO's <a href="http://localhost:8080/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Advanced Coding Extension set</a>, Groups can create a dance step subroutine and create an icon on their programming block of their own to represent it. Groups will share their dance moves to teach them to different KIBOs.</p>
+            <p>In this activity, Our Block, Our Dance, let's teach KIBO some dance moves! Using KIBO's <a href="/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Advanced Coding Extension set</a>, Groups can create a dance step subroutine and create an icon on their programming block of their own to represent it. Groups will share their dance moves to teach them to different KIBOs.</p>
             <br>
             <p>Dancers often repeat patterns of movement when they dance. But they don't just repeat the same move over and over. They repeat patterns of movement. For example, a dancer might do a step, a turn, and a jump. Then they might repeat that pattern: step, turn, jump. The moves are like subroutines in the language of dance. The dance is like the main program in Cha-cha-cha dance.</p>
             <br>
-            <p>Have the kids dance along to a fun dance video with named moves. You might share a dance video where the caller names specific steps like the six-step or the "Whip Nae Nae" by Silentó. Have kids dance along to a fun dance video with named moves.</p>
+            <p>Have the kids dance along to a fun dance video with named moves. You might share a dance video where the caller names specific steps like the six-step or the "Whip Nae Nae" by SilentÃ³. Have kids dance along to a fun dance video with named moves.</p>
             <br>
-            <p>This lesson is an excerpt from "Ask and Imagine" <a href="http://localhost:8080/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Curriculum Guide for the Advanced Coding Extension Set</a>.</p>
+            <p>This lesson is an excerpt from "Ask and Imagine" <a href="/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Curriculum Guide for the Advanced Coding Extension Set</a>.</p>
             <br>
             <p><strong>Resource Files</strong></p>
             <p><a href="${askAndImagineDancePdf}" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Advanced Coding Extension Set Activity - Our Block, Our Dance</a></p>
@@ -299,11 +299,11 @@ const activities: ActivityCard[] = [
         contributor: 'KinderLab Robotics',
         contributorLink: 'https://kinderlabrobotics.com/',
         fullContent: `
-            <p>Where will KIBO go when it explores the town? Students draw or build a town, then program KIBO to explore it by traveling from place to place. As KIBO moves around the town with the <a href="http://localhost:8080/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Marker Extension Set</a> attached, the free KIBO draws lines to record its adventures as well as create measurements of the distances in the town.</p>
+            <p>Where will KIBO go when it explores the town? Students draw or build a town, then program KIBO to explore it by traveling from place to place. As KIBO moves around the town with the <a href="/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Marker Extension Set</a> attached, the free KIBO draws lines to record its adventures as well as create measurements of the distances in the town.</p>
             <br>
             <p>We recommend pairing the reading of Harold and the Purple Crayon by Crockett Johnson. This classic story about the power of imagination and the possibilities in a single line will help put kids in the mood for creating their imaginary town.</p>
             <br>
-            <p>This activity is an excerpt from <a href="http://localhost:8080/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Make Learning Visible! Curriculum Guide</a>.</p>
+            <p>This activity is an excerpt from <a href="/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Make Learning Visible! Curriculum Guide</a>.</p>
             <br>
             <p><strong>Resource Files</strong></p>
             <p><a href="${measureOurTownPdf}" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Explore and Measure Our Town</a></p>
@@ -320,7 +320,7 @@ const activities: ActivityCard[] = [
         contributor: 'KinderLab Robotics',
         contributorLink: 'https://kinderlabrobotics.com/',
         fullContent: `
-            <p>In this excerpt from our core <a href="http://localhost:8080/shop/learning-materials" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Growing with KIBO Curriculum</a>, we offer the Superhero Robots activity where kids use their programming knowledge to create superhero KIBOs that use sensors and outputs to help people.</p>
+            <p>In this excerpt from our core <a href="/shop/learning-materials" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Growing with KIBO Curriculum</a>, we offer the Superhero Robots activity where kids use their programming knowledge to create superhero KIBOs that use sensors and outputs to help people.</p>
             <br>
             <p>Children discuss what makes a superhero and engages children in discussions of leadership and decision-making. They can read <em>Everyday Super Hero</em> by by Sara Zuboff, then create their own superhero by decorating their KIBO robots with arts and crafts. They then program their KIBO to help people in some way.</p>
             <br>
@@ -336,8 +336,8 @@ const activities: ActivityCard[] = [
     },
     {
         id: '10',
-        title: 'KIBO Zoo – An Intro to Creative Robotics & Programming in K–2',
-        description: 'This 6–8 hour animal themed introductory curriculum is designed to help teachers get started with KIBO.',
+        title: 'KIBO Zoo â€“ An Intro to Creative Robotics & Programming in Kâ€“2',
+        description: 'This 6â€“8 hour animal themed introductory curriculum is designed to help teachers get started with KIBO.',
         contributor: 'KinderLab Robotics',
         contributorLink: 'https://kinderlabrobotics.com/',
         fullContent: `
@@ -354,12 +354,12 @@ const activities: ActivityCard[] = [
     {
         id: '11',
         title: 'Teaching Stories through Robotics',
-        description: 'With this curriculum, students read the story of the “3 Little Pigs” and learn to program KIBO, through the retelling of the story.',
+        description: 'With this curriculum, students read the story of the â€œ3 Little Pigsâ€ and learn to program KIBO, through the retelling of the story.',
 
         contributor: 'Maribel Santos Miranda Pinto, Researcher, University of Minho, Portugal',
         contributorLink: 'https://www.facebook.com/kidsmedialabr',
         fullContent: `
-            <p>This <em>Traditional Stories in Early Childhood Education – Teaching Stories through Robotics & Programming</em> curriculum was developed from one of our KIBO Ambassadors, Maribel Santos Miranda Pinto, where she shares a curricular unit for preschoolers – 4 to 7 years old.</p>
+            <p>This <em>Traditional Stories in Early Childhood Education â€“ Teaching Stories through Robotics & Programming</em> curriculum was developed from one of our KIBO Ambassadors, Maribel Santos Miranda Pinto, where she shares a curricular unit for preschoolers â€“ 4 to 7 years old.</p>
             <br>
             <p>Incorporating traditional children's stories, this curriculum integrates programming and robotics as the curricular theme and "powerful ideas". Using the story of the "3 Little Pigs", Maribel's learning objective is that children learn to program the KIBO robot, through the retelling of the story. This curriculum unit is linked to other subjects outside the STEM, because it starts with children's literature and goes through the construction of 3D scenarios using the work of artistic, plastic and musical expression, associated with the story.</p>
             <br>
@@ -368,22 +368,22 @@ const activities: ActivityCard[] = [
             <p>The curriculum includes:</p>
             <br>
             <p><strong>Lesson 1: The Engineering Design Process in the traditional Story of the 3 Little Pigs</strong><br>
-            Powerful Idea: Traditional stories for children and the Choice of the story the 3 Little Pigs – Robotics with the KIBO Robot</p>
+            Powerful Idea: Traditional stories for children and the Choice of the story the 3 Little Pigs â€“ Robotics with the KIBO Robot</p>
             <br>
             <p><strong>Lesson 2: What Is A Robot?</strong><br>
-            Powerful Idea: What is the character of the story that can be programmed in the Robot? – Robotics with the KIBO Robot</p>
+            Powerful Idea: What is the character of the story that can be programmed in the Robot? â€“ Robotics with the KIBO Robot</p>
             <br>
             <p><strong>Lesson 3: What is a Program?</strong><br>
-            Powerful Idea: The 3 Little Pigs story, with The KIBO Robot (the "Bad Wolf") – Programming: Control Flow by Sequencing and Instructions to program</p>
+            Powerful Idea: The 3 Little Pigs story, with The KIBO Robot (the "Bad Wolf") â€“ Programming: Control Flow by Sequencing and Instructions to program</p>
             <br>
             <p><strong>Lesson 4: What Are Sensors?</strong><br>
-            Powerful Idea: What are the 3 Little Pigs' Moments of History? – Learning with Sensors and Actuators</p>
+            Powerful Idea: What are the 3 Little Pigs' Moments of History? â€“ Learning with Sensors and Actuators</p>
             <br>
             <p><strong>Lesson 5: What Are Repeats?</strong><br>
-            Powerful Idea: What does the Bad Wolf do? – Recount the entire history of the 3 little pigs using the Repeats: Loops & Number Parameters</p>
+            Powerful Idea: What does the Bad Wolf do? â€“ Recount the entire history of the 3 little pigs using the Repeats: Loops & Number Parameters</p>
             <br>
             <p><strong>Lesson 6: What Are Ifs?</strong><br>
-            Powerful Idea: Where is the Bad Wolf going? – Ifs – Sensors & Branches</p>
+            Powerful Idea: Where is the Bad Wolf going? â€“ Ifs â€“ Sensors & Branches</p>
             <br>
             <p><strong>Lesson 7: Culminating Project</strong><br>
             Powerful Idea(s): "The History and Dance of the 3 Little Pigs" and Other Stories of Wolf in the Forest</p>
@@ -400,7 +400,7 @@ const activities: ActivityCard[] = [
         id: '12',
         title: 'Dino Buddy KIBO Curriculum',
         description: 'In this 20-hour cross-curricular KIBO curriculum, young learners learn about dinosaurs through robotics and programming!',
-        contributor: 'Marlene Gabriela Marques Fernandes, Jardim de Infância de Arcozelo das Maias, Portugal',
+        contributor: 'Marlene Gabriela Marques Fernandes, Jardim de InfÃ¢ncia de Arcozelo das Maias, Portugal',
         contributorLink: 'https://www.facebook.com/marlene.g.fernandes.1/',
         fullContent: `
             <p>Our KIBO Ambassador, Marlene Gabriela Marques Fernandes, developed this 20-hour KIBO curriculum, "Dino Buddy", where young learners learn about dinosaurs through robotics and programming!</p>
@@ -434,7 +434,7 @@ const activities: ActivityCard[] = [
             The dinosaurs are reptilian and therefore are oviparous. The children will participate in an eggs hunt, whose purpose is to discover, through the reactions of "DinoKIBO" and the criteria previously defined, to whom the egg belongs.</p>
             <br>
             <p><strong>Lesson 7: Final project</strong><br>
-            Connection: Visit to the natural museum of Lourinhã Dino Park<br>
+            Connection: Visit to the natural museum of LourinhÃ£ Dino Park<br>
             The kids will go to the natural museum where they can learn more about dinosaur activities, such as watching fossil cleaning in the laboratory, and seeing time charts of the evolution of dinosaurs.</p>
             <br>
             <p><strong>Resource Files</strong></p>
@@ -456,15 +456,15 @@ const activities: ActivityCard[] = [
             <br>
             <p>Our KIBO Ambassador, Dr. Julie Wilkerson, provides a sample lesson plan that she shares as a helpful resource for educators to use as they create a KIBO lesson plan. This form provides an easy to use way for educators to plan their next KIBO activity, including:</p>
             <br>
-            <p>– Lesson Title/Topic<p>
-            – State/District Standard<p>
-            – Learning Target<p>
-            – Materials<p>
-            – Teacher and Student Instructions<p>
-            – Introduction<p>
-            – Exploration<p>
-            – Summary<br>
-            – Artifacts (pictures/student examples/answer keys)</p>
+            <p>â€“ Lesson Title/Topic<p>
+            â€“ State/District Standard<p>
+            â€“ Learning Target<p>
+            â€“ Materials<p>
+            â€“ Teacher and Student Instructions<p>
+            â€“ Introduction<p>
+            â€“ Exploration<p>
+            â€“ Summary<br>
+            â€“ Artifacts (pictures/student examples/answer keys)</p>
             <br>
             <br>
             <p><strong>Resource Files</strong></p>
@@ -477,10 +477,10 @@ const activities: ActivityCard[] = [
     },
     {
         id: '14',
-        title: 'KIBO Activity Card – Dream Car',
+        title: 'KIBO Activity Card â€“ Dream Car',
         description: 'With this KIBO Activity Card, kids can decorate KIBO to become the craziest car you can imagine, and make it go!',
         contributor: 'KinderLab Robotics, Inc.',
-        contributorLink: 'http://localhost:8080/shop/learning-materials',
+        contributorLink: '/shop/learning-materials',
         fullContent: `
             <p>With this KIBO Activity Card, kids can decorate KIBO to become the craziest car you can imagine, and make it go!</p>
             <br>
@@ -488,7 +488,7 @@ const activities: ActivityCard[] = [
             <br>
             <p>The cards can be used independently by students in a classroom activity station, as the basis for teacher-guided lessons in remote learning, or when playing and learning with KIBO at home. Each card invites children into a different creative, imaginative activity with KIBO that combines coding, building, art, and play.</p>
             <br>
-            <p>Purchase the complete set of <a href="http://localhost:8080/shop/learning-materials" target="_blank" style="color: #8b5cf6; text-decoration: underline;">15 KIBO Activity Cards (2nd Edition)</a> at our web store.</p>
+            <p>Purchase the complete set of <a href="/shop/learning-materials" target="_blank" style="color: #8b5cf6; text-decoration: underline;">15 KIBO Activity Cards (2nd Edition)</a> at our web store.</p>
             <br>
             <p><strong>Resource Files</strong></p>
             <p><a href="${kiboDreamCarPdf}" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Activity Card - KIBO Dream Car (PDF)</a></p>
@@ -500,10 +500,10 @@ const activities: ActivityCard[] = [
     },
     {
         id: '15',
-        title: 'KIBO Activity Card – Pet Trick',
+        title: 'KIBO Activity Card â€“ Pet Trick',
         description: 'With this KIBO Activity, kids can create a KIBO pet and teach it to do a trick when you clap! What pet will you create?',
         contributor: 'KinderLab Robotics, Inc.',
-        contributorLink: 'http://localhost:8080/shop/learning-materials',
+        contributorLink: '/shop/learning-materials',
         fullContent: `
             <p>Create a KIBO pet and teach it to do a trick when you clap!</p>
             <br>
@@ -511,7 +511,7 @@ const activities: ActivityCard[] = [
             <br>
             <p>The cards can be used independently by students in a classroom activity station, as the basis for teacher-guided lessons in remote learning, or when playing and learning with KIBO at home. Each card invites children into a different creative, imaginative activity with KIBO that combines coding, building, art, and play.</p>
             <br>
-            <p>Purchase the complete set of <a href="http://localhost:8080/shop/learning-materials" target="_blank" style="color: #8b5cf6; text-decoration: underline;">15 KIBO Activity Cards (2nd Edition)</a> at our web store.</p>
+            <p>Purchase the complete set of <a href="/shop/learning-materials" target="_blank" style="color: #8b5cf6; text-decoration: underline;">15 KIBO Activity Cards (2nd Edition)</a> at our web store.</p>
             <br>
             <p><strong>Resource Files</strong></p>
             <p><a href="${kiboPetTrickPdf}" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Activity Card - KIBO Pet Trick (PDF)</a></p>
@@ -523,10 +523,10 @@ const activities: ActivityCard[] = [
     },
     {
         id: '16',
-        title: 'KIBO Activity Card – Fire Truck',
+        title: 'KIBO Activity Card â€“ Fire Truck',
         description: 'Clang, clang, clang! We need the KIBO fire truck to help the community. Put on the truck\'s flashing lights and drive with this early childhood STEM lesson!',
         contributor: 'KinderLab Robotics, Inc.',
-        contributorLink: 'http://localhost:8080/shop/learning-materials',
+        contributorLink: '/shop/learning-materials',
         fullContent: `
             <p>Clang, clang, clang! We need the KIBO fire truck to help. Put on the flashing lights and drive!</p>
             <br>
@@ -534,7 +534,7 @@ const activities: ActivityCard[] = [
             <br>
             <p>The cards can be used independently by students in a classroom activity station, as the basis for teacher-guided lessons in remote learning, or when playing and learning with KIBO at home. Each card invites children into a different creative, imaginative activity with KIBO that combines coding, building, art, and play.</p>
             <br>
-            <p>Purchase the complete set of <a href="http://localhost:8080/shop/learning-materials" target="_blank" style="color: #8b5cf6; text-decoration: underline;">15 KIBO Activity Cards (2nd Edition)</a> at our web store.</p>
+            <p>Purchase the complete set of <a href="/shop/learning-materials" target="_blank" style="color: #8b5cf6; text-decoration: underline;">15 KIBO Activity Cards (2nd Edition)</a> at our web store.</p>
             <br>
             <p><strong>Resource Files</strong></p>
             <p><a href="${activityCard7FireTruckPdf}" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Activity Card - KIBO Fire Truck (PDF)</a></p>
@@ -546,10 +546,10 @@ const activities: ActivityCard[] = [
     },
     {
         id: '17',
-        title: 'KIBO Activity Card – Dancer',
+        title: 'KIBO Activity Card â€“ Dancer',
         description: 'KIBO can repeat a pattern of blocks over and over with a repeat loop. Decorate KIBO, program the dance, and lets get grooving!',
         contributor: 'KinderLab Robotics, Inc.',
-        contributorLink: 'http://localhost:8080/shop/learning-materials',
+        contributorLink: '/shop/learning-materials',
         fullContent: `
             <p>KIBO can repeat a pattern of blocks over and over with a repeat loop. Let's create a repeating dance routine.</p>
             <br>
@@ -569,10 +569,10 @@ const activities: ActivityCard[] = [
     },
     {
         id: '18',
-        title: 'KIBO Activity Card – Snowplow',
+        title: 'KIBO Activity Card â€“ Snowplow',
         description: 'The city is covered in snow, and KIBO will help clean up! We will build, test, and improve a KIBO snowplow using the Engineering Design Process.',
         contributor: 'KinderLab Robotics, Inc.',
-        contributorLink: 'http://localhost:8080/shop/learning-materials',
+        contributorLink: '/shop/learning-materials',
         fullContent: `
             <p>The city is covered in snow, and KIBO will help clean up! We will build, test, and improve a KIBO snowplow using the Engineering Design Process.</p>
             <br>
@@ -580,7 +580,7 @@ const activities: ActivityCard[] = [
             <br>
             <p>The cards can be used independently by students in a classroom activity station, as the basis for teacher-guided lessons in remote learning, or when playing and learning with KIBO at home. Each card invites children into a different creative, imaginative activity with KIBO that combines coding, building, art, and play.</p>
             <br>
-            <p>Purchase the complete set of <a href="http://localhost:8080/shop/learning-materials" target="_blank" style="color: #8b5cf6; text-decoration: underline;">15 KIBO Activity Cards (2nd Edition)</a> at our web store.</p>
+            <p>Purchase the complete set of <a href="/shop/learning-materials" target="_blank" style="color: #8b5cf6; text-decoration: underline;">15 KIBO Activity Cards (2nd Edition)</a> at our web store.</p>
             <br>
             <p><strong>Resource Files</strong></p>
             <p><a href="${activityCard5SnowplowPdf}" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Activity Card 5 - KIBO Snowplow (PDF)</a></p>
@@ -661,7 +661,7 @@ const activities: ActivityCard[] = [
         description: 'The "No KIBO? No Problem" Guide is a collection of engaging STEAM activities you can do with your kids without a KIBO robot kit!',
         contributor: 'KinderLab Robotics, Inc.',
         fullContent: `
-            <p>Stuck at home without a KIBO? Our free booklet "No KIBO? No Problem" is a collection of engaging STEAM activities you can do without a KIBO robot kit! These activities are drawn from our <a href="http://localhost:8080/education/stem-curriculum/" target="_blank" style="color: #8b5cf6; text-decoration: underline;">160+ hours of standards aligned curriculum</a>.</p>
+            <p>Stuck at home without a KIBO? Our free booklet "No KIBO? No Problem" is a collection of engaging STEAM activities you can do without a KIBO robot kit! These activities are drawn from our <a href="/education/stem-curriculum/" target="_blank" style="color: #8b5cf6; text-decoration: underline;">160+ hours of standards aligned curriculum</a>.</p>
             <br>
             <p><strong>Resource Files</strong></p>
             <p><a href="${noKiboNoProblemPdf}" target="_blank" style="color: #8b5cf6; text-decoration: underline;">No KIBO? No Problem! (PDF)</a></p>
@@ -699,7 +699,7 @@ const activities: ActivityCard[] = [
         fullContent: `
             <p>Receiving a touchdown pass? Making a great outfield save? Play catch with KIBO in this open-ended, gross-motor Free Throw Extension Set activity.</p>
             <br>
-            <p>This activity uses the KIBO <a href="http://localhost:8080/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Free Throw Extension Set</a>. This activity supports CSTA computer science standards.</p>
+            <p>This activity uses the KIBO <a href="/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Free Throw Extension Set</a>. This activity supports CSTA computer science standards.</p>
             <br>
             <p><strong>Resource Files</strong></p>
             <p><a href="${kiboCatchPdf}" target="_blank" style="color: #8b5cf6; text-decoration: underline;">KIBO Catch Activity (PDF)</a></p>
@@ -718,7 +718,7 @@ const activities: ActivityCard[] = [
         fullContent: `
             <p>KIBO needs to make a basket to win the game! What is the right combination of movement and Free Throw options to land the ball in the basket?</p>
             <br>
-            <p>This activity uses the KIBO <a href="http://localhost:8080/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Free Throw Extension Set</a>. This activity supports Common Core Math standards and NGSS Science standards.</p>
+            <p>This activity uses the KIBO <a href="/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Free Throw Extension Set</a>. This activity supports Common Core Math standards and NGSS Science standards.</p>
             <br>
             <p><strong>Resource Files</strong></p>
             <p> <a href="${kiboBinBallPdf}" target="_blank" style="color: #8b5cf6; text-decoration: underline;">KIBO Bin-Ball Activity (with Data Collection Sheet) PDF</a></p>
@@ -738,7 +738,7 @@ const activities: ActivityCard[] = [
         fullContent: `
             <p>Experiment, measure, and record with the KIBO Free Throw Extension Set. As students mark each landing spot, a pattern emerges.</p>
             <br>
-            <p>This activity uses the KIBO <a href="http://localhost:8080/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Free Throw Extension Set</a>. This activity supports Common Core Math standards and NGSS Science standards.</p>
+            <p>This activity uses the KIBO <a href="/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Free Throw Extension Set</a>. This activity supports Common Core Math standards and NGSS Science standards.</p>
             <br>
             <p><strong>Resource Files</strong></p>
             <p> <a href="${kiboMarkMeasurePdf}" target="_blank" style="color: #8b5cf6; text-decoration: underline;">KIBO Mark and Measure Activity with data collection sheet (PDF)</a></p>
@@ -757,7 +757,7 @@ const activities: ActivityCard[] = [
         fullContent: `
             <p>Search for a favorite shape or letter in your room. A square, a circle? The first letter of your name? Imagine, create, and test a program to make KIBO draw your letter with KIBO's Marker Extension Set. Create a flag that shows your shape or letter and fly it from your KIBO's flagpole while your program runs! Students doing this activity should have prior experience programming KIBO with an understanding of KIBO movement commands.</p>
             <br>
-            <p>This activity uses the KIBO <a href="http://localhost:8080/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Marker Extension Set</a> to let KIBO draw; and, optionally, the <a href="http://localhost:8080/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Expression Module</a> to fly a custom-made shape or letter flag. This activity supports Common Core PreK and K literacy and math standards.</p>
+            <p>This activity uses the KIBO <a href="/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Marker Extension Set</a> to let KIBO draw; and, optionally, the <a href="/shop/extensions" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Expression Module</a> to fly a custom-made shape or letter flag. This activity supports Common Core PreK and K literacy and math standards.</p>
             <br>
             <p><strong>Resource Files</strong></p>
             <p> <a href="${kiboShapeSearchPdf}" target="_blank" style="color: #8b5cf6; text-decoration: underline;">KIBO Shape Search Activity (PDF)</a></p>
@@ -777,16 +777,16 @@ const activities: ActivityCard[] = [
             <br>
             <p>It has 6 steps:</p>
             <ul style="margin-left: 20px; margin-bottom: 16px;">
-                <li>• ASK</li>
-                <li>• IMAGINE</li>
-                <li>• PLAN</li>
-                <li>• CREATE</li>
-                <li>• TEST & IMPROVE</li>
-                <li>• and SHARE</li>
+                <li>â€¢ ASK</li>
+                <li>â€¢ IMAGINE</li>
+                <li>â€¢ PLAN</li>
+                <li>â€¢ CREATE</li>
+                <li>â€¢ TEST & IMPROVE</li>
+                <li>â€¢ and SHARE</li>
             </ul>
-            <p>The Engineering Design Process is a cycle – there's no official starting or ending point. You can begin at any step, move back and forth between steps, or repeat the cycle over and over!</p>
+            <p>The Engineering Design Process is a cycle â€“ there's no official starting or ending point. You can begin at any step, move back and forth between steps, or repeat the cycle over and over!</p>
             <br>
-            <p>Learn more about <a href="http://localhost:8080/education/stem-curriculum/" target="_blank" style="color: #8b5cf6; text-decoration: underline;">KinderLab's KIBO Curriculum</a>.</p>
+            <p>Learn more about <a href="/education/stem-curriculum/" target="_blank" style="color: #8b5cf6; text-decoration: underline;">KinderLab's KIBO Curriculum</a>.</p>
             <br>
             <p><strong> Resource Files</strong></p>
             <p> <a href="${klEngineeringDesignPdf}" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Engineering Design Process handout</a></p>
@@ -803,7 +803,7 @@ const activities: ActivityCard[] = [
         contributor: 'Ilana Picker, The Shefa School',
         contributorLink: 'http://www.shefaschool.org/',
         fullContent: `
-            <p>For Yom Ha'atzmaut we created a huge map of Israel. The students were then given pieces of paper with directions of where KIBO should travel. Each student was given a different direction. An example might be – travel from Jerusalem to Beer Sheva to Eilat. This integrated the learning that was going on in the classroom about Yom Ha'atzmaut and Israel, as well as integrating creative hands-on learning about the geography and map of Israel and the location of places. Students learned where Jerusalem is in relation to Tel Aviv, how to travel south to the desert, and how to get to Haifa which is on the sea.</p>
+            <p>For Yom Ha'atzmaut we created a huge map of Israel. The students were then given pieces of paper with directions of where KIBO should travel. Each student was given a different direction. An example might be â€“ travel from Jerusalem to Beer Sheva to Eilat. This integrated the learning that was going on in the classroom about Yom Ha'atzmaut and Israel, as well as integrating creative hands-on learning about the geography and map of Israel and the location of places. Students learned where Jerusalem is in relation to Tel Aviv, how to travel south to the desert, and how to get to Haifa which is on the sea.</p>
         `,
         images: [activity29Image],
         videoUrl: 'WAz1GCik1Ak',
@@ -820,15 +820,15 @@ const activities: ActivityCard[] = [
         fullContent: `
             <p>You can use the <a href="https://kinderlabrobotics.com/expression-module/" target="_blank" style="color: #8b5cf6; text-decoration: underline;">Expression Module</a> to create new and fun ways to help KIBO communicate! Here are just a few activity ideas:</p>
             <br>
-            <p>— Create flags representing different countries, or come up with your own. Make a flag that represents your school, your town, or your family! If you have several KIBOs, make flags to represent different teams and then come up with challenges so that the teams can race!</p>
+            <p>â€” Create flags representing different countries, or come up with your own. Make a flag that represents your school, your town, or your family! If you have several KIBOs, make flags to represent different teams and then come up with challenges so that the teams can race!</p>
             <br>
-            <p>— Install the flagpole on top of a stage support and the flag will fly proud. Install the flagpole on top of a motor and watch the flag spin around!</p>
+            <p>â€” Install the flagpole on top of a stage support and the flag will fly proud. Install the flagpole on top of a motor and watch the flag spin around!</p>
             <br>
-            <p>— If you have several KIBOs, install white boards on all of them (install on the "stage support" so the white boards don't spin). Write a letter on each white board. Then, program the KIBOs to create a word!</p>
+            <p>â€” If you have several KIBOs, install white boards on all of them (install on the "stage support" so the white boards don't spin). Write a letter on each white board. Then, program the KIBOs to create a word!</p>
             <br>
-            <p>— Make KIBO look like a bird! Install the white board (horizontally or vertically) on the flag pole and use a motor so the white board will spin. Tape streamers to the edges of the white board, tape construction paper and put googly eyes on your "bird"</p>
+            <p>â€” Make KIBO look like a bird! Install the white board (horizontally or vertically) on the flag pole and use a motor so the white board will spin. Tape streamers to the edges of the white board, tape construction paper and put googly eyes on your "bird"</p>
             <br>
-            <p>— Insert other decorated materials besides the white board into the "holders" of the flagpoles. You can use cardboard, playing cards, or even a mirror! See what interesting projects you can come up with when you use a mirror.</p>
+            <p>â€” Insert other decorated materials besides the white board into the "holders" of the flagpoles. You can use cardboard, playing cards, or even a mirror! See what interesting projects you can come up with when you use a mirror.</p>
         `,
         images: [activity30Image],
         categories: ['Activities'],
@@ -838,7 +838,7 @@ const activities: ActivityCard[] = [
     {
         id: '31',
         title: 'KIBO Expression Module Literacy Activities',
-        description: 'These activities are designed for students to practice reading and writing using KIBO’s Expression Module.',
+        description: 'These activities are designed for students to practice reading and writing using KIBOâ€™s Expression Module.',
 
         contributor: 'Boston College DevTech Research Group',
         contributorLink: 'https://sites.bc.edu/devtech/',
@@ -875,7 +875,7 @@ const activities: ActivityCard[] = [
     {
         id: '33',
         title: 'KIBO Independent Exploration',
-        description: 'These activity cards are for self-directed, independent exploration when using KIBO in an “activity corner” settings.',
+        description: 'These activity cards are for self-directed, independent exploration when using KIBO in an â€œactivity cornerâ€ settings.',
         contributor: 'Rivka Heisler, SAR Academy',
         contributorLink: 'http://www.saracademy.org/',
         fullContent: `
@@ -930,7 +930,7 @@ const activities: ActivityCard[] = [
     {
         id: '36',
         title: '"Who Am I?" KIBO Curriculum',
-        description: 'The “Who Am I?” curriculum integrates identity, culture, and diversity with fundamental engineering and programming concepts.',
+        description: 'The â€œWho Am I?â€ curriculum integrates identity, culture, and diversity with fundamental engineering and programming concepts.',
         contributor: 'Boston College DevTech Research Group',
         contributorLink: 'https://sites.bc.edu/devtech/',
         fullContent: `
@@ -946,7 +946,7 @@ const activities: ActivityCard[] = [
     {
         id: '37',
         title: 'Where the Wild Things Are Curriculum',
-        description: 'Inspired by the book Where the Wild Things Are, this curriculum incorporates literacy and robotics as KIBO acts out the “wild rumpus” scene.',
+        description: 'Inspired by the book Where the Wild Things Are, this curriculum incorporates literacy and robotics as KIBO acts out the â€œwild rumpusâ€ scene.',
         contributor: 'Boston College DevTech Research Group',
         contributorLink: 'https://sites.bc.edu/devtech/',
         fullContent: `
@@ -1198,9 +1198,9 @@ const Activities: React.FC = () => {
                     className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
                     onClick={closeActivityModal}
                 >                    <div
-                        className="bg-purple-200 rounded-lg overflow-hidden w-full max-w-[1500px] h-full max-h-[1050px] relative flex flex-col mx-4 my-4 md:mx-8 md:my-8"
-                        onClick={(e) => e.stopPropagation()}
-                    >
+                    className="bg-purple-200 rounded-lg overflow-hidden w-full max-w-[1500px] h-full max-h-[1050px] relative flex flex-col mx-4 my-4 md:mx-8 md:my-8"
+                    onClick={(e) => e.stopPropagation()}
+                >
                         {/* Close Button */}
                         <button
                             onClick={closeActivityModal}
