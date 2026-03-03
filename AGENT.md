@@ -19,5 +19,5 @@ npm run lint && npm test && npm run build -- --logLevel error
 ## Kritik kurallar
 
 - Secret dosyalari commit etme (`server/.env` vb.).
-- DB veri dosyasi (`server/database/kinderlab.db`) koddan farkli bir varliktir; policy'ye gore yonet.
+- DB veri dosyasi (`server/database/kinderlab.db`) bu repoda bilinclli olarak takiptedir; secret/gercek prod veri konmamalidir.
 - Auth token tek basina yeterli degildir; middleware DB re-validation yapar.

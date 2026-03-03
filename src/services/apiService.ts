@@ -123,6 +123,8 @@ export interface MediaCoverage {
   title: string;
   content: string;
   excerpt: string;
+  sourceName?: string;
+  sourceUrl?: string;
   author: string;
   publishDate: string;
   status: 'draft' | 'published';

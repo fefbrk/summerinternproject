@@ -256,3 +256,83 @@ test('critical auth and authorization flow works end-to-end', async () => {
   });
   assert.equal(loadDemoAsAdminWhenDisabled.status, 404);
 });
+
+test('content and status endpoints return full entities', async () => {
+  const adminLogin = await requestJson('/api/login', {
+    method: 'POST',
+    body: {
+      email: process.env.DEFAULT_ADMIN_EMAIL,
+      password: process.env.DEFAULT_ADMIN_PASSWORD,
+    },
+  });
+
+  assert.equal(adminLogin.status, 200);
+  const adminToken = adminLogin.data.token;
+
+  const createdEvent = await requestJson('/api/events', {
+    method: 'POST',
+    token: adminToken,
+    body: {
+      title: 'Integration Event',
+      description: '<p>Integration event description</p>',
+      excerpt: 'Integration event excerpt',
+      startDate: '2026-01-10T10:00:00.000Z',
+      endDate: '2026-01-10T18:00:00.000Z',
+      venueName: 'Integration Venue',
+      venueAddress: 'Integration Street 1',
+      venueCity: 'Istanbul',
+      venueState: 'Istanbul',
+      venueZipCode: '34000',
+      venueCountry: 'Turkey',
+      organizerName: 'Integration Team',
+      eventWebsite: 'https://example.com/event',
+      status: 'upcoming',
+      category: 'conference',
+    },
+  });
+
+  assert.equal(createdEvent.status, 200);
+  assert.ok(createdEvent.data && typeof createdEvent.data.id === 'string');
+  assert.equal(createdEvent.data.status, 'upcoming');
+
+  const updatedEventStatus = await requestJson(`/api/events/${createdEvent.data.id}/status`, {
+    method: 'PUT',
+    token: adminToken,
+    body: {
+      status: 'ongoing',
+    },
+  });
+
+  assert.equal(updatedEventStatus.status, 200);
+  assert.equal(updatedEventStatus.data.id, createdEvent.data.id);
+  assert.equal(updatedEventStatus.data.status, 'ongoing');
+
+  const createdMediaCoverage = await requestJson('/api/media-coverage', {
+    method: 'POST',
+    token: adminToken,
+    body: {
+      title: 'Integration Media Coverage',
+      content: '<p>Media coverage body</p>',
+      excerpt: 'Media coverage excerpt',
+      author: 'Integration Editor',
+      status: 'draft',
+      images: [],
+    },
+  });
+
+  assert.equal(createdMediaCoverage.status, 200);
+  assert.ok(createdMediaCoverage.data && typeof createdMediaCoverage.data.id === 'string');
+  assert.equal(createdMediaCoverage.data.status, 'draft');
+
+  const updatedMediaStatus = await requestJson(`/api/media-coverage/${createdMediaCoverage.data.id}/status`, {
+    method: 'PUT',
+    token: adminToken,
+    body: {
+      status: 'published',
+    },
+  });
+
+  assert.equal(updatedMediaStatus.status, 200);
+  assert.equal(updatedMediaStatus.data.id, createdMediaCoverage.data.id);
+  assert.equal(updatedMediaStatus.data.status, 'published');
+});

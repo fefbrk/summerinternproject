@@ -13,6 +13,34 @@ const registerContentRoutes = (app, deps) => {
     eventStatuses,
   } = deps;
 
+  const fsPromises = fs.promises;
+
+  const pathExists = async (targetPath) => {
+    try {
+      await fsPromises.access(targetPath);
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  };
+
+  const moveDirectoryFiles = async (sourceDir, targetDir) => {
+    await fsPromises.mkdir(targetDir, { recursive: true });
+    const files = await fsPromises.readdir(sourceDir);
+
+    for (const file of files) {
+      const sourcePath = path.join(sourceDir, file);
+      const targetPath = path.join(targetDir, file);
+      await fsPromises.rename(sourcePath, targetPath);
+    }
+  };
+
+  const removeDirectoryIfExists = async (targetDir) => {
+    if (await pathExists(targetDir)) {
+      await fsPromises.rm(targetDir, { recursive: true, force: true });
+    }
+  };
+
 // Blog Posts Routes
 app.get('/api/blog', async (req, res) => {
   try {
@@ -89,35 +117,26 @@ app.post('/api/blog', async (req, res) => {
     const tempDir = path.join(baseImageDir, 'blog', 'temp', 'images');
     const targetDir = path.join(baseImageDir, 'blog', String(blogPost.id), 'images');
     
-    if (fs.existsSync(tempDir)) {
-      // Create target directory if it doesn't exist
-      if (!fs.existsSync(targetDir)) {
-        fs.mkdirSync(targetDir, { recursive: true });
-      }
-      
-      // Move all files from temp to target directory
-      const files = fs.readdirSync(tempDir);
-      for (const file of files) {
-        const tempPath = path.join(tempDir, file);
-        const targetPath = path.join(targetDir, file);
-        fs.renameSync(tempPath, targetPath);
-        
-        // Update image URLs in the blog post
-        if (blogPost.images && Array.isArray(blogPost.images)) {
-          blogPost.images = blogPost.images.map(img => {
-            if (img.src && img.src.includes('/postimages/blog/temp/images/')) {
-              return {
-                ...img,
-                src: img.src.replace('/postimages/blog/temp/images/', `/postimages/blog/${String(blogPost.id)}/images/`)
-              };
-            }
-            return img;
-          });
+    if (await pathExists(tempDir)) {
+      await moveDirectoryFiles(tempDir, targetDir);
+
+      if (blogPost.images && Array.isArray(blogPost.images)) {
+        blogPost.images = blogPost.images.map((img) => {
+          if (img.src && img.src.includes('/postimages/blog/temp/images/')) {
+            return {
+              ...img,
+              src: img.src.replace('/postimages/blog/temp/images/', `/postimages/blog/${String(blogPost.id)}/images/`)
+            };
+          }
+
+          return img;
+        });
+
+        const updatedBlogPost = await database.updateBlogPost(blogPost.id, { images: blogPost.images });
+        if (updatedBlogPost) {
+          blogPost.images = updatedBlogPost.images;
         }
       }
-      
-      // Update the blog post with corrected image URLs
-      await database.updateBlogPost(blogPost.id, { images: blogPost.images });
     }
     
     res.json(blogPost);
@@ -204,9 +223,7 @@ app.delete('/api/blog/:id', async (req, res) => {
     
     // Delete the image directory if it exists
     const imageDir = path.join(baseImageDir, 'blog', id, 'images');
-    if (fs.existsSync(imageDir)) {
-      fs.rmSync(imageDir, { recursive: true, force: true });
-    }
+    await removeDirectoryIfExists(imageDir);
     
     res.json({ message: 'Blog post deleted successfully' });
   } catch (error) {
@@ -287,20 +304,9 @@ app.post('/api/press-releases', async (req, res) => {
     const tempDir = path.join(baseImageDir, 'press', 'temp', 'images');
     const targetDir = path.join(baseImageDir, 'press', String(pressRelease.id), 'images');
     
-    if (fs.existsSync(tempDir)) {
-      // Create target directory
-      fs.mkdirSync(targetDir, { recursive: true });
-      
-      // Move files
-      const files = fs.readdirSync(tempDir);
-      for (const file of files) {
-        const sourcePath = path.join(tempDir, file);
-        const targetPath = path.join(targetDir, file);
-        fs.renameSync(sourcePath, targetPath);
-      }
-      
-      // Clean up temp directory
-      fs.rmSync(tempDir, { recursive: true, force: true });
+    if (await pathExists(tempDir)) {
+      await moveDirectoryFiles(tempDir, targetDir);
+      await removeDirectoryIfExists(tempDir);
       
       // Update image URLs in the press release
       if (pressRelease.images && Array.isArray(pressRelease.images)) {
@@ -396,15 +402,13 @@ app.delete('/api/press-releases/:id', async (req, res) => {
     }
 
     const result = await database.deletePressRelease(id);
-    if (!result) {
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'Press release not found' });
     }
 
     // Delete associated images
     const imageDir = path.join(baseImageDir, 'press', id, 'images');
-    if (fs.existsSync(imageDir)) {
-      fs.rmSync(imageDir, { recursive: true, force: true });
-    }
+    await removeDirectoryIfExists(imageDir);
     
     res.json({ message: 'Press release deleted successfully' });
   } catch (error) {
@@ -421,6 +425,8 @@ app.get('/api/media-coverage', async (req, res) => {
       ...coverage,
       title: sanitizePlainText(coverage.title, 200),
       excerpt: sanitizePlainText(coverage.excerpt, 600),
+      sourceName: sanitizePlainText(coverage.sourceName || '', 200),
+      sourceUrl: sanitizePlainText(coverage.sourceUrl || '', 500),
       author: sanitizePlainText(coverage.author, 120),
       content: sanitizeRichText(coverage.content),
       images: sanitizeImagesPayload(coverage.images)
@@ -442,6 +448,8 @@ app.get('/api/media-coverage/:id', async (req, res) => {
       ...mediaCoverage,
       title: sanitizePlainText(mediaCoverage.title, 200),
       excerpt: sanitizePlainText(mediaCoverage.excerpt, 600),
+      sourceName: sanitizePlainText(mediaCoverage.sourceName || '', 200),
+      sourceUrl: sanitizePlainText(mediaCoverage.sourceUrl || '', 500),
       author: sanitizePlainText(mediaCoverage.author, 120),
       content: sanitizeRichText(mediaCoverage.content),
       images: sanitizeImagesPayload(mediaCoverage.images)
@@ -457,6 +465,8 @@ app.post('/api/media-coverage', async (req, res) => {
     const title = sanitizePlainText(req.body?.title, 200);
     const content = sanitizeRichText(req.body?.content);
     const excerpt = sanitizePlainText(req.body?.excerpt, 600);
+    const sourceName = sanitizePlainText(req.body?.sourceName, 200);
+    const sourceUrl = sanitizePlainText(req.body?.sourceUrl, 500);
     const author = sanitizePlainText(req.body?.author, 120);
     const publishDate = sanitizePlainText(req.body?.publishDate, 64) || new Date().toISOString();
     const status = sanitizePlainText(req.body?.status, 40) || 'draft';
@@ -471,6 +481,8 @@ app.post('/api/media-coverage', async (req, res) => {
       title,
       content,
       excerpt,
+      sourceName,
+      sourceUrl,
       author,
       publishDate,
       status,
@@ -485,20 +497,9 @@ app.post('/api/media-coverage', async (req, res) => {
     const tempDir = path.join(baseImageDir, 'media', 'temp', 'images');
     const targetDir = path.join(baseImageDir, 'media', String(mediaCoverage.id), 'images');
     
-    if (fs.existsSync(tempDir)) {
-      // Create target directory
-      fs.mkdirSync(targetDir, { recursive: true });
-      
-      // Move files
-      const files = fs.readdirSync(tempDir);
-      for (const file of files) {
-        const sourcePath = path.join(tempDir, file);
-        const targetPath = path.join(targetDir, file);
-        fs.renameSync(sourcePath, targetPath);
-      }
-      
-      // Clean up temp directory
-      fs.rmSync(tempDir, { recursive: true, force: true });
+    if (await pathExists(tempDir)) {
+      await moveDirectoryFiles(tempDir, targetDir);
+      await removeDirectoryIfExists(tempDir);
       
       // Update image URLs in the media coverage
       if (mediaCoverage.images && Array.isArray(mediaCoverage.images)) {
@@ -530,6 +531,8 @@ app.put('/api/media-coverage/:id', async (req, res) => {
     const title = sanitizePlainText(req.body?.title, 200);
     const content = sanitizeRichText(req.body?.content);
     const excerpt = sanitizePlainText(req.body?.excerpt, 600);
+    const sourceName = sanitizePlainText(req.body?.sourceName, 200);
+    const sourceUrl = sanitizePlainText(req.body?.sourceUrl, 500);
     const author = sanitizePlainText(req.body?.author, 120);
     const publishDate = sanitizePlainText(req.body?.publishDate, 64);
     const status = sanitizePlainText(req.body?.status, 40);
@@ -550,6 +553,8 @@ app.put('/api/media-coverage/:id', async (req, res) => {
       title,
       content,
       excerpt,
+      sourceName: sourceName || existingPost.sourceName || '',
+      sourceUrl: sourceUrl || existingPost.sourceUrl || '',
       author,
       publishDate: publishDate || existingPost.publishDate,
       status: finalStatus,
@@ -594,15 +599,13 @@ app.delete('/api/media-coverage/:id', async (req, res) => {
     }
 
     const result = await database.deleteMediaCoverage(id);
-    if (!result) {
+    if (result.changes === 0) {
       return res.status(404).json({ error: 'Media coverage not found' });
     }
 
     // Delete associated images
     const imageDir = path.join(baseImageDir, 'media', id, 'images');
-    if (fs.existsSync(imageDir)) {
-      fs.rmSync(imageDir, { recursive: true, force: true });
-    }
+    await removeDirectoryIfExists(imageDir);
     
     res.json({ message: 'Media coverage deleted successfully' });
   } catch (error) {

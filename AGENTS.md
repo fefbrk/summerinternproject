@@ -251,7 +251,7 @@ cd server && npm start
 ## 12) Bilinen Kritik Notlar
 
 - `server/.env` repoya dahil edilmez; prod secretlar sadece ortam degiskeni ile yonetilir.
-- `server/database/kinderlab.db` su an repoda takipte olabilir; veri dosyasi oldugu unutulmamali.
+- `server/database/kinderlab.db` bu repoda bilinclli olarak takiptedir; production secret/veri icermemeli.
 - Auth token middleware DB'den kullaniciyi yeniden dogrular (token tek basina yeterli degil).
 - Node test scripti CI uyumu icin explicit dosya listesi kullanir (`server/package.json` test scripti).
 - Address tipi frontendde `home|office`, backendde `delivery|billing` maplenir; bu donusumde regression testi bulunur.

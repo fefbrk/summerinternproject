@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from './AuthContext';
-import apiService, { type UserAddress, type UserPaymentMethod } from '@/services/apiService';
+import apiService, { type UserAddress, type UserAddressPayload, type UserPaymentMethod } from '@/services/apiService';
 
 // --- TYPES ---
 export type OrderStatus = 'placed' | 'received' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
@@ -67,7 +67,6 @@ export interface ProfileInfo {
 interface UserDataContextType {
   addresses: Address[];
   paymentMethods: PaymentMethod[];
-  orders: Order[];
   profileInfo: ProfileInfo | null;
   isLoading: boolean;
   addAddress: (address: Omit<Address, 'id'>) => Promise<string>;
@@ -78,8 +77,6 @@ interface UserDataContextType {
   updatePaymentMethod: (id: string, paymentMethod: Partial<PaymentMethod>) => Promise<void>;
   deletePaymentMethod: (id: string) => Promise<void>;
   setDefaultPaymentMethod: (id: string) => Promise<void>;
-  addOrder: (order: Omit<Order, 'id' | 'date'>) => string;
-  cancelOrder: (orderId: string) => void;
   updateProfileInfo: (profileInfo: ProfileInfo) => void;
   getDefaultAddress: () => Address | null;
   getDefaultPaymentMethod: () => PaymentMethod | null;
@@ -102,8 +99,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const { user } = useAuth();
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [orders, setOrders] = useState<Order[]>(() => loadFromLocalStorage('user_orders', []));
-  const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(() => loadFromLocalStorage('user_profile_info', null));
+  const [profileInfo, setProfileInfo] = useState<ProfileInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const loadUserData = useCallback(async () => {
@@ -158,20 +154,22 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     if (user?.id) {
       loadUserData();
+      setProfileInfo(loadFromLocalStorage<ProfileInfo | null>(`user_profile_info_${user.id}`, null));
     } else {
       // Kullanıcı çıkış yaptığında verileri temizle
       setAddresses([]);
       setPaymentMethods([]);
+      setProfileInfo(null);
     }
   }, [loadUserData, user?.id]);
 
   useEffect(() => {
-    localStorage.setItem('user_orders', JSON.stringify(orders));
-  }, [orders]);
+    if (!user?.id) {
+      return;
+    }
 
-  useEffect(() => {
-    localStorage.setItem('user_profile_info', JSON.stringify(profileInfo));
-  }, [profileInfo]);
+    localStorage.setItem(`user_profile_info_${user.id}`, JSON.stringify(profileInfo));
+  }, [profileInfo, user?.id]);
 
   const addAddress = async (address: Omit<Address, 'id'>): Promise<string> => {
     if (!user?.id) {
@@ -180,7 +178,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     try {
-      const backendAddress = {
+      const backendAddress: UserAddressPayload = {
         userId: user.id,
         title: address.title,
         type: address.type === 'home' ? 'delivery' : 'billing',
@@ -212,9 +210,9 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
 
     try {
-      const backendAddress = {
+      const backendAddress: Partial<UserAddressPayload> = {
         title: updatedAddress.title,
-        type: updatedAddress.type === 'home' ? 'delivery' : 'billing',
+        type: updatedAddress.type ? (updatedAddress.type === 'home' ? 'delivery' : 'billing') : undefined,
         address: updatedAddress.address,
         apartment: '',
         district: updatedAddress.district,
@@ -340,25 +338,6 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const addOrder = (order: Omit<Order, 'id' | 'date'>): string => {
-    const id = `ORD-${Date.now().toString().slice(-6)}`;
-    const date = new Date().toISOString();
-    // Set initial status to 'placed'
-    const newOrder = { ...order, id, date, status: 'placed' as OrderStatus };
-    setOrders(prev => [newOrder, ...prev]);
-    return id;
-  };
-
-  // New function to cancel an order
-  const cancelOrder = (orderId: string) => {
-    setOrders(prev =>
-      prev.map(order =>
-        order.id === orderId ? { ...order, status: 'cancelled' as OrderStatus } : order
-      )
-    );
-    toast.success('Order cancelled successfully.');
-  };
-
   const getDefaultAddress = useCallback((): Address | null => {
     return addresses.find(addr => addr.isDefault) || (addresses.length > 0 ? addresses[0] : null);
   }, [addresses]);
@@ -374,7 +353,6 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const value: UserDataContextType = {
     addresses,
     paymentMethods,
-    orders,
     profileInfo,
     isLoading,
     addAddress,
@@ -385,8 +363,6 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     updatePaymentMethod,
     deletePaymentMethod,
     setDefaultPaymentMethod,
-    addOrder,
-    cancelOrder,
     updateProfileInfo,
     getDefaultAddress,
     getDefaultPaymentMethod,

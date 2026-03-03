@@ -23,23 +23,21 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
   - Frontend: `src/test/smoke/auth-pages.smoke.test.tsx`
 - CI aktif: `.github/workflows/ci.yml` (`lint + test + build`).
 
-## 2) Son Duzeltmeler (Account Domain)
+## 2) Son Duzeltmeler (Account + Checkout + Content)
 
-- Address tipi UI bug'i duzeltildi (`home|office` secimi artik backend'e dogru mapleniyor).
+- Address tipi UI bug'i duzeltildi (`home|office` secimi backend'e dogru mapleniyor).
 - `isDefault` alaninda "undefined -> false" bug'i duzeltildi.
-- Address/Payment create-update endpointleri artik metadata yerine guncel entity donduruyor.
-- Bu davranislar backend integration testleri ile kapsandi.
+- Checkout duplicate-submit riski kapatildi; tek submit akisi + in-flight guard eklendi.
+- `UserDataContext` icindeki local order cache/compat katmani kaldirildi; siparisler tek kaynak olarak backend'den okunuyor.
+- Profile localStorage key'i user bazli hale getirildi (`user_profile_info_<userId>`).
+- DB create/update/status akislarinda metadata yerine guncel entity donusu standartlastirildi.
+- `media_coverage` icin `source_name/source_url` migration + API alanlari eklendi (schema/runtime uyumu saglandi).
+- `server/routes/contentRoutes.js` icindeki sync FS islemleri async'e cevrildi.
+- DB policy netlesti: `server/database/kinderlab.db` repoda bilinclli olarak takipte kalacak (secret/gercek prod veri yok).
 
 ## 3) Hala Acik Olan Teknik Borc (Oncelik Sirasi)
 
-1. Frontend account context sadeleme:
-   - `src/context/UserDataContext.tsx` icinde local order cache + backend order kaynagi ciftligi sadeletilmeli.
-   - `Checkout` sayfasindaki `addOrder` compatibility katmani kaldirilip tek kaynak backend olmali.
-2. Content route IO optimizasyonu:
-   - `server/routes/contentRoutes.js` icindeki sync FS islemleri (`existsSync/readdirSync/renameSync/rmSync`) async'e alinmali.
-3. DB policy karari:
-   - `server/database/kinderlab.db` repoda takipte kalacak mi kalmayacak mi netlestirilmeli.
-4. Test kapsami artisi:
+1. Test kapsami artisi:
    - upload/content CRUD unhappy-path testleri,
    - account UI integration testleri.
 

@@ -62,6 +62,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - Parolalar `scrypt` ile hashlenerek saklanır (plaintext saklanmaz).
 - Demo/sıfırlama endpoint'leri sadece `ENABLE_DEMO_ENDPOINTS=true` olduğunda açılır.
 - HTML içerikleri istemci ve sunucuda sanitize edilir (XSS koruması).
+- `server/database/kinderlab.db` bu repoda bilincli olarak takip edilir; production secret/veri tutulmaz.
 
 ### Backend Ortam Değişkenleri
 

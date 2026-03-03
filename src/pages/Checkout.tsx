@@ -22,10 +22,10 @@ library.add(faCcVisa, faCcMastercard, faCcAmex, faCcDiscover, faCcPaypal);
 
 const Checkout = () => {
   const { cartItems, getCartTotal, clearCart } = useCart();
-  const { addresses, paymentMethods, addOrder, profileInfo } = useUserData();
+  const { addresses, paymentMethods, profileInfo } = useUserData();
   const { user, isInitializing } = useAuth();
   const navigate = useNavigate();
-  const [orderPlaced] = useState(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   // const [selectedAddressId, setSelectedAddressId] = useState<string>(''); // Unused
   // const [selectedPaymentMethodId, setSelectedPaymentMethodId] = useState<string>(''); // Unused
   const { toast: uiToast } = useToast();
@@ -146,6 +146,10 @@ const Checkout = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isPlacingOrder) {
+      return;
+    }
     
     if (!user) {
       toast.error('You must login to place an order!');
@@ -154,6 +158,7 @@ const Checkout = () => {
     }
 
     try {
+      setIsPlacingOrder(true);
       // Simulate payment processing
       toast.info('Processing order...');
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -189,49 +194,6 @@ const Checkout = () => {
         customerEmail: formData.email
       });
 
-      // Also add to UserDataContext for compatibility
-      addOrder({
-        status: 'processing' as const,
-        total,
-        subtotal,
-        discount,
-        items: orderData.items,
-        shippingAddress: { 
-          id: '1', 
-          title: 'Shipping', 
-          type: 'home', 
-          name: orderData.shippingAddress.name, 
-          phone: orderData.shippingAddress.phone, 
-          address: orderData.shippingAddress.address, 
-          district: orderData.shippingAddress.province, 
-          city: orderData.shippingAddress.city, 
-          postalCode: orderData.shippingAddress.zipCode, 
-          isDefault: false 
-        },
-        billingAddress: { 
-          id: '1', 
-          title: 'Billing', 
-          type: 'home', 
-          name: orderData.shippingAddress.name, 
-          phone: orderData.shippingAddress.phone, 
-          address: orderData.shippingAddress.address, 
-          district: orderData.shippingAddress.province, 
-          city: orderData.shippingAddress.city, 
-          postalCode: orderData.shippingAddress.zipCode, 
-          isDefault: false 
-        },
-        paymentMethod: { 
-          id: '1', 
-          type: 'card', 
-          title: `Card **** ${formData.cardNumber.slice(-4)}`, 
-          cardNumber: formData.cardNumber, 
-          expiryDate: formData.expiryDate, 
-          cardName: formData.cardName, 
-          isDefault: false 
-        },
-        orderNotes: formData.orderNotes
-      });
-
       // Clear cart
       clearCart();
       toast.success(`Order created successfully! Order No: #${newOrder.id}`);
@@ -242,6 +204,8 @@ const Checkout = () => {
     } catch (error) {
       console.error('Order creation failed:', error);
       toast.error(getErrorMessage(error, 'An error occurred while creating the order.'));
+    } finally {
+      setIsPlacingOrder(false);
     }
   };
 
@@ -293,12 +257,6 @@ const Checkout = () => {
       }));
     }
   }, [addresses, paymentMethods]);
-
-  useEffect(() => {
-    if (orderPlaced) {
-      navigate('/account/orders');
-    }
-  }, [orderPlaced, navigate]);
 
   // Show loading while checking authentication
   if (isInitializing) {
@@ -985,9 +943,9 @@ const Checkout = () => {
                     type="submit" 
                     size="lg" 
                     className="w-full py-3 mt-4 text-lg font-semibold bg-kibo-orange text-kibo-purple rounded-lg hover:bg-kibo-purple hover:text-white transition-colors duration-300"
-                    onClick={handleSubmit}
+                    disabled={isPlacingOrder}
                   >
-                    PLACE ORDER
+                    {isPlacingOrder ? 'PROCESSING...' : 'PLACE ORDER'}
                   </Button>
                   <p className="text-xs text-gray-500 mt-4 text-center">
                     By placing your order, you agree to our Terms of Service and Privacy Policy.
