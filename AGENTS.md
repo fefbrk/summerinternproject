@@ -9,7 +9,7 @@ Bu dokuman, proje icinde calisan insan/AI agentlari icin tek noktadan hizli oper
 - Auth: Token tabanli (Bearer), role bazli admin kontrolu
 - CI: GitHub Actions (`.github/workflows/ci.yml`) -> lint + test + build
 - Icerik alanlari: blog, press releases, media coverage, events
-- Is alanlari: e-commerce orders, course registrations, contacts, user account data
+- Is alanlari: e-commerce orders, course registrations, contacts, user account data, payment domain hazirligi
 
 Ana dizinler:
 
@@ -17,7 +17,7 @@ Ana dizinler:
 - `server/` -> API, auth middleware, SQLite islemleri
 - `server/routes/` -> endpoint gruplari (auth, commerce, account, content, demo)
 - `server/middleware/` -> authz/rate-limit middleware
-- `server/services/` -> bootstrap/is kurallari servisi
+- `server/services/` -> bootstrap/is kurallari, urun katalogu ve payment servisleri
 - `server/database/` -> schema ve DB islemleri
 
 ## 2) Agent Rolleri
@@ -54,6 +54,7 @@ Asagidaki roller mantiksal ayrimdir; tek agent birden fazla rol ustlenebilir.
 
 - Frontend: React, TypeScript, Vite, Tailwind, TanStack Query
 - Backend: Express, sqlite3, multer, sanitize-html
+- Payment domain: provider-agnostic payment service + payment attempt/event persistence
 - Security yardimcilari: DOMPurify (frontend), sanitize-html (backend), scrypt hash
 
 ### 3.2 Gelistirme/CI Araçlari
@@ -126,10 +127,11 @@ Temel endpoint gruplari (`server/routes/*`):
 
 - Auth: `/api/login`, `/api/register`, `/api/me`
 - Users: `/api/users`, `/api/users/:id/password`
-- Orders: `/api/orders`, `/api/orders/my`, `/api/orders/:id/status`
+- Orders: `/api/orders`, `/api/orders/my`, `/api/orders/:id/status`, `/api/orders/:id/payment-status`
 - Registrations: `/api/registrations`, `/api/registrations/my`, `/api/registrations/:id/status`
 - Contacts: `/api/contacts`, `/api/contacts/:id/status`
-- CMS: `/api/blog`, `/api/press-releases`, `/api/media-coverage`, `/api/events`
+- CMS Public: `/api/blog`, `/api/press-releases`, `/api/media-coverage`, `/api/events` (yalnizca `published`)
+- CMS Admin list: `/api/admin/blog`, `/api/admin/press-releases`, `/api/admin/media-coverage`, `/api/admin/events`
 - Media upload: ilgili `.../images` endpointleri
 - Account extras: `/api/addresses/*`, `/api/payment-methods/*`
 
@@ -149,6 +151,7 @@ VITE_API_URL=http://localhost:3001
 AUTH_TOKEN_SECRET=<long-random-secret>
 AUTH_TOKEN_TTL_MS=604800000
 CORS_ORIGINS=http://localhost:8080,http://localhost:5173
+TRUST_PROXY=false
 DEFAULT_ADMIN_EMAIL=admin@example.com
 DEFAULT_ADMIN_PASSWORD=<strong-password>
 ENABLE_DEMO_ENDPOINTS=false
@@ -161,6 +164,7 @@ Production notlari:
 - `DEFAULT_ADMIN_EMAIL` gecerli e-posta olmali
 - `DEFAULT_ADMIN_PASSWORD` zorunlu
 - `ENABLE_DEMO_ENDPOINTS=false` kalmali
+- `TRUST_PROXY` sadece reverse-proxy arkasinda `true` olmali
 - `SQLITE_DB_PATH` opsiyoneldir (test ortaminda gecici DB vermek icin kullanilir)
 
 ## 8) Kurulum ve Kullanim
@@ -226,6 +230,8 @@ cd server && npm start
 - [ ] `server/.env` gitignore kapsaminda
 - [ ] Legacy default admin kimlik bilgileri aktif degil
 - [ ] Auth middleware kullaniciyi DB'den yeniden dogruluyor
+- [ ] Public CMS endpointleri draft icerik dondurmuyor
+- [ ] Fulfillment status'lerine gecmeden once payment `paid` dogrulaniyor
 - [ ] `npm run lint` ve `npm run build` basarili
 - [ ] Demo endpointleri prod ortamda kapali
 
@@ -238,6 +244,8 @@ cd server && npm start
 - Auth middleware: `server/middleware/authMiddleware.js`
 - Route modulleri: `server/routes/*.js`
 - Bootstrap service: `server/services/bootstrapService.js`
+- Product catalog service: `server/services/productCatalogService.js`
+- Payment service: `server/services/paymentService.js`
 - DB adapter: `server/database/database.js`
 - DB schema: `server/database/schema.sql`
 
@@ -255,3 +263,4 @@ cd server && npm start
 - Auth token middleware DB'den kullaniciyi yeniden dogrular (token tek basina yeterli degil).
 - Node test scripti CI uyumu icin explicit dosya listesi kullanir (`server/package.json` test scripti).
 - Address tipi frontendde `home|office`, backendde `delivery|billing` maplenir; bu donusumde regression testi bulunur.
+- Orders tablosunda payment kolonlari ve `payment_attempts`/`payment_events` tablolari aktiftir; webhook/PSP baglantisi bunlar uzerinden idempotent ilerlemelidir.

@@ -6,8 +6,13 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
 
 ## 1) Guncel Durum (Son Tamamlananlar)
 
-- Guvenlik sertlestirme tamamlandi (auth/role guard, sanitize, upload validation, prod env guard).
-- Backend monolith parcali hale getirildi:
+- Guvenlik sertlestirme aktif:
+  - Auth/role guard,
+  - sanitize,
+  - upload validation,
+  - prod env guard,
+  - login/contact rate-limit.
+- Backend moduler yapida:
   - `server/routes/authUserRoutes.js`
   - `server/routes/commerceRoutes.js`
   - `server/routes/accountRoutes.js`
@@ -16,32 +21,44 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
   - `server/routes/demoRoutes.js`
   - `server/routes/maintenanceRoutes.js`
   - `server/middleware/authMiddleware.js`
-  - `server/services/bootstrapService.js`
-- DB tarafinda transaction katmani eklendi (`runInTransaction`) ve kritik yazma akislarina uygulandi.
-- Test altyapisi kuruldu:
+- Content/public access sertlestirmesi tamamlandi:
+  - Public CMS endpointleri sadece `published` donuyor.
+  - Admin list endpointleri `/api/admin/*` olarak ayrildi.
+- Checkout ve account veri akisi sadeletildi:
+  - duplicate submit kapatildi,
+  - local order compatibility cache kaldirildi,
+  - order kaynagi backend tek kaynak.
+- Siparis guvenligi sertlestirildi:
+  - urun/fiyat backend katalogundan dogrulaniyor (`server/services/productCatalogService.js`),
+  - client total/price tampering engelleniyor.
+- Payment domain hazirlik katmani eklendi (PSP bagimsiz):
+  - Orders tablosunda payment kolonlari,
+  - `payment_attempts` ve `payment_events` tablolari,
+  - payment attempt/event persistence,
+  - `server/services/paymentService.js` (provider-agnostic iskelet),
+  - endpointler: `GET/PUT /api/orders/:id/payment-status`.
+- Fulfillment guard aktif:
+  - `preparing|shipping|delivered` gecisi icin payment `paid` zorunlu.
+- Test altyapisi guncel:
   - Backend: `server/tests/api.integration.test.js`, `server/tests/database.transaction.test.js`
-  - Frontend: `src/test/smoke/auth-pages.smoke.test.tsx`
-- CI aktif: `.github/workflows/ci.yml` (`lint + test + build`).
+  - Frontend smoke: `src/test/smoke/auth-pages.smoke.test.tsx`
+  - CI: `.github/workflows/ci.yml` (`lint + test + build`).
 
-## 2) Son Duzeltmeler (Account + Checkout + Content)
+## 2) Hala Acik Olan Teknik Borc (Oncelik Sirasi)
 
-- Address tipi UI bug'i duzeltildi (`home|office` secimi backend'e dogru mapleniyor).
-- `isDefault` alaninda "undefined -> false" bug'i duzeltildi.
-- Checkout duplicate-submit riski kapatildi; tek submit akisi + in-flight guard eklendi.
-- `UserDataContext` icindeki local order cache/compat katmani kaldirildi; siparisler tek kaynak olarak backend'den okunuyor.
-- Profile localStorage key'i user bazli hale getirildi (`user_profile_info_<userId>`).
-- DB create/update/status akislarinda metadata yerine guncel entity donusu standartlastirildi.
-- `media_coverage` icin `source_name/source_url` migration + API alanlari eklendi (schema/runtime uyumu saglandi).
-- `server/routes/contentRoutes.js` icindeki sync FS islemleri async'e cevrildi.
-- DB policy netlesti: `server/database/kinderlab.db` repoda bilinclli olarak takipte kalacak (secret/gercek prod veri yok).
-
-## 3) Hala Acik Olan Teknik Borc (Oncelik Sirasi)
-
-1. Test kapsami artisi:
+1. PSP sandbox entegrasyonu (provider secimi bekliyor):
+   - `create-session` + `webhook` route'lari,
+   - webhook signature dogrulama,
+   - idempotent event isleme (`payment_events`).
+2. Payment UI entegrasyonu:
+   - checkout redirect/return akisi,
+   - account/admin ekranlarinda payment status/attempt gorunurlugu.
+3. Test kapsami artisi:
    - upload/content CRUD unhappy-path testleri,
-   - account UI integration testleri.
+   - account UI integration testleri,
+   - payment webhook replay/failure testleri.
 
-## 4) Hemen Calistirilacak Komutlar (Yeni Session)
+## 3) Hemen Calistirilacak Komutlar (Yeni Session)
 
 ```bash
 git status -sb
@@ -57,8 +74,10 @@ Opsiyonel backend smoke:
 cd server && npm start
 ```
 
-## 5) Operasyon Notlari
+## 4) Operasyon Notlari
 
 - Prod'da zorunlu env: `AUTH_TOKEN_SECRET`, `DEFAULT_ADMIN_EMAIL`, `DEFAULT_ADMIN_PASSWORD`.
 - `ENABLE_DEMO_ENDPOINTS` prod'da `false` kalmali.
+- `TRUST_PROXY` sadece reverse proxy arkasinda `true` olmali.
+- `server/database/kinderlab.db` bu repoda bilinclli olarak tracked; secret/gercek prod veri konmamalidir.
 - CI Node 20 uyumu icin backend test scripti explicit dosya listesi kullanir.

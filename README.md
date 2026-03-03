@@ -13,7 +13,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 **E-Ticaret Sistemi**
 - Kapsamlı ürün kataloğu (79 ürün sayfası)
 - 9 ana ürün kategorisi (KIBO Kitleri, Sınıf Paketleri, Uzantı Setleri vb.)
-- Gelişmiş alışveriş sepeti ve ödeme sistemi
+- Alışveriş sepeti, sipariş yönetimi ve ödeme domain hazırlık katmanı
 - Sipariş yönetimi ve takip
 
 **İçerik Yönetim Sistemi**
@@ -63,6 +63,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - Demo/sıfırlama endpoint'leri sadece `ENABLE_DEMO_ENDPOINTS=true` olduğunda açılır.
 - HTML içerikleri istemci ve sunucuda sanitize edilir (XSS koruması).
 - `server/database/kinderlab.db` bu repoda bilincli olarak takip edilir; production secret/veri tutulmaz.
+- Public CMS endpoint'leri sadece `published` içerik döndürür; admin list endpoint'leri ayrıdır.
 
 ### Backend Ortam Değişkenleri
 
@@ -71,6 +72,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - `AUTH_TOKEN_SECRET`: Üretimde güçlü bir gizli anahtar zorunlu.
 - `AUTH_TOKEN_TTL_MS`: Token süresi (ms), varsayılan 7 gün.
 - `CORS_ORIGINS`: İzin verilen origin listesi (virgülle ayrılmış).
+- `TRUST_PROXY`: Sadece reverse-proxy arkasında `true` olmalı.
 - `DEFAULT_ADMIN_EMAIL`: İlk admin hesabı e-posta adresi.
 - `DEFAULT_ADMIN_PASSWORD`: İlk admin hesabı şifresi (üretimde zorunlu).
 - `ENABLE_DEMO_ENDPOINTS`: `true` ise demo/temizleme endpoint'leri aktif olur.
@@ -87,7 +89,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 
 **Diğer:**
 - 64 UI bileşeni
-- 9 veritabanı tablosu
+- 13+ veritabanı tablosu (orders/content/payment domain dahil)
 - 50+ API endpoint
 - 3 Context provider
 
@@ -97,6 +99,8 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 users
 ├─ orders
 │  └─ order_items
+│  ├─ payment_attempts
+│  └─ payment_events
 ├─ course_registrations
 ├─ user_addresses
 └─ user_payment_methods

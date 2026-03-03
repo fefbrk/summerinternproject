@@ -21,3 +21,5 @@ npm run lint && npm test && npm run build -- --logLevel error
 - Secret dosyalari commit etme (`server/.env` vb.).
 - DB veri dosyasi (`server/database/kinderlab.db`) bu repoda bilinclli olarak takiptedir; secret/gercek prod veri konmamalidir.
 - Auth token tek basina yeterli degildir; middleware DB re-validation yapar.
+- Siparislerde odeme alani ayridir (`payment_status`); odeme `paid` olmadan fulfillment status'lerine gecis engellenir.
+- PSP (iyzico/stripe/paytr) henuz bagli degil; payment domain hazirligi (`payment_attempts`, `payment_events`, payment-status endpointleri) aktiftir.
