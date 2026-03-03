@@ -180,6 +180,8 @@ class Database {
             await this.ensureFulfillmentTables();
             // Users tablosuna updated_at kolonu ekle
             await this.addUpdatedAtColumnToUsers();
+            // Orders tablosuna order_notes kolonu ekle
+            await this.addOrderNotesColumnToOrders();
             console.log('Veritabanı migrasyonları başarıyla çalıştırıldı');
         } catch (error) {
             console.error('Migrasyon hatası:', error);
@@ -544,6 +546,33 @@ class Database {
         }
     }
 
+    async addOrderNotesColumnToOrders() {
+        try {
+            const tableExists = await this.get(`
+                SELECT name FROM sqlite_master WHERE type='table' AND name='orders'
+            `);
+
+            if (!tableExists) {
+                return;
+            }
+
+            const columnInfo = await this.all('PRAGMA table_info(orders)');
+            const hasOrderNotes = columnInfo.some((column) => column.name === 'order_notes');
+
+            if (!hasOrderNotes) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN order_notes TEXT NOT NULL DEFAULT ''
+                `);
+
+                console.log('Orders tablosuna order_notes kolonu eklendi');
+            }
+        } catch (error) {
+            console.error('Orders order_notes kolon migrasyonu hatası:', error);
+            throw error;
+        }
+    }
+
     // SQL sorgusu çalıştır (INSERT, UPDATE, DELETE)
     run(sql, params = []) {
         return new Promise((resolve, reject) => {
@@ -664,7 +693,7 @@ class Database {
                    o.fulfillment_source as fulfillmentSource,
                    o.fulfillment_updated_at as fulfillmentUpdatedAt,
                    o.customer_name as customerName, o.customer_email as customerEmail,
-                   o.shipping_address as shippingAddress, o.created_at as createdAt,
+                   o.shipping_address as shippingAddress, o.order_notes as orderNotes, o.created_at as createdAt,
                      json_group_array(
                          json_object('id', oi.product_id, 'name', oi.product_name, 'productId', oi.product_id, 'productName', oi.product_name,
                                      'quantity', oi.quantity, 'price', oi.price, 'image', oi.image)
@@ -701,12 +730,12 @@ class Database {
         await this.runInTransaction(async () => {
             const sql = `
                 INSERT INTO orders (
-                    id, user_id, total_amount, status, customer_name, customer_email, shipping_address, created_at,
+                    id, user_id, total_amount, status, customer_name, customer_email, shipping_address, order_notes, created_at,
                     payment_status, payment_provider, payment_reference, payment_amount, payment_currency,
                     payment_failed_reason, paid_at,
                     shipment_provider, shipment_tracking_number, fulfillment_source, fulfillment_updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
             await this.run(sql, [
                 order.id,
@@ -716,6 +745,7 @@ class Database {
                 order.customerName,
                 order.customerEmail,
                 JSON.stringify(order.shippingAddress),
+                order.orderNotes || '',
                 order.createdAt,
                 order.paymentStatus || 'pending',
                 order.paymentProvider || null,

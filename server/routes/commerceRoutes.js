@@ -115,6 +115,7 @@ const registerCommerceRoutes = (app, deps) => {
       const shippingAddress = req.body?.shippingAddress;
       const customerName = sanitizePlainText(req.body?.customerName, 120);
       const customerEmail = sanitizeEmail(req.body?.customerEmail);
+      const orderNotes = sanitizePlainText(req.body?.orderNotes || '', 1000);
 
       if (!items.length || !Number.isFinite(totalAmount) || totalAmount <= 0 || !shippingAddress || typeof shippingAddress !== 'object' || !customerName || !customerEmail || !isValidEmail(customerEmail)) {
         return res.status(400).json({ error: 'Invalid order payload' });
@@ -202,6 +203,7 @@ const registerCommerceRoutes = (app, deps) => {
         shippingAddress: normalizedShippingAddress,
         customerName,
         customerEmail,
+        orderNotes,
         createdAt: new Date().toISOString(),
       };
 

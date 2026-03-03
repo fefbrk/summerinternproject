@@ -43,6 +43,7 @@ export interface Order {
   shippingAddress: ShippingAddress;
   customerName: string;
   customerEmail: string;
+  orderNotes?: string;
   createdAt: string;
 }
 

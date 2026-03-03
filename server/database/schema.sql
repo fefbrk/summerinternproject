@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS orders (
     shipment_tracking_number TEXT,
     fulfillment_source TEXT NOT NULL DEFAULT 'manual' CHECK (fulfillment_source IN ('manual', 'carrier', 'manual-override')),
     fulfillment_updated_at TEXT,
+    order_notes TEXT NOT NULL DEFAULT '',
     FOREIGN KEY (user_id) REFERENCES users (id)
 );
 
