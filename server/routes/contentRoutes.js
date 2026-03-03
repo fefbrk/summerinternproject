@@ -92,10 +92,9 @@ const registerContentRoutes = (app, deps) => {
   app.get('/api/blog', async (req, res) => {
     try {
       const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
-      const blogPosts = await database.getAllBlogPosts();
+      const blogPosts = await database.getAllBlogPosts(pagination.limit, pagination.offset);
       const publishedBlogPosts = blogPosts.filter((post) => post.status === 'published');
-      const paginatedBlogPosts = paginateRows(publishedBlogPosts, pagination);
-      res.json(paginatedBlogPosts.map(sanitizeBlogPostForResponse));
+      res.json(publishedBlogPosts.map(sanitizeBlogPostForResponse));
     } catch (error) {
       console.error('Error getting blog posts:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -109,9 +108,8 @@ const registerContentRoutes = (app, deps) => {
       }
 
       const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
-      const blogPosts = await database.getAllBlogPosts();
-      const paginatedBlogPosts = paginateRows(blogPosts, pagination);
-      res.json(paginatedBlogPosts.map(sanitizeBlogPostForResponse));
+      const blogPosts = await database.getAllBlogPosts(pagination.limit, pagination.offset);
+      res.json(blogPosts.map(sanitizeBlogPostForResponse));
     } catch (error) {
       console.error('Error getting admin blog posts:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -172,7 +170,7 @@ const registerContentRoutes = (app, deps) => {
         updateFn: (id, data) => database.updateBlogPost(id, data),
       });
 
-      res.json(blogPost);
+      res.status(201).json(blogPost);
     } catch (error) {
       console.error('Error creating blog post:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -269,10 +267,9 @@ const registerContentRoutes = (app, deps) => {
   app.get('/api/press-releases', async (req, res) => {
     try {
       const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
-      const pressReleases = await database.getAllPressReleases();
+      const pressReleases = await database.getAllPressReleases(pagination.limit, pagination.offset);
       const publishedPressReleases = pressReleases.filter((release) => release.status === 'published');
-      const paginatedPressReleases = paginateRows(publishedPressReleases, pagination);
-      res.json(paginatedPressReleases.map(sanitizePressReleaseForResponse));
+      res.json(publishedPressReleases.map(sanitizePressReleaseForResponse));
     } catch (error) {
       console.error('Error getting press releases:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -286,9 +283,8 @@ const registerContentRoutes = (app, deps) => {
       }
 
       const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
-      const pressReleases = await database.getAllPressReleases();
-      const paginatedPressReleases = paginateRows(pressReleases, pagination);
-      res.json(paginatedPressReleases.map(sanitizePressReleaseForResponse));
+      const pressReleases = await database.getAllPressReleases(pagination.limit, pagination.offset);
+      res.json(pressReleases.map(sanitizePressReleaseForResponse));
     } catch (error) {
       console.error('Error getting admin press releases:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -346,7 +342,7 @@ const registerContentRoutes = (app, deps) => {
         updateFn: (id, data) => database.updatePressRelease(id, data),
       });
 
-      res.json(pressRelease);
+      res.status(201).json(pressRelease);
     } catch (error) {
       console.error('Error creating press release:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -442,10 +438,9 @@ const registerContentRoutes = (app, deps) => {
   app.get('/api/media-coverage', async (req, res) => {
     try {
       const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
-      const mediaCoverages = await database.getAllMediaCoverages();
+      const mediaCoverages = await database.getAllMediaCoverages(pagination.limit, pagination.offset);
       const publishedMediaCoverages = mediaCoverages.filter((coverage) => coverage.status === 'published');
-      const paginatedMediaCoverages = paginateRows(publishedMediaCoverages, pagination);
-      res.json(paginatedMediaCoverages.map(sanitizeMediaCoverageForResponse));
+      res.json(publishedMediaCoverages.map(sanitizeMediaCoverageForResponse));
     } catch (error) {
       console.error('Error getting media coverages:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -459,9 +454,8 @@ const registerContentRoutes = (app, deps) => {
       }
 
       const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
-      const mediaCoverages = await database.getAllMediaCoverages();
-      const paginatedMediaCoverages = paginateRows(mediaCoverages, pagination);
-      res.json(paginatedMediaCoverages.map(sanitizeMediaCoverageForResponse));
+      const mediaCoverages = await database.getAllMediaCoverages(pagination.limit, pagination.offset);
+      res.json(mediaCoverages.map(sanitizeMediaCoverageForResponse));
     } catch (error) {
       console.error('Error getting admin media coverages:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -523,7 +517,7 @@ const registerContentRoutes = (app, deps) => {
         updateFn: (id, data) => database.updateMediaCoverage(id, data),
       });
 
-      res.json(mediaCoverage);
+      res.status(201).json(mediaCoverage);
     } catch (error) {
       console.error('Error creating media coverage:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -623,10 +617,9 @@ const registerContentRoutes = (app, deps) => {
   app.get('/api/events', async (req, res) => {
     try {
       const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
-      const events = await database.getAllEvents();
+      const events = await database.getAllEvents(pagination.limit, pagination.offset);
       const publishedEvents = events.filter((event) => event.status === 'upcoming' || event.status === 'ongoing');
-      const paginatedEvents = paginateRows(publishedEvents, pagination);
-      res.json(paginatedEvents.map(sanitizeEventForResponse));
+      res.json(publishedEvents.map(sanitizeEventForResponse));
     } catch (error) {
       console.error('Error getting events:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -640,9 +633,8 @@ const registerContentRoutes = (app, deps) => {
       }
 
       const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
-      const events = await database.getAllEvents();
-      const paginatedEvents = paginateRows(events, pagination);
-      res.json(paginatedEvents.map(sanitizeEventForResponse));
+      const events = await database.getAllEvents(pagination.limit, pagination.offset);
+      res.json(events.map(sanitizeEventForResponse));
     } catch (error) {
       console.error('Error getting admin events:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -653,7 +645,8 @@ const registerContentRoutes = (app, deps) => {
     try {
       const id = sanitizePlainText(req.params.id, 64);
       const event = await database.getEventById(id);
-      if (!event) {
+      const publicEventStatuses = new Set(['upcoming', 'ongoing']);
+      if (!event || !publicEventStatuses.has(event.status)) {
         return res.status(404).json({ error: 'Event not found' });
       }
       res.json(sanitizeEventForResponse(event));
@@ -715,7 +708,7 @@ const registerContentRoutes = (app, deps) => {
       };
 
       const event = await database.createEvent(newEvent);
-      res.json(event);
+      res.status(201).json(event);
     } catch (error) {
       console.error('Error creating event:', error);
       res.status(500).json({ error: 'Internal server error' });

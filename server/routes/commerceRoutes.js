@@ -1,5 +1,6 @@
 const crypto = require('node:crypto');
 const { resolvePagination, paginateRows } = require('../utils/pagination');
+const { toCents, fromCents } = require('../utils/currency');
 
 const registerCommerceRoutes = (app, deps) => {
   const {
@@ -26,8 +27,8 @@ const registerCommerceRoutes = (app, deps) => {
 
 
 
-  const toCents = (amount) => Math.round(Number(amount) * 100);
-  const fromCents = (amountInCents) => amountInCents / 100;
+
+
   const fulfillmentStatusesRequiringPaid = new Set(['preparing', 'shipping', 'delivered']);
   const manualFulfillmentStatuses = new Set(['received', 'preparing', 'shipping']);
   const carrierStatusToOrderStatus = {
@@ -88,8 +89,8 @@ const registerCommerceRoutes = (app, deps) => {
   app.get('/api/orders', async (req, res) => {
     try {
       const pagination = resolvePagination(req.query);
-      const orders = await database.getAllOrders();
-      res.json(paginateRows(orders, pagination));
+      const orders = await database.getAllOrders(pagination.limit, pagination.offset);
+      res.json(orders);
     } catch (error) {
       console.error('Error getting orders:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -223,7 +224,7 @@ const registerCommerceRoutes = (app, deps) => {
         }
       }
 
-      res.json(order);
+      res.status(201).json(order);
     } catch (error) {
       console.error('Error creating order:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -595,8 +596,8 @@ const registerCommerceRoutes = (app, deps) => {
   app.get('/api/registrations', async (req, res) => {
     try {
       const pagination = resolvePagination(req.query);
-      const registrations = await database.getAllRegistrations();
-      res.json(paginateRows(registrations, pagination));
+      const registrations = await database.getAllRegistrations(pagination.limit, pagination.offset);
+      res.json(registrations);
     } catch (error) {
       console.error('Error getting registrations:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -686,7 +687,7 @@ const registerCommerceRoutes = (app, deps) => {
       };
 
       const registration = await database.createRegistration(newRegistration);
-      res.json(registration);
+      res.status(201).json(registration);
     } catch (error) {
       console.error('Error creating registration:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -717,8 +718,8 @@ const registerCommerceRoutes = (app, deps) => {
   app.get('/api/contacts', async (req, res) => {
     try {
       const pagination = resolvePagination(req.query);
-      const contacts = await database.getAllContacts();
-      res.json(paginateRows(contacts, pagination));
+      const contacts = await database.getAllContacts(pagination.limit, pagination.offset);
+      res.json(contacts);
     } catch (error) {
       console.error('Error getting contacts:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -750,7 +751,7 @@ const registerCommerceRoutes = (app, deps) => {
       };
 
       const contact = await database.createContact(newContact);
-      res.json(contact);
+      res.status(201).json(contact);
     } catch (error) {
       console.error('Error creating contact:', error);
       res.status(500).json({ error: 'Internal server error' });

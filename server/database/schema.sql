@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
     name TEXT NOT NULL,
     password TEXT NOT NULL,
     is_admin INTEGER NOT NULL DEFAULT 0, -- 0 = false, 1 = true
-    created_at TEXT NOT NULL
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT ''
 );
 
 -- Orders Table

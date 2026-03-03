@@ -178,6 +178,8 @@ class Database {
             await this.ensurePaymentTables();
             // Fulfillment event tablosunu olustur
             await this.ensureFulfillmentTables();
+            // Users tablosuna updated_at kolonu ekle
+            await this.addUpdatedAtColumnToUsers();
             console.log('Veritabanı migrasyonları başarıyla çalıştırıldı');
         } catch (error) {
             console.error('Migrasyon hatası:', error);
@@ -508,6 +510,40 @@ class Database {
         }
     }
 
+    async addUpdatedAtColumnToUsers() {
+        try {
+            const tableExists = await this.get(`
+                SELECT name FROM sqlite_master
+                WHERE type='table' AND name='users'
+            `);
+
+            if (!tableExists) {
+                return;
+            }
+
+            const columnInfo = await this.all('PRAGMA table_info(users)');
+            const hasUpdatedAt = columnInfo.some((column) => column.name === 'updated_at');
+
+            if (!hasUpdatedAt) {
+                await this.run(`
+                    ALTER TABLE users
+                    ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''
+                `);
+
+                await this.run(`
+                    UPDATE users
+                    SET updated_at = created_at
+                    WHERE updated_at = '' OR updated_at IS NULL
+                `);
+
+                console.log('Users tablosuna updated_at kolonu eklendi');
+            }
+        } catch (error) {
+            console.error('Users updated_at kolon migrasyonu hatası:', error);
+            throw error;
+        }
+    }
+
     // SQL sorgusu çalıştır (INSERT, UPDATE, DELETE)
     run(sql, params = []) {
         return new Promise((resolve, reject) => {
@@ -570,40 +606,41 @@ class Database {
 
     // === KULLANICI İŞLEMLERİ ===
 
-    async getAllUsers() {
-        const sql = 'SELECT id, email, name, is_admin as isAdmin, created_at as createdAt FROM users ORDER BY created_at DESC';
-        return this.all(sql);
+    async getAllUsers(limit, offset) {
+        const sql = 'SELECT id, email, name, is_admin as isAdmin, created_at as createdAt, updated_at as updatedAt FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?';
+        return this.all(sql, [limit, offset]);
     }
 
     async getAllUsersWithPasswords() {
-        const sql = 'SELECT id, email, name, password, is_admin as isAdmin, created_at as createdAt FROM users ORDER BY created_at DESC';
+        const sql = 'SELECT id, email, name, password, is_admin as isAdmin, created_at as createdAt, updated_at as updatedAt FROM users ORDER BY created_at DESC';
         return this.all(sql);
     }
 
     async getUserById(id) {
-        const sql = 'SELECT id, email, name, password, is_admin as isAdmin, created_at as createdAt FROM users WHERE id = ?';
+        const sql = 'SELECT id, email, name, password, is_admin as isAdmin, created_at as createdAt, updated_at as updatedAt FROM users WHERE id = ?';
         return this.get(sql, [id]);
     }
 
     async getUserByEmail(email) {
-        const sql = 'SELECT id, email, name, password, is_admin as isAdmin, created_at as createdAt FROM users WHERE email = ?';
+        const sql = 'SELECT id, email, name, password, is_admin as isAdmin, created_at as createdAt, updated_at as updatedAt FROM users WHERE email = ?';
         return this.get(sql, [email]);
     }
 
     async createUser(user) {
-        const sql = 'INSERT INTO users (id, email, name, password, is_admin, created_at) VALUES (?, ?, ?, ?, ?, ?)';
-        return this.run(sql, [user.id, user.email, user.name, user.password, user.isAdmin || 0, user.createdAt]);
+        const now = user.createdAt || new Date().toISOString();
+        const sql = 'INSERT INTO users (id, email, name, password, is_admin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)';
+        return this.run(sql, [user.id, user.email, user.name, user.password, user.isAdmin || 0, now, user.updatedAt || now]);
     }
 
     async updateUserPassword(userId, newPassword) {
-        const sql = 'UPDATE users SET password = ? WHERE id = ?';
-        return this.run(sql, [newPassword, userId]);
+        const sql = 'UPDATE users SET password = ?, updated_at = ? WHERE id = ?';
+        return this.run(sql, [newPassword, new Date().toISOString(), userId]);
     }
 
     async updateUser(userId, userData) {
         const { email, name, password, isAdmin, createdAt } = userData;
-        const sql = 'UPDATE users SET email = ?, name = ?, password = ?, is_admin = ?, created_at = ? WHERE id = ?';
-        return this.run(sql, [email, name, password, isAdmin || 0, createdAt, userId]);
+        const sql = 'UPDATE users SET email = ?, name = ?, password = ?, is_admin = ?, created_at = ?, updated_at = ? WHERE id = ?';
+        return this.run(sql, [email, name, password, isAdmin || 0, createdAt, new Date().toISOString(), userId]);
     }
 
     async deleteUser(userId) {
@@ -640,9 +677,9 @@ class Database {
         `;
     }
 
-    async getAllOrders() {
-        const sql = this._buildOrderQuery();
-        const orders = await this.all(sql);
+    async getAllOrders(limit, offset) {
+        const sql = this._buildOrderQuery() + ' LIMIT ? OFFSET ?';
+        const orders = await this.all(sql, [limit, offset]);
         return orders.map((order) => this.normalizeOrderRow(order));
     }
 
@@ -1041,7 +1078,7 @@ class Database {
 
     // === KURS KAYIT İŞLEMLERİ ===
 
-    async getAllRegistrations() {
+    async getAllRegistrations(limit, offset) {
         const sql = `
             SELECT id, user_id as userId, course_name as courseName, registration_data as registrationData,
                    status, customer_name as customerName, customer_email as customerEmail,
@@ -1051,8 +1088,9 @@ class Database {
                    billing_zip_code as billingZipCode, created_at as createdAt
             FROM course_registrations
             ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
         `;
-        const registrations = await this.all(sql);
+        const registrations = await this.all(sql, [limit, offset]);
         return registrations.map(registration => ({
             ...registration,
             registrationData: registration.registrationData ? this.safeJsonParse(registration.registrationData, {}) : {}
@@ -1144,13 +1182,14 @@ class Database {
 
     // === İLETİŞİM İŞLEMLERİ ===
 
-    async getAllContacts() {
+    async getAllContacts(limit, offset) {
         const sql = `
             SELECT id, type, name, email, subject, message, status, created_at as createdAt
             FROM contacts
             ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
         `;
-        return this.all(sql);
+        return this.all(sql, [limit, offset]);
     }
 
     async getContactById(id) {
@@ -1198,14 +1237,15 @@ class Database {
 
     // === BLOG İŞLEMLERİ ===
 
-    async getAllBlogPosts() {
+    async getAllBlogPosts(limit, offset) {
         const sql = `
             SELECT id, title, content, excerpt, author, publish_date as publishDate,
                    status, images, created_at as createdAt, updated_at as updatedAt
             FROM blog_posts
             ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
         `;
-        const posts = await this.all(sql);
+        const posts = await this.all(sql, [limit, offset]);
         return posts.map(post => ({
             ...post,
             images: post.images ? this.safeJsonParse(post.images, []) : []
@@ -1307,14 +1347,15 @@ class Database {
 
     // === PRESS RELEASES İŞLEMLERİ ===
 
-    async getAllPressReleases() {
+    async getAllPressReleases(limit, offset) {
         const sql = `
         SELECT id, title, content, excerpt, author, publish_date as publishDate,
                status, images, created_at as createdAt, updated_at as updatedAt
         FROM press_releases
         ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
     `;
-        const releases = await this.all(sql);
+        const releases = await this.all(sql, [limit, offset]);
         return releases.map(release => ({
             ...release,
             images: release.images ? this.safeJsonParse(release.images, []) : []
@@ -1416,14 +1457,15 @@ class Database {
 
     // === MEDIA COVERAGE İŞLEMLERİ ===
 
-    async getAllMediaCoverages() {
+    async getAllMediaCoverages(limit, offset) {
         const sql = `
         SELECT id, title, content, excerpt, source_name as sourceName, source_url as sourceUrl, author, publish_date as publishDate,
                status, images, created_at as createdAt, updated_at as updatedAt
         FROM media_coverage
         ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
     `;
-        const coverages = await this.all(sql);
+        const coverages = await this.all(sql, [limit, offset]);
         return coverages.map(coverage => ({
             ...coverage,
             images: coverage.images ? this.safeJsonParse(coverage.images, []) : []
@@ -1537,7 +1579,7 @@ class Database {
 
     // === EVENTS İŞLEMLERİ ===
 
-    async getAllEvents() {
+    async getAllEvents(limit, offset) {
         const sql = `
         SELECT id, title, description, excerpt, start_date as startDate, end_date as endDate,
                venue_name as venueName, venue_address as venueAddress, venue_city as venueCity,
@@ -1547,8 +1589,9 @@ class Database {
                status, category, image_url as imageUrl, created_at as createdAt, updated_at as updatedAt
         FROM events
         ORDER BY start_date DESC
+        LIMIT ? OFFSET ?
     `;
-        return this.all(sql);
+        return this.all(sql, [limit, offset]);
     }
 
     async getEventById(id) {
@@ -1715,12 +1758,25 @@ class Database {
     // === KULLANICI ADRESLERİ ===
 
     async getUserAddresses(userId) {
-        const sql = 'SELECT * FROM user_addresses WHERE user_id = ? ORDER BY is_default DESC, created_at DESC';
+        const sql = `
+            SELECT id, user_id as userId, title, type, is_default as isDefault,
+                   address, apartment, district, city, postal_code as postalCode,
+                   province, country, created_at as createdAt, updated_at as updatedAt
+            FROM user_addresses
+            WHERE user_id = ?
+            ORDER BY is_default DESC, created_at DESC
+        `;
         return this.all(sql, [userId]);
     }
 
     async getUserAddressById(id) {
-        const sql = 'SELECT * FROM user_addresses WHERE id = ?';
+        const sql = `
+            SELECT id, user_id as userId, title, type, is_default as isDefault,
+                   address, apartment, district, city, postal_code as postalCode,
+                   province, country, created_at as createdAt, updated_at as updatedAt
+            FROM user_addresses
+            WHERE id = ?
+        `;
         return this.get(sql, [id]);
     }
 
@@ -1795,12 +1851,27 @@ class Database {
     // === KULLANICI ÖDEME YÖNTEMLERİ ===
 
     async getUserPaymentMethods(userId) {
-        const sql = 'SELECT * FROM user_payment_methods WHERE user_id = ? ORDER BY is_default DESC, created_at DESC';
+        const sql = `
+            SELECT id, user_id as userId, card_title as cardTitle, card_last_four as cardLastFour,
+                   card_type as cardType, expiry_month as expiryMonth, expiry_year as expiryYear,
+                   holder_name as holderName, is_default as isDefault,
+                   created_at as createdAt, updated_at as updatedAt
+            FROM user_payment_methods
+            WHERE user_id = ?
+            ORDER BY is_default DESC, created_at DESC
+        `;
         return this.all(sql, [userId]);
     }
 
     async getUserPaymentMethodById(id) {
-        const sql = 'SELECT * FROM user_payment_methods WHERE id = ?';
+        const sql = `
+            SELECT id, user_id as userId, card_title as cardTitle, card_last_four as cardLastFour,
+                   card_type as cardType, expiry_month as expiryMonth, expiry_year as expiryYear,
+                   holder_name as holderName, is_default as isDefault,
+                   created_at as createdAt, updated_at as updatedAt
+            FROM user_payment_methods
+            WHERE id = ?
+        `;
         return this.get(sql, [id]);
     }
 

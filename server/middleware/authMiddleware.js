@@ -183,6 +183,10 @@ const createAuthMiddleware = ({
       return res.status(403).json({ error: 'Admin access required' });
     }
 
+    if (normalizedPath === '/users' && req.method === 'POST' && !req.user.isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
     const adminOnlyGetPaths = ['/orders', '/registrations'];
     if (adminOnlyGetPaths.includes(normalizedPath) && req.method === 'GET' && !req.user.isAdmin) {
       return res.status(403).json({ error: 'Admin access required' });

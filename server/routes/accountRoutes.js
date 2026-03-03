@@ -92,7 +92,7 @@ const registerAccountRoutes = (app, deps) => {
         return res.status(404).json({ error: 'Address not found' });
       }
 
-      if (!isSelfOrAdmin(req.user, existingAddress.user_id)) {
+      if (!isSelfOrAdmin(req.user, existingAddress.userId)) {
         return res.status(403).json({ error: 'Not authorized to update this address' });
       }
 
@@ -113,7 +113,7 @@ const registerAccountRoutes = (app, deps) => {
       }
 
       const finalIsDefault = isDefault === undefined
-        ? Number(existingAddress.is_default)
+        ? Number(existingAddress.isDefault)
         : (isDefault ? 1 : 0);
 
       const updatedAddress = {
@@ -152,7 +152,7 @@ const registerAccountRoutes = (app, deps) => {
         return res.status(404).json({ error: 'Address not found' });
       }
 
-      if (!isSelfOrAdmin(req.user, existingAddress.user_id)) {
+      if (!isSelfOrAdmin(req.user, existingAddress.userId)) {
         return res.status(403).json({ error: 'Not authorized to delete this address' });
       }
 
@@ -235,7 +235,7 @@ const registerAccountRoutes = (app, deps) => {
         return res.status(404).json({ error: 'Payment method not found' });
       }
 
-      if (!isSelfOrAdmin(req.user, existingPaymentMethod.user_id)) {
+      if (!isSelfOrAdmin(req.user, existingPaymentMethod.userId)) {
         return res.status(403).json({ error: 'Not authorized to update this payment method' });
       }
 
@@ -286,7 +286,7 @@ const registerAccountRoutes = (app, deps) => {
         return res.status(404).json({ error: 'Payment method not found' });
       }
 
-      if (!isSelfOrAdmin(req.user, existingPaymentMethod.user_id)) {
+      if (!isSelfOrAdmin(req.user, existingPaymentMethod.userId)) {
         return res.status(403).json({ error: 'Not authorized to delete this payment method' });
       }
 

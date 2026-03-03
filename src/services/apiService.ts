@@ -205,10 +205,10 @@ export interface UserAddress {
   apartment?: string;
   district: string;
   city: string;
-  postal_code: string;
+  postalCode: string;
   province?: string;
   country?: string;
-  is_default: boolean;
+  isDefault: boolean;
 }
 
 export interface UserAddressPayload {
@@ -227,12 +227,12 @@ export interface UserAddressPayload {
 
 export interface UserPaymentMethod {
   id: string;
-  card_title: string;
-  card_last_four: string;
-  expiry_month: string;
-  expiry_year: string;
-  holder_name: string;
-  is_default: boolean;
+  cardTitle: string;
+  cardLastFour: string;
+  expiryMonth: string;
+  expiryYear: string;
+  holderName: string;
+  isDefault: boolean;
 }
 
 export interface UserPaymentMethodPayload {

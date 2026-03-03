@@ -143,8 +143,8 @@ const registerAuthUserRoutes = (app, deps) => {
   app.get('/api/users', async (req, res) => {
     try {
       const pagination = resolvePagination(req.query);
-      const users = await database.getAllUsers();
-      res.json(paginateRows(users, pagination));
+      const users = await database.getAllUsers(pagination.limit, pagination.offset);
+      res.json(users);
     } catch (error) {
       console.error('Error getting users:', error);
       res.status(500).json({ error: 'Internal server error' });

@@ -104,14 +104,14 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const loadUserData = useCallback(async () => {
     if (!user?.id) return;
-    
+
     setIsLoading(true);
     try {
       const [addressesData, paymentMethodsData] = await Promise.all([
         apiService.getUserAddresses(user.id),
         apiService.getUserPaymentMethods(user.id)
       ]);
-      
+
       // Backend verilerini frontend formatına çevir
       const formattedAddresses: Address[] = addressesData.map((addr: UserAddress) => ({
         id: addr.id,
@@ -124,20 +124,20 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         apartment: addr.apartment,
         district: addr.district,
         city: addr.city,
-        postalCode: addr.postal_code,
+        postalCode: addr.postalCode,
         province: addr.province,
         country: addr.country,
-        isDefault: Boolean(addr.is_default)
+        isDefault: Boolean(addr.isDefault)
       }));
 
       const formattedPaymentMethods = paymentMethodsData.map((pm: UserPaymentMethod) => ({
         id: pm.id,
         type: 'card' as const,
-        title: pm.card_title,
-        cardNumber: `**** **** **** ${pm.card_last_four}`,
-        expiryDate: `${pm.expiry_month}/${pm.expiry_year}`,
-        cardName: pm.holder_name,
-        isDefault: Boolean(pm.is_default)
+        title: pm.cardTitle,
+        cardNumber: `**** **** **** ${pm.cardLastFour}`,
+        expiryDate: `${pm.expiryMonth}/${pm.expiryYear}`,
+        cardName: pm.holderName,
+        isDefault: Boolean(pm.isDefault)
       }));
 
       setAddresses(formattedAddresses);
