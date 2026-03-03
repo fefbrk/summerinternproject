@@ -23,7 +23,7 @@ const Events = () => {
   const fetchEvents = async () => {
     try {
       setIsLoading(true);
-      const allEvents = await apiService.getAllEvents();
+      const allEvents = await apiService.getAllEvents({ limit: 1000 });
       setEvents(allEvents);
       
       // Separate events into upcoming, ongoing, past, and cancelled based only on status

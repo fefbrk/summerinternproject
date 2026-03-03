@@ -15,6 +15,30 @@ const registerAuthUserRoutes = (app, deps) => {
     recordLoginAttempt,
   } = deps;
 
+  const MAX_PAGE_SIZE = 1000;
+  const DEFAULT_PAGE_SIZE = 1000;
+
+  const resolvePagination = (query, defaultLimit = DEFAULT_PAGE_SIZE) => {
+    const rawLimit = Number(query?.limit);
+    const rawPage = Number(query?.page);
+
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0
+      ? Math.min(Math.floor(rawLimit), MAX_PAGE_SIZE)
+      : defaultLimit;
+
+    const page = Number.isFinite(rawPage) && rawPage > 0
+      ? Math.floor(rawPage)
+      : 1;
+
+    const offset = (page - 1) * limit;
+
+    return { limit, page, offset };
+  };
+
+  const paginateRows = (rows, pagination) => {
+    return rows.slice(pagination.offset, pagination.offset + pagination.limit);
+  };
+
   app.post('/api/login', checkLoginRateLimit, async (req, res) => {
     const email = sanitizeEmail(req.body?.email);
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
@@ -140,8 +164,9 @@ const registerAuthUserRoutes = (app, deps) => {
 
   app.get('/api/users', async (req, res) => {
     try {
+      const pagination = resolvePagination(req.query);
       const users = await database.getAllUsers();
-      res.json(users);
+      res.json(paginateRows(users, pagination));
     } catch (error) {
       console.error('Error getting users:', error);
       res.status(500).json({ error: 'Internal server error' });

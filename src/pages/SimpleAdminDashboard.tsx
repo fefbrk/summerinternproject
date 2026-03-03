@@ -118,13 +118,13 @@ const SimpleAdminDashboard = () => {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const allOrders = await apiService.getAllOrders();
-      const allUsers = await apiService.getAllUsers();
-      const allContacts = await apiService.getAllContacts();
-      const allBlogPosts = await apiService.getAllBlogPosts();
-      const allPressReleases = await apiService.getAllPressReleases();
-      const allMediaCoverages = await apiService.getAllMediaCoverages();
-      const allEvents = await apiService.getAllEvents();
+      const allOrders = await apiService.getAllOrders({ limit: 1000 });
+      const allUsers = await apiService.getAllUsers({ limit: 1000 });
+      const allContacts = await apiService.getAllContacts({ limit: 1000 });
+      const allBlogPosts = await apiService.getAllBlogPostsForAdmin({ limit: 1000 });
+      const allPressReleases = await apiService.getAllPressReleasesForAdmin({ limit: 1000 });
+      const allMediaCoverages = await apiService.getAllMediaCoveragesForAdmin({ limit: 1000 });
+      const allEvents = await apiService.getAllEventsForAdmin({ limit: 1000 });
 
       setOrders(allOrders);
       setUsers(allUsers);
@@ -797,7 +797,7 @@ const SimpleAdminDashboard = () => {
     // Server bağlantısını kontrol et
     const checkServerConnection = async () => {
       try {
-        await apiService.getAllUsers();
+        await apiService.getAllUsers({ limit: 1 });
         setServerStatus('connected');
       } catch (error) {
         setServerStatus('disconnected');

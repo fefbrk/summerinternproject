@@ -5,8 +5,14 @@ const createAuthMiddleware = ({
   loginWindowMs,
   loginMaxAttempts,
   demoEndpointsEnabled,
+  trustProxy = false,
+  loginRateLimitMaxEntries = 10000,
+  contactWindowMs = 10 * 60 * 1000,
+  contactMaxAttempts = 20,
+  contactRateLimitMaxEntries = 20000,
 }) => {
   const loginAttempts = new Map();
+  const contactAttempts = new Map();
 
   const extractBearerToken = (req) => {
     const authorizationHeader = req.headers.authorization;
@@ -18,20 +24,48 @@ const createAuthMiddleware = ({
   };
 
   const getClientIp = (req) => {
-    const forwarded = req.headers['x-forwarded-for'];
-    if (typeof forwarded === 'string' && forwarded.length > 0) {
-      return forwarded.split(',')[0].trim();
+    if (trustProxy) {
+      const forwarded = req.headers['x-forwarded-for'];
+      if (typeof forwarded === 'string' && forwarded.length > 0) {
+        return forwarded.split(',')[0].trim();
+      }
     }
 
     return req.ip || 'unknown';
   };
 
+  const pruneRateLimitMap = (attemptMap, now, maxEntries) => {
+    for (const [key, record] of attemptMap.entries()) {
+      if (!record || typeof record.resetAt !== 'number' || now > record.resetAt) {
+        attemptMap.delete(key);
+      }
+    }
+
+    if (attemptMap.size <= maxEntries) {
+      return;
+    }
+
+    const sortedEntries = [...attemptMap.entries()].sort((a, b) => {
+      return a[1].resetAt - b[1].resetAt;
+    });
+
+    const removeCount = attemptMap.size - maxEntries;
+    for (let index = 0; index < removeCount; index += 1) {
+      attemptMap.delete(sortedEntries[index][0]);
+    }
+  };
+
   const checkLoginRateLimit = (req, res, next) => {
     const clientIp = getClientIp(req);
     const now = Date.now();
+    pruneRateLimitMap(loginAttempts, now, loginRateLimitMaxEntries);
     const record = loginAttempts.get(clientIp);
 
     if (!record || now > record.resetAt) {
+      if (loginAttempts.size >= loginRateLimitMaxEntries) {
+        return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
+      }
+
       loginAttempts.set(clientIp, { count: 0, resetAt: now + loginWindowMs });
       return next();
     }
@@ -46,6 +80,7 @@ const createAuthMiddleware = ({
   const recordLoginAttempt = (req, success) => {
     const clientIp = getClientIp(req);
     const now = Date.now();
+    pruneRateLimitMap(loginAttempts, now, loginRateLimitMaxEntries);
     const record = loginAttempts.get(clientIp) || { count: 0, resetAt: now + loginWindowMs };
 
     if (now > record.resetAt) {
@@ -58,8 +93,36 @@ const createAuthMiddleware = ({
       return;
     }
 
+    if (!loginAttempts.has(clientIp) && loginAttempts.size >= loginRateLimitMaxEntries) {
+      return;
+    }
+
     record.count += 1;
     loginAttempts.set(clientIp, record);
+  };
+
+  const checkContactRateLimit = (req, res, next) => {
+    const clientIp = getClientIp(req);
+    const now = Date.now();
+    pruneRateLimitMap(contactAttempts, now, contactRateLimitMaxEntries);
+
+    const record = contactAttempts.get(clientIp);
+    if (!record || now > record.resetAt) {
+      if (contactAttempts.size >= contactRateLimitMaxEntries) {
+        return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+      }
+
+      contactAttempts.set(clientIp, { count: 1, resetAt: now + contactWindowMs });
+      return next();
+    }
+
+    if (record.count >= contactMaxAttempts) {
+      return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+    }
+
+    record.count += 1;
+    contactAttempts.set(clientIp, record);
+    return next();
   };
 
   const authenticateApiRequest = async (req, res, next) => {
@@ -176,6 +239,7 @@ const createAuthMiddleware = ({
     authenticateApiRequest,
     checkLoginRateLimit,
     recordLoginAttempt,
+    checkContactRateLimit,
   };
 };
 

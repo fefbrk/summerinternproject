@@ -16,7 +16,7 @@ const PressReleases = () => {
     const fetchPressReleases = async () => {
       try {
         setIsLoading(true);
-        const releases = await apiService.getAllPressReleases();
+        const releases = await apiService.getAllPressReleases({ limit: 1000 });
         // Sadece yayınlanmış press release'leri göster
         const publishedReleases = releases.filter(release => release.status === 'published');
         setPressReleases(publishedReleases);

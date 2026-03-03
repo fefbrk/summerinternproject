@@ -14,7 +14,7 @@ const MediaCoverage = () => {
     const fetchMediaCoverages = async () => {
       try {
         setIsLoading(true);
-        const coverages = await apiService.getAllMediaCoverages();
+        const coverages = await apiService.getAllMediaCoverages({ limit: 1000 });
         // Sadece yayınlanmış media coverage'leri göster
         const publishedCoverages = coverages.filter(coverage => coverage.status === 'published');
         setMediaCoverages(publishedCoverages);

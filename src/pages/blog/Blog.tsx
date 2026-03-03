@@ -11,7 +11,7 @@ const Blog = () => {
   useEffect(() => {
     const fetchBlogPosts = async () => {
       try {
-        const posts = await apiService.getAllBlogPosts();
+        const posts = await apiService.getAllBlogPosts({ limit: 1000 });
         // Only show published posts on the public blog page
         const publishedPosts = posts.filter(post => post.status === 'published');
         setBlogPosts(publishedPosts);

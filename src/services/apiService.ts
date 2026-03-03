@@ -214,6 +214,11 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface PaginationOptions {
+  page?: number;
+  limit?: number;
+}
+
 class ApiService {
   private getAuthToken(): string | null {
     try {
@@ -229,6 +234,24 @@ class ApiService {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...additionalHeaders,
     };
+  }
+
+  private buildQueryString(options?: PaginationOptions): string {
+    if (!options) {
+      return '';
+    }
+
+    const params = new URLSearchParams();
+    if (typeof options.page === 'number' && Number.isFinite(options.page) && options.page > 0) {
+      params.set('page', String(Math.floor(options.page)));
+    }
+
+    if (typeof options.limit === 'number' && Number.isFinite(options.limit) && options.limit > 0) {
+      params.set('limit', String(Math.floor(options.limit)));
+    }
+
+    const query = params.toString();
+    return query ? `?${query}` : '';
   }
 
   private async request(endpoint: string, options: RequestInit = {}) {
@@ -276,8 +299,8 @@ class ApiService {
     return this.request('/me');
   }
 
-  async getAllUsers(): Promise<User[]> {
-    return this.request('/users');
+  async getAllUsers(options?: PaginationOptions): Promise<User[]> {
+    return this.request(`/users${this.buildQueryString(options)}`);
   }
 
   async createUser(userData: UserWithPassword): Promise<User> {
@@ -295,12 +318,12 @@ class ApiService {
   }
 
   // Sipariş işlemleri
-  async getAllOrders(): Promise<Order[]> {
-    return this.request('/orders');
+  async getAllOrders(options?: PaginationOptions): Promise<Order[]> {
+    return this.request(`/orders${this.buildQueryString(options)}`);
   }
 
-  async getMyOrders(): Promise<Order[]> {
-    return this.request('/orders/my');
+  async getMyOrders(options?: PaginationOptions): Promise<Order[]> {
+    return this.request(`/orders/my${this.buildQueryString(options)}`);
   }
 
   async createOrder(orderData: Omit<Order, 'id' | 'status' | 'createdAt' | 'userId'> & { userId?: string }): Promise<Order> {
@@ -318,12 +341,12 @@ class ApiService {
   }
 
   // Kurs kayıt işlemleri
-  async getAllRegistrations(): Promise<CourseRegistration[]> {
-    return this.request('/registrations');
+  async getAllRegistrations(options?: PaginationOptions): Promise<CourseRegistration[]> {
+    return this.request(`/registrations${this.buildQueryString(options)}`);
   }
 
-  async getMyRegistrations(): Promise<CourseRegistration[]> {
-    return this.request('/registrations/my');
+  async getMyRegistrations(options?: PaginationOptions): Promise<CourseRegistration[]> {
+    return this.request(`/registrations/my${this.buildQueryString(options)}`);
   }
 
   async createRegistration(registrationData: Omit<CourseRegistration, 'id' | 'status' | 'createdAt'>): Promise<CourseRegistration> {
@@ -341,8 +364,8 @@ class ApiService {
   }
 
   // Contact Us methods
-  async getAllContacts(): Promise<Contact[]> {
-    return this.request('/contacts');
+  async getAllContacts(options?: PaginationOptions): Promise<Contact[]> {
+    return this.request(`/contacts${this.buildQueryString(options)}`);
   }
 
   async createContact(contactData: Omit<Contact, 'id' | 'status' | 'createdAt'>): Promise<Contact> {
@@ -389,8 +412,12 @@ class ApiService {
   }
 
   // Blog post methods
-  async getAllBlogPosts(): Promise<BlogPost[]> {
-    return this.request('/blog');
+  async getAllBlogPosts(options?: PaginationOptions): Promise<BlogPost[]> {
+    return this.request(`/blog${this.buildQueryString(options)}`);
+  }
+
+  async getAllBlogPostsForAdmin(options?: PaginationOptions): Promise<BlogPost[]> {
+    return this.request(`/admin/blog${this.buildQueryString(options)}`);
   }
 
   async getBlogPost(id: string): Promise<BlogPost> {
@@ -465,8 +492,12 @@ class ApiService {
   }
 
   // Press Release methods
-  async getAllPressReleases(): Promise<PressRelease[]> {
-    return this.request('/press-releases');
+  async getAllPressReleases(options?: PaginationOptions): Promise<PressRelease[]> {
+    return this.request(`/press-releases${this.buildQueryString(options)}`);
+  }
+
+  async getAllPressReleasesForAdmin(options?: PaginationOptions): Promise<PressRelease[]> {
+    return this.request(`/admin/press-releases${this.buildQueryString(options)}`);
   }
 
   async getPressRelease(id: string): Promise<PressRelease> {
@@ -540,8 +571,12 @@ class ApiService {
   }
 
   // Media Coverage methods
-  async getAllMediaCoverages(): Promise<MediaCoverage[]> {
-    return this.request('/media-coverage');
+  async getAllMediaCoverages(options?: PaginationOptions): Promise<MediaCoverage[]> {
+    return this.request(`/media-coverage${this.buildQueryString(options)}`);
+  }
+
+  async getAllMediaCoveragesForAdmin(options?: PaginationOptions): Promise<MediaCoverage[]> {
+    return this.request(`/admin/media-coverage${this.buildQueryString(options)}`);
   }
 
   async getMediaCoverage(id: string): Promise<MediaCoverage> {
@@ -615,8 +650,12 @@ class ApiService {
   }
 
   // Event methods
-  async getAllEvents(): Promise<Event[]> {
-    return this.request('/events');
+  async getAllEvents(options?: PaginationOptions): Promise<Event[]> {
+    return this.request(`/events${this.buildQueryString(options)}`);
+  }
+
+  async getAllEventsForAdmin(options?: PaginationOptions): Promise<Event[]> {
+    return this.request(`/admin/events${this.buildQueryString(options)}`);
   }
 
   async getEvent(id: string): Promise<Event> {

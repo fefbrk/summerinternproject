@@ -20,18 +20,11 @@ const MediaCoverageDetail: React.FC = () => {
 
       try {
         setLoading(true);
-        // First get all media coverage and find the one with matching ID
-        const allCoverages = await apiService.getAllMediaCoverages();
-        const coverage = allCoverages.find(coverage => coverage.id === id);
-        
-        if (coverage) {
-          setMediaCoverage(coverage);
-        } else {
-          setError('Media coverage not found');
-        }
+        const coverage = await apiService.getMediaCoverage(id);
+        setMediaCoverage(coverage);
       } catch (err) {
         console.error('Error fetching media coverage:', err);
-        setError('Failed to load media coverage');
+        setError('Media coverage not found');
       } finally {
         setLoading(false);
       }

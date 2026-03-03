@@ -11,6 +11,7 @@ const { hashPassword, verifyPassword, isHashedPassword } = require('./security/p
 const { createAuthToken, verifyAuthToken } = require('./security/token');
 const createAuthMiddleware = require('./middleware/authMiddleware');
 const createBootstrapService = require('./services/bootstrapService');
+const createProductCatalogService = require('./services/productCatalogService');
 const registerAuthUserRoutes = require('./routes/authUserRoutes');
 const registerCommerceRoutes = require('./routes/commerceRoutes');
 const registerAccountRoutes = require('./routes/accountRoutes');
@@ -23,6 +24,7 @@ const app = express();
 app.disable('x-powered-by');
 const PORT = process.env.PORT || 3001;
 const DEMO_ENDPOINTS_ENABLED = process.env.ENABLE_DEMO_ENDPOINTS === 'true';
+const TRUST_PROXY = process.env.TRUST_PROXY === 'true';
 const BASE_IMAGE_DIR = path.resolve(__dirname, '../public/postimages');
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 const IMAGE_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']);
@@ -35,6 +37,10 @@ const ORDER_STATUSES = new Set(['received', 'preparing', 'shipping', 'delivered'
 const REGISTRATION_STATUSES = new Set(['registered', 'active', 'completed']);
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
+const LOGIN_RATE_LIMIT_MAX_ENTRIES = 10000;
+const CONTACT_WINDOW_MS = 10 * 60 * 1000;
+const CONTACT_MAX_ATTEMPTS = 20;
+const CONTACT_RATE_LIMIT_MAX_ENTRIES = 20000;
 const LEGACY_DEFAULT_ADMIN_EMAIL = 'admin@klr.com';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const configuredAdminEmail = typeof process.env.DEFAULT_ADMIN_EMAIL === 'string'
@@ -189,6 +195,10 @@ const isSelfOrAdmin = (requestUser, targetUserId) => {
 };
 
 // Middleware
+if (TRUST_PROXY) {
+  app.set('trust proxy', true);
+}
+
 const defaultAllowedOrigins = ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173'];
 const configuredOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
@@ -269,11 +279,10 @@ const storage = multer.diskStorage({
         uploadPath = resolveUploadPath('uploads');
       }
 
-      if (!fs.existsSync(uploadPath)) {
-        fs.mkdirSync(uploadPath, { recursive: true });
-      }
-
-      cb(null, uploadPath);
+      fs.promises
+        .mkdir(uploadPath, { recursive: true })
+        .then(() => cb(null, uploadPath))
+        .catch((error) => cb(error));
     } catch (error) {
       cb(error);
     }
@@ -311,13 +320,25 @@ const { ensureDefaultAdminUser, initializeDatabase } = createBootstrapService({
   legacyDefaultAdminEmail: LEGACY_DEFAULT_ADMIN_EMAIL,
 });
 
-const { authenticateApiRequest, checkLoginRateLimit, recordLoginAttempt } = createAuthMiddleware({
+const productCatalogService = createProductCatalogService();
+
+const {
+  authenticateApiRequest,
+  checkLoginRateLimit,
+  recordLoginAttempt,
+  checkContactRateLimit,
+} = createAuthMiddleware({
   verifyAuthToken,
   database,
   isSelfOrAdmin,
   loginWindowMs: LOGIN_WINDOW_MS,
   loginMaxAttempts: LOGIN_MAX_ATTEMPTS,
+  loginRateLimitMaxEntries: LOGIN_RATE_LIMIT_MAX_ENTRIES,
+  contactWindowMs: CONTACT_WINDOW_MS,
+  contactMaxAttempts: CONTACT_MAX_ATTEMPTS,
+  contactRateLimitMaxEntries: CONTACT_RATE_LIMIT_MAX_ENTRIES,
   demoEndpointsEnabled: DEMO_ENDPOINTS_ENABLED,
+  trustProxy: TRUST_PROXY,
 });
 
 app.use('/api', authenticateApiRequest);
@@ -341,9 +362,11 @@ registerAuthUserRoutes(app, {
 registerCommerceRoutes(app, {
   database,
   uuidv4,
+  productCatalogService,
   sanitizePlainText,
   sanitizeEmail,
   isValidEmail,
+  checkContactRateLimit,
   orderStatuses: ORDER_STATUSES,
   registrationStatuses: REGISTRATION_STATUSES,
 });

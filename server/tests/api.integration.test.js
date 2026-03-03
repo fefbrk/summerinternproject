@@ -336,3 +336,160 @@ test('content and status endpoints return full entities', async () => {
   assert.equal(updatedMediaStatus.data.id, createdMediaCoverage.data.id);
   assert.equal(updatedMediaStatus.data.status, 'published');
 });
+
+test('public CMS endpoints hide drafts while admin endpoints can access them', async () => {
+  const adminLogin = await requestJson('/api/login', {
+    method: 'POST',
+    body: {
+      email: process.env.DEFAULT_ADMIN_EMAIL,
+      password: process.env.DEFAULT_ADMIN_PASSWORD,
+    },
+  });
+
+  assert.equal(adminLogin.status, 200);
+  const adminToken = adminLogin.data.token;
+
+  const createdDraftBlog = await requestJson('/api/blog', {
+    method: 'POST',
+    token: adminToken,
+    body: {
+      title: 'Draft Visibility Test',
+      excerpt: 'Should stay private',
+      author: 'Integration Admin',
+      content: '<p>Draft body</p>',
+      status: 'draft',
+      images: [],
+    },
+  });
+
+  assert.equal(createdDraftBlog.status, 200);
+  assert.ok(createdDraftBlog.data && typeof createdDraftBlog.data.id === 'string');
+
+  const publicBlogList = await requestJson('/api/blog');
+  assert.equal(publicBlogList.status, 200);
+  assert.ok(Array.isArray(publicBlogList.data));
+  assert.equal(publicBlogList.data.some((post) => post.id === createdDraftBlog.data.id), false);
+
+  const publicDraftDetail = await requestJson(`/api/blog/${createdDraftBlog.data.id}`);
+  assert.equal(publicDraftDetail.status, 404);
+
+  const adminBlogList = await requestJson('/api/admin/blog', { token: adminToken });
+  assert.equal(adminBlogList.status, 200);
+  assert.ok(Array.isArray(adminBlogList.data));
+  assert.equal(adminBlogList.data.some((post) => post.id === createdDraftBlog.data.id), true);
+
+  const regularUserRegister = await requestJson('/api/register', {
+    method: 'POST',
+    body: {
+      name: 'Non Admin Reader',
+      email: `reader_${Date.now()}@example.com`,
+      password: 'ReaderPass123A',
+    },
+  });
+
+  assert.equal(regularUserRegister.status, 201);
+  const nonAdminToken = regularUserRegister.data.token;
+
+  const nonAdminAdminRoute = await requestJson('/api/admin/blog', { token: nonAdminToken });
+  assert.equal(nonAdminAdminRoute.status, 403);
+});
+
+test('order creation enforces backend catalog prices and totals', async () => {
+  const registerResponse = await requestJson('/api/register', {
+    method: 'POST',
+    body: {
+      name: 'Order Integrity User',
+      email: `order_integrity_${Date.now()}@example.com`,
+      password: 'OrderPass123A',
+    },
+  });
+
+  assert.equal(registerResponse.status, 201);
+  const userToken = registerResponse.data.token;
+
+  const orderPayload = {
+    items: [
+      { id: '2', name: 'Tampered Name', quantity: 1, price: 1, image: '/img-1.png' },
+      { id: '209', name: 'Tampered Marker', quantity: 1, price: 1, image: '/img-2.png' },
+    ],
+    shippingAddress: {
+      name: 'Order Integrity User',
+      phone: '+1-555-100-2000',
+      email: 'order_integrity@example.com',
+      address: 'Integrity Street 1',
+      city: 'Istanbul',
+      province: 'Istanbul',
+      zipCode: '34000',
+      country: 'Turkey',
+    },
+    customerName: 'Order Integrity User',
+    customerEmail: 'order_integrity@example.com',
+  };
+
+  const tamperedTotalResponse = await requestJson('/api/orders', {
+    method: 'POST',
+    token: userToken,
+    body: {
+      ...orderPayload,
+      totalAmount: 1,
+    },
+  });
+
+  assert.equal(tamperedTotalResponse.status, 400);
+  assert.equal(tamperedTotalResponse.data.error, 'Order total does not match items');
+
+  const validTotalResponse = await requestJson('/api/orders', {
+    method: 'POST',
+    token: userToken,
+    body: {
+      ...orderPayload,
+      totalAmount: 544,
+    },
+  });
+
+  assert.equal(validTotalResponse.status, 200);
+  assert.equal(validTotalResponse.data.totalAmount, 544);
+  assert.equal(validTotalResponse.data.items[0].name, 'KIBO 15 Kit');
+  assert.equal(validTotalResponse.data.items[0].price, 495);
+  assert.equal(validTotalResponse.data.items[1].name, 'Marker Extension Set');
+  assert.equal(validTotalResponse.data.items[1].price, 49);
+
+  const unknownProductResponse = await requestJson('/api/orders', {
+    method: 'POST',
+    token: userToken,
+    body: {
+      ...orderPayload,
+      items: [
+        { id: 'unknown-product', name: 'Unknown', quantity: 1, price: 1, image: '/img-x.png' },
+      ],
+      totalAmount: 1,
+    },
+  });
+
+  assert.equal(unknownProductResponse.status, 400);
+  assert.equal(unknownProductResponse.data.error, 'Order must include valid items');
+});
+
+test('public contact endpoint is rate-limited', async () => {
+  const baseBody = {
+    type: 'general',
+    name: 'Rate Limit Test',
+    email: 'ratelimit@example.com',
+    subject: 'Contact throttle check',
+    message: 'Checking contact endpoint rate limiter.',
+  };
+
+  let lastResponse = null;
+  for (let attempt = 0; attempt < 21; attempt += 1) {
+    lastResponse = await requestJson('/api/contacts', {
+      method: 'POST',
+      body: {
+        ...baseBody,
+        subject: `${baseBody.subject} #${attempt}`,
+      },
+    });
+  }
+
+  assert.ok(lastResponse);
+  assert.equal(lastResponse.status, 429);
+});

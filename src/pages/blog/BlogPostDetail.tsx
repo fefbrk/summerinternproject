@@ -19,18 +19,11 @@ const BlogPostDetail: React.FC = () => {
 
       try {
         setLoading(true);
-        // First get all blog posts and find the one with matching ID
-        const allPosts = await apiService.getAllBlogPosts();
-        const post = allPosts.find(post => post.id === id);
-        
-        if (post) {
-          setBlogPost(post);
-        } else {
-          setError('Blog post not found');
-        }
+        const post = await apiService.getBlogPost(id);
+        setBlogPost(post);
       } catch (err) {
         console.error('Error fetching blog post:', err);
-        setError('Failed to load blog post');
+        setError('Blog post not found');
       } finally {
         setLoading(false);
       }

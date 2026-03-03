@@ -20,18 +20,11 @@ const PressReleaseDetail: React.FC = () => {
 
       try {
         setLoading(true);
-        // First get all press releases and find the one with matching ID
-        const allReleases = await apiService.getAllPressReleases();
-        const release = allReleases.find(release => release.id === id);
-        
-        if (release) {
-          setPressRelease(release);
-        } else {
-          setError('Press release not found');
-        }
+        const release = await apiService.getPressRelease(id);
+        setPressRelease(release);
       } catch (err) {
         console.error('Error fetching press release:', err);
-        setError('Failed to load press release');
+        setError('Press release not found');
       } finally {
         setLoading(false);
       }

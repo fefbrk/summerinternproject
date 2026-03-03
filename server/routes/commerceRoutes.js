@@ -2,17 +2,66 @@ const registerCommerceRoutes = (app, deps) => {
   const {
     database,
     uuidv4,
+    productCatalogService,
     sanitizePlainText,
     sanitizeEmail,
     isValidEmail,
+    checkContactRateLimit,
     orderStatuses,
     registrationStatuses,
   } = deps;
 
+  if (!productCatalogService || typeof productCatalogService.getProductById !== 'function') {
+    throw new Error('productCatalogService is required for commerce routes');
+  }
+
+  const MAX_PAGE_SIZE = 1000;
+  const DEFAULT_PAGE_SIZE = 1000;
+
+  const resolvePagination = (query, defaultLimit = DEFAULT_PAGE_SIZE) => {
+    const rawLimit = Number(query?.limit);
+    const rawPage = Number(query?.page);
+
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0
+      ? Math.min(Math.floor(rawLimit), MAX_PAGE_SIZE)
+      : defaultLimit;
+
+    const page = Number.isFinite(rawPage) && rawPage > 0
+      ? Math.floor(rawPage)
+      : 1;
+
+    const offset = (page - 1) * limit;
+
+    return { limit, page, offset };
+  };
+
+  const paginateRows = (rows, pagination) => {
+    return rows.slice(pagination.offset, pagination.offset + pagination.limit);
+  };
+
+  const toCents = (amount) => Math.round(Number(amount) * 100);
+  const fromCents = (amountInCents) => amountInCents / 100;
+
+  const calculateOrderTotalCents = (items) => {
+    return items.reduce((sum, item) => {
+      return sum + (toCents(item.price) * item.quantity);
+    }, 0);
+  };
+
+  const normalizeOrderItemImage = (rawImage) => {
+    const image = sanitizePlainText(rawImage, 500);
+    if (image.startsWith('/assets/')) {
+      return image;
+    }
+
+    return '';
+  };
+
   app.get('/api/orders', async (req, res) => {
     try {
+      const pagination = resolvePagination(req.query);
       const orders = await database.getAllOrders();
-      res.json(orders);
+      res.json(paginateRows(orders, pagination));
     } catch (error) {
       console.error('Error getting orders:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -21,8 +70,9 @@ const registerCommerceRoutes = (app, deps) => {
 
   app.get('/api/orders/my', async (req, res) => {
     try {
+      const pagination = resolvePagination(req.query);
       const orders = await database.getOrdersByUserId(req.user.id);
-      res.json(orders);
+      res.json(paginateRows(orders, pagination));
     } catch (error) {
       console.error('Error getting current user orders:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -60,26 +110,58 @@ const registerCommerceRoutes = (app, deps) => {
         return res.status(400).json({ error: 'Invalid shipping address email' });
       }
 
-      const normalizedItems = items
-        .filter((item) => item && typeof item === 'object')
-        .map((item) => ({
-          id: sanitizePlainText(String(item.id || ''), 80),
-          name: sanitizePlainText(item.name, 200),
-          quantity: Number(item.quantity),
-          price: Number(item.price),
-          image: sanitizePlainText(item.image, 500),
-        }))
-        .filter((item) => item.id && item.name && Number.isFinite(item.quantity) && item.quantity > 0 && Number.isFinite(item.price) && item.price >= 0);
+      const normalizedItems = [];
+      let hasInvalidOrderItem = false;
 
-      if (!normalizedItems.length) {
+      for (const rawItem of items) {
+        if (!rawItem || typeof rawItem !== 'object') {
+          hasInvalidOrderItem = true;
+          break;
+        }
+
+        const productId = sanitizePlainText(String(rawItem.id || ''), 80);
+        const quantity = Number(rawItem.quantity);
+
+        if (!productId || !Number.isInteger(quantity) || quantity <= 0 || quantity > 100) {
+          hasInvalidOrderItem = true;
+          break;
+        }
+
+        const catalogProduct = productCatalogService.getProductById(productId);
+        if (!catalogProduct) {
+          hasInvalidOrderItem = true;
+          break;
+        }
+
+        normalizedItems.push({
+          id: catalogProduct.id,
+          name: catalogProduct.name,
+          quantity,
+          price: catalogProduct.price,
+          image: normalizeOrderItemImage(rawItem.image),
+        });
+      }
+
+      if (hasInvalidOrderItem || !normalizedItems.length) {
         return res.status(400).json({ error: 'Order must include valid items' });
+      }
+
+      const requestedTotalCents = toCents(totalAmount);
+      const calculatedTotalCents = calculateOrderTotalCents(normalizedItems);
+
+      if (!Number.isFinite(requestedTotalCents) || !Number.isFinite(calculatedTotalCents) || calculatedTotalCents <= 0) {
+        return res.status(400).json({ error: 'Invalid order total' });
+      }
+
+      if (Math.abs(requestedTotalCents - calculatedTotalCents) > 1) {
+        return res.status(400).json({ error: 'Order total does not match items' });
       }
 
       const newOrder = {
         id: uuidv4(),
         userId: req.user.id,
         items: normalizedItems,
-        totalAmount,
+        totalAmount: fromCents(calculatedTotalCents),
         status: 'received',
         shippingAddress: normalizedShippingAddress,
         customerName,
@@ -118,8 +200,9 @@ const registerCommerceRoutes = (app, deps) => {
 
   app.get('/api/registrations', async (req, res) => {
     try {
+      const pagination = resolvePagination(req.query);
       const registrations = await database.getAllRegistrations();
-      res.json(registrations);
+      res.json(paginateRows(registrations, pagination));
     } catch (error) {
       console.error('Error getting registrations:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -128,8 +211,9 @@ const registerCommerceRoutes = (app, deps) => {
 
   app.get('/api/registrations/my', async (req, res) => {
     try {
+      const pagination = resolvePagination(req.query);
       const registrations = await database.getRegistrationsByUserId(req.user.id);
-      res.json(registrations);
+      res.json(paginateRows(registrations, pagination));
     } catch (error) {
       console.error('Error getting current user registrations:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -214,15 +298,16 @@ const registerCommerceRoutes = (app, deps) => {
 
   app.get('/api/contacts', async (req, res) => {
     try {
+      const pagination = resolvePagination(req.query);
       const contacts = await database.getAllContacts();
-      res.json(contacts);
+      res.json(paginateRows(contacts, pagination));
     } catch (error) {
       console.error('Error getting contacts:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
   });
 
-  app.post('/api/contacts', async (req, res) => {
+  app.post('/api/contacts', checkContactRateLimit, async (req, res) => {
     try {
       const allowedTypes = new Set(['general', 'support', 'training', 'sales']);
       const type = sanitizePlainText(req.body?.type, 40);

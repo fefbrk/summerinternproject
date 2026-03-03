@@ -41,21 +41,109 @@ const registerContentRoutes = (app, deps) => {
     }
   };
 
+  const MAX_PAGE_SIZE = 1000;
+  const DEFAULT_PUBLIC_PAGE_SIZE = 100;
+  const DEFAULT_ADMIN_PAGE_SIZE = 1000;
+
+  const resolvePagination = (query, defaultLimit) => {
+    const rawLimit = Number(query?.limit);
+    const rawPage = Number(query?.page);
+
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0
+      ? Math.min(Math.floor(rawLimit), MAX_PAGE_SIZE)
+      : defaultLimit;
+
+    const page = Number.isFinite(rawPage) && rawPage > 0
+      ? Math.floor(rawPage)
+      : 1;
+
+    const offset = (page - 1) * limit;
+
+    return { limit, page, offset };
+  };
+
+  const paginateRows = (rows, pagination) => {
+    return rows.slice(pagination.offset, pagination.offset + pagination.limit);
+  };
+
+  const ensureAdminAccess = (req, res) => {
+    if (!req.user || !req.user.isAdmin) {
+      res.status(403).json({ error: 'Admin access required' });
+      return false;
+    }
+
+    return true;
+  };
+
+  const sanitizeBlogPostForResponse = (post) => ({
+    ...post,
+    title: sanitizePlainText(post.title, 200),
+    excerpt: sanitizePlainText(post.excerpt, 600),
+    author: sanitizePlainText(post.author, 120),
+    content: sanitizeRichText(post.content),
+    images: sanitizeImagesPayload(post.images)
+  });
+
+  const sanitizePressReleaseForResponse = (release) => ({
+    ...release,
+    title: sanitizePlainText(release.title, 200),
+    excerpt: sanitizePlainText(release.excerpt, 600),
+    author: sanitizePlainText(release.author, 120),
+    content: sanitizeRichText(release.content),
+    images: sanitizeImagesPayload(release.images)
+  });
+
+  const sanitizeMediaCoverageForResponse = (coverage) => ({
+    ...coverage,
+    title: sanitizePlainText(coverage.title, 200),
+    excerpt: sanitizePlainText(coverage.excerpt, 600),
+    sourceName: sanitizePlainText(coverage.sourceName || '', 200),
+    sourceUrl: sanitizePlainText(coverage.sourceUrl || '', 500),
+    author: sanitizePlainText(coverage.author, 120),
+    content: sanitizeRichText(coverage.content),
+    images: sanitizeImagesPayload(coverage.images)
+  });
+
+  const sanitizeEventForResponse = (event) => ({
+    ...event,
+    title: sanitizePlainText(event.title, 200),
+    excerpt: sanitizePlainText(event.excerpt, 600),
+    description: sanitizeRichText(event.description),
+    venueName: sanitizePlainText(event.venueName, 200),
+    venueAddress: sanitizePlainText(event.venueAddress, 300),
+    venueCity: sanitizePlainText(event.venueCity, 120),
+    venueState: sanitizePlainText(event.venueState, 120),
+    venueZipCode: sanitizePlainText(event.venueZipCode, 32),
+    venueCountry: sanitizePlainText(event.venueCountry, 120),
+    organizerName: sanitizePlainText(event.organizerName, 120)
+  });
+
 // Blog Posts Routes
 app.get('/api/blog', async (req, res) => {
   try {
+    const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
     const blogPosts = await database.getAllBlogPosts();
-    const sanitizedBlogPosts = blogPosts.map((post) => ({
-      ...post,
-      title: sanitizePlainText(post.title, 200),
-      excerpt: sanitizePlainText(post.excerpt, 600),
-      author: sanitizePlainText(post.author, 120),
-      content: sanitizeRichText(post.content),
-      images: sanitizeImagesPayload(post.images)
-    }));
-    res.json(sanitizedBlogPosts);
+    const publishedBlogPosts = blogPosts.filter((post) => post.status === 'published');
+    const paginatedBlogPosts = paginateRows(publishedBlogPosts, pagination);
+    res.json(paginatedBlogPosts.map(sanitizeBlogPostForResponse));
   } catch (error) {
     console.error('Error getting blog posts:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/admin/blog', async (req, res) => {
+  try {
+    if (!ensureAdminAccess(req, res)) {
+      return;
+    }
+
+    const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
+    const blogPosts = await database.getAllBlogPosts();
+    const paginatedBlogPosts = paginateRows(blogPosts, pagination);
+    res.json(paginatedBlogPosts.map(sanitizeBlogPostForResponse));
+  } catch (error) {
+    console.error('Error getting admin blog posts:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -64,17 +152,10 @@ app.get('/api/blog/:id', async (req, res) => {
   try {
     const id = sanitizePlainText(req.params.id, 64);
     const blogPost = await database.getBlogPostById(id);
-    if (!blogPost) {
+    if (!blogPost || blogPost.status !== 'published') {
       return res.status(404).json({ error: 'Blog post not found' });
     }
-    res.json({
-      ...blogPost,
-      title: sanitizePlainText(blogPost.title, 200),
-      excerpt: sanitizePlainText(blogPost.excerpt, 600),
-      author: sanitizePlainText(blogPost.author, 120),
-      content: sanitizeRichText(blogPost.content),
-      images: sanitizeImagesPayload(blogPost.images)
-    });
+    res.json(sanitizeBlogPostForResponse(blogPost));
   } catch (error) {
     console.error('Error getting blog post:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -235,17 +316,29 @@ app.delete('/api/blog/:id', async (req, res) => {
 // Press Releases Routes
 app.get('/api/press-releases', async (req, res) => {
   try {
+    const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
     const pressReleases = await database.getAllPressReleases();
-    res.json(pressReleases.map((release) => ({
-      ...release,
-      title: sanitizePlainText(release.title, 200),
-      excerpt: sanitizePlainText(release.excerpt, 600),
-      author: sanitizePlainText(release.author, 120),
-      content: sanitizeRichText(release.content),
-      images: sanitizeImagesPayload(release.images)
-    })));
+    const publishedPressReleases = pressReleases.filter((release) => release.status === 'published');
+    const paginatedPressReleases = paginateRows(publishedPressReleases, pagination);
+    res.json(paginatedPressReleases.map(sanitizePressReleaseForResponse));
   } catch (error) {
     console.error('Error getting press releases:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/admin/press-releases', async (req, res) => {
+  try {
+    if (!ensureAdminAccess(req, res)) {
+      return;
+    }
+
+    const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
+    const pressReleases = await database.getAllPressReleases();
+    const paginatedPressReleases = paginateRows(pressReleases, pagination);
+    res.json(paginatedPressReleases.map(sanitizePressReleaseForResponse));
+  } catch (error) {
+    console.error('Error getting admin press releases:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -254,17 +347,10 @@ app.get('/api/press-releases/:id', async (req, res) => {
   try {
     const id = sanitizePlainText(req.params.id, 64);
     const pressRelease = await database.getPressReleaseById(id);
-    if (!pressRelease) {
+    if (!pressRelease || pressRelease.status !== 'published') {
       return res.status(404).json({ error: 'Press release not found' });
     }
-    res.json({
-      ...pressRelease,
-      title: sanitizePlainText(pressRelease.title, 200),
-      excerpt: sanitizePlainText(pressRelease.excerpt, 600),
-      author: sanitizePlainText(pressRelease.author, 120),
-      content: sanitizeRichText(pressRelease.content),
-      images: sanitizeImagesPayload(pressRelease.images)
-    });
+    res.json(sanitizePressReleaseForResponse(pressRelease));
   } catch (error) {
     console.error('Error getting press release:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -420,19 +506,29 @@ app.delete('/api/press-releases/:id', async (req, res) => {
 // Media Coverage Routes
 app.get('/api/media-coverage', async (req, res) => {
   try {
+    const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
     const mediaCoverages = await database.getAllMediaCoverages();
-    res.json(mediaCoverages.map((coverage) => ({
-      ...coverage,
-      title: sanitizePlainText(coverage.title, 200),
-      excerpt: sanitizePlainText(coverage.excerpt, 600),
-      sourceName: sanitizePlainText(coverage.sourceName || '', 200),
-      sourceUrl: sanitizePlainText(coverage.sourceUrl || '', 500),
-      author: sanitizePlainText(coverage.author, 120),
-      content: sanitizeRichText(coverage.content),
-      images: sanitizeImagesPayload(coverage.images)
-    })));
+    const publishedMediaCoverages = mediaCoverages.filter((coverage) => coverage.status === 'published');
+    const paginatedMediaCoverages = paginateRows(publishedMediaCoverages, pagination);
+    res.json(paginatedMediaCoverages.map(sanitizeMediaCoverageForResponse));
   } catch (error) {
     console.error('Error getting media coverages:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/admin/media-coverage', async (req, res) => {
+  try {
+    if (!ensureAdminAccess(req, res)) {
+      return;
+    }
+
+    const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
+    const mediaCoverages = await database.getAllMediaCoverages();
+    const paginatedMediaCoverages = paginateRows(mediaCoverages, pagination);
+    res.json(paginatedMediaCoverages.map(sanitizeMediaCoverageForResponse));
+  } catch (error) {
+    console.error('Error getting admin media coverages:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -441,19 +537,10 @@ app.get('/api/media-coverage/:id', async (req, res) => {
   try {
     const id = sanitizePlainText(req.params.id, 64);
     const mediaCoverage = await database.getMediaCoverageById(id);
-    if (!mediaCoverage) {
+    if (!mediaCoverage || mediaCoverage.status !== 'published') {
       return res.status(404).json({ error: 'Media coverage not found' });
     }
-    res.json({
-      ...mediaCoverage,
-      title: sanitizePlainText(mediaCoverage.title, 200),
-      excerpt: sanitizePlainText(mediaCoverage.excerpt, 600),
-      sourceName: sanitizePlainText(mediaCoverage.sourceName || '', 200),
-      sourceUrl: sanitizePlainText(mediaCoverage.sourceUrl || '', 500),
-      author: sanitizePlainText(mediaCoverage.author, 120),
-      content: sanitizeRichText(mediaCoverage.content),
-      images: sanitizeImagesPayload(mediaCoverage.images)
-    });
+    res.json(sanitizeMediaCoverageForResponse(mediaCoverage));
   } catch (error) {
     console.error('Error getting media coverage:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -617,22 +704,28 @@ app.delete('/api/media-coverage/:id', async (req, res) => {
 // Events Routes
 app.get('/api/events', async (req, res) => {
   try {
+    const pagination = resolvePagination(req.query, DEFAULT_PUBLIC_PAGE_SIZE);
     const events = await database.getAllEvents();
-    res.json(events.map((event) => ({
-      ...event,
-      title: sanitizePlainText(event.title, 200),
-      excerpt: sanitizePlainText(event.excerpt, 600),
-      description: sanitizeRichText(event.description),
-      venueName: sanitizePlainText(event.venueName, 200),
-      venueAddress: sanitizePlainText(event.venueAddress, 300),
-      venueCity: sanitizePlainText(event.venueCity, 120),
-      venueState: sanitizePlainText(event.venueState, 120),
-      venueZipCode: sanitizePlainText(event.venueZipCode, 32),
-      venueCountry: sanitizePlainText(event.venueCountry, 120),
-      organizerName: sanitizePlainText(event.organizerName, 120)
-    })));
+    const paginatedEvents = paginateRows(events, pagination);
+    res.json(paginatedEvents.map(sanitizeEventForResponse));
   } catch (error) {
     console.error('Error getting events:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/api/admin/events', async (req, res) => {
+  try {
+    if (!ensureAdminAccess(req, res)) {
+      return;
+    }
+
+    const pagination = resolvePagination(req.query, DEFAULT_ADMIN_PAGE_SIZE);
+    const events = await database.getAllEvents();
+    const paginatedEvents = paginateRows(events, pagination);
+    res.json(paginatedEvents.map(sanitizeEventForResponse));
+  } catch (error) {
+    console.error('Error getting admin events:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -644,19 +737,7 @@ app.get('/api/events/:id', async (req, res) => {
     if (!event) {
       return res.status(404).json({ error: 'Event not found' });
     }
-    res.json({
-      ...event,
-      title: sanitizePlainText(event.title, 200),
-      excerpt: sanitizePlainText(event.excerpt, 600),
-      description: sanitizeRichText(event.description),
-      venueName: sanitizePlainText(event.venueName, 200),
-      venueAddress: sanitizePlainText(event.venueAddress, 300),
-      venueCity: sanitizePlainText(event.venueCity, 120),
-      venueState: sanitizePlainText(event.venueState, 120),
-      venueZipCode: sanitizePlainText(event.venueZipCode, 32),
-      venueCountry: sanitizePlainText(event.venueCountry, 120),
-      organizerName: sanitizePlainText(event.organizerName, 120)
-    });
+    res.json(sanitizeEventForResponse(event));
   } catch (error) {
     console.error('Error getting event:', error);
     res.status(500).json({ error: 'Internal server error' });
