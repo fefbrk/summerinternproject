@@ -1,20 +1,50 @@
-import { useState, useEffect } from "react";
+import { Component, type ErrorInfo, type ReactNode, useEffect, useState } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { apiService, Event } from "@/services/apiService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { sanitizeRichContent } from "@/lib/sanitizeHtml";
 
-const Events = () => {
+class EventsErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, _errorInfo: ErrorInfo) {
+    console.error("Events page render error:", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-orange-50 px-4 text-center">
+          <div>
+            <h2 className="text-2xl font-bold text-kibo-purple">Events could not be displayed</h2>
+            <p className="mt-3 text-gray-600">Please refresh this page. If the issue continues, check event data in the admin panel.</p>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+const EventsContent = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeEvent, setActiveEvent] = useState<Event | null>(null);
-  const [events, setEvents] = useState<Event[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
   const [ongoingEvents, setOngoingEvents] = useState<Event[]>([]);
   const [pastEvents, setPastEvents] = useState<Event[]>([]);
   const [cancelledEvents, setCancelledEvents] = useState<Event[]>([]);
   const [activeFilter, setActiveFilter] = useState<'upcoming' | 'ongoing' | 'past' | 'cancelled'>('upcoming');
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEvents();
@@ -23,8 +53,9 @@ const Events = () => {
   const fetchEvents = async () => {
     try {
       setIsLoading(true);
-      const allEvents = await apiService.getAllEvents({ limit: 1000 });
-      setEvents(allEvents);
+      setLoadError(null);
+      const response = await apiService.getAllEvents({ limit: 1000 });
+      const allEvents = Array.isArray(response) ? response : [];
       
       // Separate events into upcoming, ongoing, past, and cancelled based only on status
       const upcoming = allEvents.filter(event => event.status === 'upcoming');
@@ -38,6 +69,11 @@ const Events = () => {
       setCancelledEvents(cancelled);
     } catch (error) {
       console.error('Error fetching events:', error);
+      setLoadError('Events could not be loaded right now. Please try again in a moment.');
+      setUpcomingEvents([]);
+      setOngoingEvents([]);
+      setPastEvents([]);
+      setCancelledEvents([]);
     } finally {
       setIsLoading(false);
     }
@@ -48,21 +84,22 @@ const Events = () => {
     setIsModalOpen(true);
   };
 
-  const formatDate = (dateString: string) => {
+  const parseDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric'
-    });
+    return Number.isNaN(date.getTime()) ? null : date;
   };
 
   const formatYear = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.getFullYear().toString();
+    const date = parseDate(dateString);
+    return date ? date.getFullYear().toString() : 'N/A';
   };
 
   const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
+    const date = parseDate(dateString);
+    if (!date) {
+      return 'Date TBD';
+    }
+
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -72,8 +109,17 @@ const Events = () => {
   };
 
   const getEventDateInfo = (event: Event) => {
-    const startDate = new Date(event.startDate);
-    const endDate = new Date(event.endDate);
+    const startDate = parseDate(event.startDate);
+
+    if (!startDate) {
+      return {
+        month: 'TBD',
+        day: '--',
+        dayName: 'TBD',
+        year: 'N/A',
+        dateRange: `${formatDateTime(event.startDate)} - ${formatDateTime(event.endDate)}`
+      };
+    }
     
     return {
       month: startDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
@@ -112,7 +158,13 @@ const Events = () => {
             <>
               {/* Event Filter Tabs */}
               <div className="mb-8">
-                <Tabs value={activeFilter} onValueChange={(value) => setActiveFilter(value as 'upcoming' | 'ongoing' | 'past' | 'cancelled')}>
+                {loadError && (
+                  <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {loadError}
+                  </div>
+                )}
+
+                <Tabs value={activeFilter} onValueChange={(value: string) => setActiveFilter(value as 'upcoming' | 'ongoing' | 'past' | 'cancelled')}>
                   <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="upcoming">Upcoming Events ({upcomingEvents.length})</TabsTrigger>
                     <TabsTrigger value="ongoing">Ongoing Events ({ongoingEvents.length})</TabsTrigger>
@@ -559,5 +611,11 @@ const Events = () => {
     </div>
   );
 };
+
+const Events = () => (
+  <EventsErrorBoundary>
+    <EventsContent />
+  </EventsErrorBoundary>
+);
 
 export default Events;
