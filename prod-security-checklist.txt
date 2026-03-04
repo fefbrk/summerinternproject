@@ -1,0 +1,60 @@
+PROD SECURITY CHECKLIST (KINDERLAB)
+
+1) ZORUNLU ENV AYARLARI
+
+- NODE_ENV=production
+- AUTH_TOKEN_SECRET=<en az 32 karakter guclu secret>
+- AUTH_TOKEN_TTL_MS=604800000
+- DEFAULT_ADMIN_EMAIL=<gecerli e-posta>
+- DEFAULT_ADMIN_PASSWORD=<guclu sifre>
+- CORS_ORIGINS=https://<frontend-domain>
+- CARRIER_WEBHOOK_SECRET=<en az 24 karakter guclu secret>
+- ENABLE_DEMO_ENDPOINTS=false
+- ENABLE_MANUAL_FULFILLMENT_OVERRIDE=false
+- ENABLE_MANUAL_PAYMENT_OVERRIDE=false
+- SUPER_ADMIN_EMAILS=<sadece gerekli admin e-postalari>
+- TRUST_PROXY=<sadece reverse proxy arkasinda true>
+- REGISTRATION_WINDOW_MS=900000
+- REGISTRATION_MAX_ATTEMPTS=20
+- REGISTRATION_RATE_LIMIT_MAX_ENTRIES=10000
+- SQLITE_DB_PATH=<kalici disk/volume yolu>
+
+2) GO-LIVE ONCESI TESTLER
+
+- npm run lint
+- npm test
+- npm run build -- --logLevel error
+- Logout testi: /api/logout sonrasi ayni token ile /api/me => 401
+- Carrier webhook testi:
+  - yanlis secret => 401
+  - dogru secret + gecerli payload => 200
+- Fulfillment testi:
+  - shipping icin carrier + tracking zorunlu
+  - delivered adminden degil webhook ile ilerliyor
+- Payment override testi:
+  - ENABLE_MANUAL_PAYMENT_OVERRIDE=false iken /api/orders/:id/payment-status PUT => 403
+- Upload testi:
+  - uzantisi image olup icerigi image olmayan dosya => 400
+
+3) ALTYAPI/KONFIGURASYON
+
+- HTTPS zorunlu (TLS)
+- Reverse proxyde sadece gerekli origin ve headerlar acik
+- CORS_ORIGINS sadece gercek domainlerle sinirli
+- DB dosyasi duzenli yedekleniyor
+- server/.env repoda yok
+- Uygulama loglarinda sifre/token/secret loglanmiyor
+
+4) OPERASYONEL GUVENLIK
+
+- Secret rotation plani (AUTH_TOKEN_SECRET, CARRIER_WEBHOOK_SECRET)
+- Failed login / 401 / 429 oranlari izleniyor
+- rate_limits ve revoked_tokens tablolari periyodik kontrol ediliyor
+- Acil durum disinda manual override flagleri acilmiyor
+
+5) RELEASE SONRASI HIZLI KONTROL
+
+- Admin paneli aciliyor ve order akisi sorunsuz
+- Payment alani adminde read-only gorunuyor
+- Fulfillment akisi received -> preparing -> shipping sekliyle isliyor
+- Delivered durumu sadece carrier webhook eventi ile guncelleniyor
