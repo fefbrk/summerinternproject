@@ -2,7 +2,8 @@
 
 export const ROOT_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const API_BASE_URL = `${ROOT_URL}/api`;
-export const AUTH_TOKEN_STORAGE_KEY = 'auth_token';
+const CSRF_ENDPOINT = '/csrf-token';
+const CSRF_HEADER_NAME = 'X-CSRF-Token';
 
 // Backend'den gelen kullanıcı verisi (şifre içermez)
 export interface User {
@@ -248,7 +249,6 @@ export interface UserPaymentMethodPayload {
 }
 
 export interface AuthResponse {
-  token: string;
   user: User;
 }
 
@@ -258,10 +258,55 @@ export interface PaginationOptions {
 }
 
 class ApiService {
+  private csrfToken: string | null = null;
+
+  private pendingCsrfTokenRequest: Promise<string> | null = null;
+
   private getAuthHeaders(additionalHeaders: HeadersInit = {}): HeadersInit {
     return {
       ...additionalHeaders,
     };
+  }
+
+  private isStateChangingMethod(method: string): boolean {
+    return ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method.toUpperCase());
+  }
+
+  private async ensureCsrfToken(forceRefresh = false): Promise<string> {
+    if (!forceRefresh && this.csrfToken) {
+      return this.csrfToken;
+    }
+
+    if (!forceRefresh && this.pendingCsrfTokenRequest) {
+      return this.pendingCsrfTokenRequest;
+    }
+
+    const csrfRequest = (async () => {
+      const response = await fetch(`${API_BASE_URL}${CSRF_ENDPOINT}`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`Unable to initialize request security. Status: ${response.status}`);
+      }
+
+      const payload = await response.json().catch(() => ({}));
+      if (!payload || typeof payload.csrfToken !== 'string' || payload.csrfToken.length === 0) {
+        throw new Error('Unable to initialize request security token');
+      }
+
+      this.csrfToken = payload.csrfToken;
+      return payload.csrfToken;
+    })();
+
+    this.pendingCsrfTokenRequest = csrfRequest;
+
+    try {
+      return await csrfRequest;
+    } finally {
+      this.pendingCsrfTokenRequest = null;
+    }
   }
 
   private buildQueryString(options?: PaginationOptions): string {
@@ -282,16 +327,25 @@ class ApiService {
     return query ? `?${query}` : '';
   }
 
-  private async request(endpoint: string, options: RequestInit = {}) {
+  private async request<T>(endpoint: string, options: RequestInit = {}, allowCsrfRetry = true): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
     const hasFormDataBody = typeof FormData !== 'undefined' && options.body instanceof FormData;
+    const method = (options.method || 'GET').toUpperCase();
+    const headers: Record<string, string> = {
+      ...(hasFormDataBody ? {} : { 'Content-Type': 'application/json' }),
+      ...(this.getAuthHeaders(options.headers || {}) as Record<string, string>),
+    };
+
+    if (this.isStateChangingMethod(method)) {
+      const csrfToken = await this.ensureCsrfToken();
+      headers[CSRF_HEADER_NAME] = csrfToken;
+    }
+
     const config = {
       credentials: 'include' as const,
-      headers: {
-        ...(hasFormDataBody ? {} : { 'Content-Type': 'application/json' }),
-        ...this.getAuthHeaders(options.headers || {}),
-      },
       ...options,
+      method,
+      headers,
     };
 
     try {
@@ -299,10 +353,15 @@ class ApiService {
       if (!response.ok) {
         // Backend'den gelen hata mesajını al
         const errorData = await response.json().catch(() => ({}));
+        if (allowCsrfRetry && this.isStateChangingMethod(method) && errorData.code === 'CSRF_TOKEN_INVALID') {
+          await this.ensureCsrfToken(true);
+          return this.request<T>(endpoint, options, false);
+        }
+
         const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
         throw new Error(errorMessage);
       }
-      return await response.json();
+      return await response.json() as T;
     } catch (error) {
       console.error('API request failed:', error);
       throw error;
@@ -325,9 +384,12 @@ class ApiService {
   }
 
   async logout(): Promise<{ message: string }> {
-    return this.request('/logout', {
+    const response = await this.request<{ message: string }>('/logout', {
       method: 'POST',
     });
+
+    this.csrfToken = null;
+    return response;
   }
 
   async getCurrentUser(): Promise<User> {
@@ -489,31 +551,27 @@ class ApiService {
 
   // Silme fonksiyonları
   async deleteUser(userId: string): Promise<{ message: string }> {
-    const response = await this.request(`/users/${userId}`, {
+    return this.request(`/users/${userId}`, {
       method: 'DELETE'
     });
-    return response;
   }
 
   async deleteOrder(orderId: string): Promise<{ message: string }> {
-    const response = await this.request(`/orders/${orderId}`, {
+    return this.request(`/orders/${orderId}`, {
       method: 'DELETE'
     });
-    return response;
   }
 
   async deleteRegistration(registrationId: string): Promise<{ message: string }> {
-    const response = await this.request(`/registrations/${registrationId}`, {
+    return this.request(`/registrations/${registrationId}`, {
       method: 'DELETE'
     });
-    return response;
   }
 
   async deleteContact(contactId: string): Promise<{ message: string }> {
-    const response = await this.request(`/contacts/${contactId}`, {
+    return this.request(`/contacts/${contactId}`, {
       method: 'DELETE'
     });
-    return response;
   }
 
   // Blog post methods
@@ -544,10 +602,9 @@ class ApiService {
   }
 
   async deleteBlogPost(id: string): Promise<{ message: string }> {
-    const response = await this.request(`/blog/${id}`, {
+    return this.request(`/blog/${id}`, {
       method: 'DELETE'
     });
-    return response;
   }
 
   async updateBlogPostStatus(id: string, status: BlogPost['status']): Promise<BlogPost> {
@@ -562,19 +619,10 @@ class ApiService {
     const formData = new FormData();
     formData.append('image', file);
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    return this.request(endpoint, {
       method: 'POST',
-      headers: this.getAuthHeaders(),
       body: formData,
     });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
-      throw new Error(errorMessage);
-    }
-
-    return response.json();
   }
 
   // Blog image upload methods

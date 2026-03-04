@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/use-toast';
-import apiService, { AUTH_TOKEN_STORAGE_KEY, User } from '@/services/apiService';
+import apiService, { User } from '@/services/apiService';
 
 interface AuthContextType {
   user: User | null;
@@ -30,13 +30,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setUser(processedUser);
     localStorage.setItem('auth_user', JSON.stringify(processedUser));
-    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    localStorage.removeItem('auth_token');
   };
 
   const clearAuthState = () => {
     setUser(null);
     localStorage.removeItem('auth_user');
-    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
+    localStorage.removeItem('auth_token');
   };
 
   // Check for existing session on app load

@@ -302,7 +302,7 @@ const createAuthMiddleware = ({
     const publicGetPattern = /^\/(blog|press-releases|media-coverage|events)(\/[^/]+)?$/;
     const isPublicRequest =
       (req.method === 'POST' && (normalizedPath === '/login' || normalizedPath === '/register' || normalizedPath === '/contacts')) ||
-      (req.method === 'GET' && publicGetPattern.test(normalizedPath));
+      (req.method === 'GET' && (normalizedPath === '/csrf-token' || publicGetPattern.test(normalizedPath)));
 
     if (isPublicRequest) {
       return next();

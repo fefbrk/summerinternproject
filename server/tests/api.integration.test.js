@@ -29,6 +29,8 @@ const database = require('../database/database');
 
 let server;
 let baseUrl;
+const TEST_ORIGIN = 'http://localhost:5173';
+let csrfState = null;
 
 const createCarrierWebhookHeaders = (payload, timestamp = Date.now()) => {
   const timestampValue = String(timestamp);
@@ -44,15 +46,88 @@ const createCarrierWebhookHeaders = (payload, timestamp = Date.now()) => {
   };
 };
 
+const getSetCookieValues = (headers) => {
+  if (headers && typeof headers.getSetCookie === 'function') {
+    return headers.getSetCookie();
+  }
+
+  const singleValue = headers.get('set-cookie');
+  return singleValue ? [singleValue] : [];
+};
+
+const extractCookieValue = (setCookieHeaders, cookieName) => {
+  if (!Array.isArray(setCookieHeaders)) {
+    return '';
+  }
+
+  for (const setCookieHeader of setCookieHeaders) {
+    if (typeof setCookieHeader !== 'string') {
+      continue;
+    }
+
+    const [cookiePair] = setCookieHeader.split(';');
+    const [name, ...valueParts] = cookiePair.split('=');
+    if (name && name.trim() === cookieName) {
+      return valueParts.join('=').trim();
+    }
+  }
+
+  return '';
+};
+
+const ensureCsrfState = async (forceRefresh = false) => {
+  if (!forceRefresh && csrfState && csrfState.token && csrfState.cookie) {
+    return csrfState;
+  }
+
+  const response = await fetch(`${baseUrl}/api/csrf-token`, {
+    method: 'GET',
+    headers: {
+      Origin: TEST_ORIGIN,
+    },
+  });
+
+  assert.equal(response.status, 200);
+
+  const payload = await response.json().catch(() => ({}));
+  const setCookieHeaders = getSetCookieValues(response.headers);
+  const csrfCookieValue = extractCookieValue(setCookieHeaders, 'csrf_token');
+
+  assert.equal(typeof payload.csrfToken, 'string');
+  assert.ok(payload.csrfToken.length > 0);
+  assert.ok(csrfCookieValue.length > 0);
+
+  csrfState = {
+    token: payload.csrfToken,
+    cookie: `csrf_token=${csrfCookieValue}`,
+  };
+
+  return csrfState;
+};
+
 const requestJson = async (endpoint, options = {}) => {
+  const method = (options.method || 'GET').toUpperCase();
+  const requiresCsrf = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+
+  let csrfHeaders = {};
+  if (requiresCsrf) {
+    const resolvedCsrfState = await ensureCsrfState(options.forceCsrfRefresh === true);
+    csrfHeaders = {
+      'x-csrf-token': resolvedCsrfState.token,
+      Cookie: options.cookie ? `${options.cookie}; ${resolvedCsrfState.cookie}` : resolvedCsrfState.cookie,
+    };
+  }
+
   const headers = {
     ...(options.body ? { 'Content-Type': 'application/json' } : {}),
     ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+    Origin: options.origin || TEST_ORIGIN,
+    ...csrfHeaders,
     ...(options.headers || {}),
   };
 
   const response = await fetch(`${baseUrl}${endpoint}`, {
-    method: options.method || 'GET',
+    method,
     headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
@@ -68,9 +143,29 @@ const requestJson = async (endpoint, options = {}) => {
     }
   }
 
+  if (
+    requiresCsrf &&
+    response.status === 403 &&
+    data &&
+    data.code === 'CSRF_TOKEN_INVALID' &&
+    options._csrfRetried !== true
+  ) {
+    csrfState = null;
+    return requestJson(endpoint, {
+      ...options,
+      _csrfRetried: true,
+      forceCsrfRefresh: true,
+    });
+  }
+
+  const setCookieHeaders = getSetCookieValues(response.headers);
+  const authToken = extractCookieValue(setCookieHeaders, 'auth_token');
+
   return {
     status: response.status,
     data,
+    authToken,
+    setCookieHeaders,
   };
 };
 
@@ -114,11 +209,11 @@ test('critical auth and authorization flow works end-to-end', async () => {
   });
 
   assert.equal(adminLogin.status, 200);
-  assert.ok(adminLogin.data && adminLogin.data.token);
+  assert.ok(adminLogin.authToken);
   assert.equal(adminLogin.data.user.email, process.env.DEFAULT_ADMIN_EMAIL);
   assert.equal(adminLogin.data.user.isAdmin, true);
 
-  const adminToken = adminLogin.data.token;
+  const adminToken = adminLogin.authToken;
 
   const adminMe = await requestJson('/api/me', { token: adminToken });
   assert.equal(adminMe.status, 200);
@@ -135,7 +230,7 @@ test('critical auth and authorization flow works end-to-end', async () => {
   });
 
   assert.equal(firstUserRegister.status, 201);
-  assert.ok(firstUserRegister.data && firstUserRegister.data.token);
+  assert.ok(firstUserRegister.authToken);
   assert.equal(firstUserRegister.data.user.isAdmin, false);
 
   const duplicateRegister = await requestJson('/api/register', {
@@ -149,7 +244,7 @@ test('critical auth and authorization flow works end-to-end', async () => {
 
   assert.equal(duplicateRegister.status, 400);
 
-  const firstUserToken = firstUserRegister.data.token;
+  const firstUserToken = firstUserRegister.authToken;
   const firstUserId = firstUserRegister.data.user.id;
 
   const firstUserMe = await requestJson('/api/me', { token: firstUserToken });
@@ -247,7 +342,7 @@ test('critical auth and authorization flow works end-to-end', async () => {
 
   assert.equal(secondUserRegister.status, 201);
 
-  const secondUserToken = secondUserRegister.data.token;
+  const secondUserToken = secondUserRegister.authToken;
   const firstUserAddressesAsOtherUser = await requestJson(`/api/addresses/${firstUserId}`, {
     token: secondUserToken,
   });
@@ -301,7 +396,7 @@ test('password change revokes previously issued token access', async () => {
   });
 
   assert.equal(registerResponse.status, 201);
-  const tokenBeforePasswordChange = registerResponse.data.token;
+  const tokenBeforePasswordChange = registerResponse.authToken;
   const userId = registerResponse.data.user.id;
 
   const changePasswordResponse = await requestJson(`/api/users/${userId}/password`, {
@@ -341,7 +436,7 @@ test('content and status endpoints return full entities', async () => {
   });
 
   assert.equal(adminLogin.status, 200);
-  const adminToken = adminLogin.data.token;
+  const adminToken = adminLogin.authToken;
 
   const createdEvent = await requestJson('/api/events', {
     method: 'POST',
@@ -463,7 +558,7 @@ test('public CMS endpoints hide drafts while admin endpoints can access them', a
   });
 
   assert.equal(adminLogin.status, 200);
-  const adminToken = adminLogin.data.token;
+  const adminToken = adminLogin.authToken;
 
   const createdDraftBlog = await requestJson('/api/blog', {
     method: 'POST',
@@ -504,7 +599,7 @@ test('public CMS endpoints hide drafts while admin endpoints can access them', a
   });
 
   assert.equal(regularUserRegister.status, 201);
-  const nonAdminToken = regularUserRegister.data.token;
+  const nonAdminToken = regularUserRegister.authToken;
 
   const nonAdminAdminRoute = await requestJson('/api/admin/blog', { token: nonAdminToken });
   assert.equal(nonAdminAdminRoute.status, 403);
@@ -521,7 +616,7 @@ test('order creation enforces backend catalog prices and totals', async () => {
   });
 
   assert.equal(registerResponse.status, 201);
-  const userToken = registerResponse.data.token;
+  const userToken = registerResponse.authToken;
 
   const orderPayload = {
     items: [
@@ -582,7 +677,7 @@ test('order creation enforces backend catalog prices and totals', async () => {
   });
 
   assert.equal(adminLogin.status, 200);
-  const adminToken = adminLogin.data.token;
+  const adminToken = adminLogin.authToken;
 
   const unpaidFulfillmentUpdate = await requestJson(`/api/orders/${validTotalResponse.data.id}/status`, {
     method: 'PUT',
@@ -636,7 +731,7 @@ test('order creation enforces backend catalog prices and totals', async () => {
   });
 
   assert.equal(anotherUserRegister.status, 201);
-  const anotherUserToken = anotherUserRegister.data.token;
+  const anotherUserToken = anotherUserRegister.authToken;
 
   const paymentStatusAsOtherUser = await requestJson(`/api/orders/${validTotalResponse.data.id}/payment-status`, {
     token: anotherUserToken,
@@ -797,6 +892,43 @@ test('public contact endpoint is rate-limited', async () => {
 
   assert.ok(lastResponse);
   assert.equal(lastResponse.status, 429);
+});
+
+test('csrf protection rejects missing token and untrusted origins', async () => {
+  const missingCsrfResponse = await fetch(`${baseUrl}/api/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: TEST_ORIGIN,
+    },
+    body: JSON.stringify({
+      email: process.env.DEFAULT_ADMIN_EMAIL,
+      password: process.env.DEFAULT_ADMIN_PASSWORD,
+    }),
+  });
+
+  assert.equal(missingCsrfResponse.status, 403);
+  const missingCsrfPayload = await missingCsrfResponse.json();
+  assert.equal(missingCsrfPayload.code, 'CSRF_TOKEN_INVALID');
+
+  const trustedCsrfState = await ensureCsrfState(true);
+  const untrustedOriginResponse = await fetch(`${baseUrl}/api/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Referer: 'https://attacker.example/phishing-form',
+      'x-csrf-token': trustedCsrfState.token,
+      Cookie: trustedCsrfState.cookie,
+    },
+    body: JSON.stringify({
+      email: process.env.DEFAULT_ADMIN_EMAIL,
+      password: process.env.DEFAULT_ADMIN_PASSWORD,
+    }),
+  });
+
+  assert.equal(untrustedOriginResponse.status, 403);
+  const untrustedOriginPayload = await untrustedOriginResponse.json();
+  assert.equal(untrustedOriginPayload.code, 'CSRF_ORIGIN_INVALID');
 });
 
 test('register endpoint is rate-limited', async () => {

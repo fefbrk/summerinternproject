@@ -10,6 +10,7 @@ const database = require('./database/database');
 const { hashPassword, verifyPassword, isHashedPassword } = require('./security/password');
 const { createAuthToken, verifyAuthToken } = require('./security/token');
 const createAuthMiddleware = require('./middleware/authMiddleware');
+const createCsrfMiddleware = require('./middleware/csrfMiddleware');
 const createBootstrapService = require('./services/bootstrapService');
 const createProductCatalogService = require('./services/productCatalogService');
 const createPaymentService = require('./services/paymentService');
@@ -68,8 +69,17 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const MIN_TOKEN_SECRET_LENGTH = 32;
 const MIN_WEBHOOK_SECRET_LENGTH = 24;
 const AUTH_COOKIE_NAME = 'auth_token';
+const CSRF_COOKIE_NAME = 'csrf_token';
+const CSRF_HEADER_NAME = 'x-csrf-token';
 const AUTH_COOKIE_OPTIONS = {
   httpOnly: true,
+  secure: IS_PRODUCTION,
+  sameSite: 'lax',
+  path: '/',
+  maxAge: AUTH_TOKEN_TTL_MS,
+};
+const CSRF_COOKIE_OPTIONS = {
+  httpOnly: false,
   secure: IS_PRODUCTION,
   sameSite: 'lax',
   path: '/',
@@ -145,7 +155,7 @@ const getDefaultAdminEmail = () => {
 
   if (!generatedAdminEmail) {
     generatedAdminEmail = `admin-${crypto.randomBytes(6).toString('hex')}@local.invalid`;
-    console.warn('DEFAULT_ADMIN_EMAIL is not set. Generated one-time admin email:', generatedAdminEmail);
+    console.warn('DEFAULT_ADMIN_EMAIL is not set. Generated one-time admin email for this runtime.');
   }
 
   return generatedAdminEmail;
@@ -158,7 +168,7 @@ const getDefaultAdminPassword = () => {
 
   if (!generatedAdminPassword) {
     generatedAdminPassword = crypto.randomBytes(12).toString('base64url');
-    console.warn('DEFAULT_ADMIN_PASSWORD is not set. Generated one-time admin password:', generatedAdminPassword);
+    console.warn('DEFAULT_ADMIN_PASSWORD is not set. Generated one-time admin password for this runtime.');
   }
 
   return generatedAdminPassword;
@@ -329,8 +339,22 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self'; frame-ancestors 'none'");
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'");
   next();
+});
+
+const { issueCsrfToken, validateCsrfRequest } = createCsrfMiddleware({
+  csrfCookieName: CSRF_COOKIE_NAME,
+  csrfHeaderName: CSRF_HEADER_NAME,
+  csrfCookieOptions: CSRF_COOKIE_OPTIONS,
+  authCookieName: AUTH_COOKIE_NAME,
+  allowedOrigins: configuredOrigins,
+});
+
+app.get('/api/csrf-token', (_req, res) => {
+  const csrfToken = issueCsrfToken(res);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ csrfToken });
 });
 
 // Serve static files from the public directory
@@ -440,6 +464,7 @@ const {
   demoEndpointsEnabled: DEMO_ENDPOINTS_ENABLED,
 });
 
+app.use('/api', validateCsrfRequest);
 app.use('/api', authenticateApiRequest);
 
 registerAuthUserRoutes(app, {

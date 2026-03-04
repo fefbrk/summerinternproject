@@ -58,7 +58,6 @@ const registerAuthUserRoutes = (app, deps) => {
       setAuthCookie(res, token);
 
       res.json({
-        token,
         user: safeUser,
       });
     } catch (error) {
@@ -116,7 +115,7 @@ const registerAuthUserRoutes = (app, deps) => {
       const safeUser = toSafeUser(newUser);
       const token = createAuthToken(safeUser);
       setAuthCookie(res, token);
-      res.status(201).json({ token, user: safeUser });
+      res.status(201).json({ user: safeUser });
     } catch (error) {
       console.error('Registration error:', error);
       res.status(500).json({ error: 'Internal server error' });
