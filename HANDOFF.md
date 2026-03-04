@@ -9,7 +9,7 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
 - Guvenlik sertlestirme aktif:
   - Auth/role guard,
   - sanitize,
-  - upload validation,
+  - upload validation (mime/extension + magic-byte signature),
   - prod env guard,
   - login/register/contact rate-limit.
 - Backend moduler yapida:
@@ -36,7 +36,7 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
   - `payment_attempts` ve `payment_events` tablolari,
   - payment attempt/event persistence,
   - `server/services/paymentService.js` (provider-agnostic iskelet),
-  - endpointler: `GET/PUT /api/orders/:id/payment-status`.
+  - endpointler: `GET /api/orders/:id/payment-status` (+ `PUT` sadece `ENABLE_MANUAL_PAYMENT_OVERRIDE=true` ise).
 - Fulfillment guard aktif:
   - `preparing|shipping|delivered` gecisi icin payment `paid` zorunlu.
 - Fulfillment ownership modeli guncellendi:
@@ -46,6 +46,8 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
   - `ENABLE_MANUAL_FULFILLMENT_OVERRIDE=true` + `SUPER_ADMIN_EMAILS` + `overrideReason` ile acil durum manuel override desteği var,
   - Tüm fulfillment gecisleri `fulfillment_events` tablosuna loglanir.
 - Content URL alanlari server tarafinda `http/https` + guvenli relative URL filtrelemesi ile dogrulaniyor.
+- Auth cookie akisi aktif: `auth_token` httpOnly cookie set edilir; logout ile token `revoked_tokens` denylist tablosuna yazilir.
+- Rate-limit state'i kalici hale getirildi (`rate_limits` tablosu).
 - Test altyapisi guncel:
   - Backend: `server/tests/api.integration.test.js`, `server/tests/database.transaction.test.js`
   - Frontend smoke: `src/test/smoke/auth-pages.smoke.test.tsx`
@@ -100,6 +102,7 @@ cd server && npm start
 - `ENABLE_DEMO_ENDPOINTS` prod'da `false` kalmali.
 - `CARRIER_WEBHOOK_SECRET` prod'da mutlaka set olmali.
 - `ENABLE_MANUAL_FULFILLMENT_OVERRIDE` normalde `false` kalmali.
+- `ENABLE_MANUAL_PAYMENT_OVERRIDE` normalde `false` kalmali.
 - `TRUST_PROXY` sadece reverse proxy arkasinda `true` olmali.
 - Admin dashboard order ekrani operasyonel olarak fulfillment odaklidir; payment degerleri UI'da sadece izleme amacli read-only tutulur.
 - `server/database/kinderlab.db` bu repoda bilinclli olarak tracked; secret/gercek prod veri konmamalidir.

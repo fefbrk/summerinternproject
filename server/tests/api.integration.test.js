@@ -20,6 +20,7 @@ process.env.CORS_ORIGINS = 'http://localhost:5173';
 process.env.ENABLE_DEMO_ENDPOINTS = 'false';
 process.env.CARRIER_WEBHOOK_SECRET = 'carrier-webhook-test-secret';
 process.env.ENABLE_MANUAL_FULFILLMENT_OVERRIDE = 'false';
+process.env.ENABLE_MANUAL_PAYMENT_OVERRIDE = 'true';
 process.env.SUPER_ADMIN_EMAILS = process.env.DEFAULT_ADMIN_EMAIL;
 
 const { startServer } = require('../server');
@@ -253,6 +254,15 @@ test('critical auth and authorization flow works end-to-end', async () => {
   const ordersAsAdmin = await requestJson('/api/orders', { token: adminToken });
   assert.equal(ordersAsAdmin.status, 200);
   assert.ok(Array.isArray(ordersAsAdmin.data));
+
+  const logoutResponse = await requestJson('/api/logout', {
+    method: 'POST',
+    token: firstUserToken,
+  });
+  assert.equal(logoutResponse.status, 200);
+
+  const meAfterLogout = await requestJson('/api/me', { token: firstUserToken });
+  assert.equal(meAfterLogout.status, 401);
 
   const loadDemoAsAdminWhenDisabled = await requestJson('/api/load-demo-data', {
     method: 'POST',

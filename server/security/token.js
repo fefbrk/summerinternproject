@@ -48,11 +48,14 @@ const signPayload = (encodedPayload) => {
 };
 
 const createAuthToken = (user) => {
+  const issuedAt = Date.now();
   const payload = {
     sub: user.id,
     email: user.email,
     isAdmin: Boolean(user.isAdmin),
-    exp: Date.now() + getTokenTtl()
+    jti: crypto.randomUUID(),
+    iat: issuedAt,
+    exp: issuedAt + getTokenTtl()
   };
 
   const encodedPayload = encodeBase64Url(JSON.stringify(payload));
@@ -92,6 +95,10 @@ const verifyAuthToken = (token) => {
     }
 
     if (!payload.sub || typeof payload.sub !== 'string') {
+      return null;
+    }
+
+    if (!payload.jti || typeof payload.jti !== 'string') {
       return null;
     }
 

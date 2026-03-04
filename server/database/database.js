@@ -178,6 +178,8 @@ class Database {
             await this.ensurePaymentTables();
             // Fulfillment event tablosunu olustur
             await this.ensureFulfillmentTables();
+            // Revoke ve rate-limit tablolarini olustur
+            await this.ensureSecurityTables();
             // Users tablosuna updated_at kolonu ekle
             await this.addUpdatedAtColumnToUsers();
             // Orders tablosuna order_notes kolonu ekle
@@ -512,6 +514,36 @@ class Database {
         }
     }
 
+    async ensureSecurityTables() {
+        try {
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS revoked_tokens (
+                    jti TEXT PRIMARY KEY,
+                    expires_at INTEGER NOT NULL,
+                    revoked_at INTEGER NOT NULL,
+                    reason TEXT NOT NULL DEFAULT ''
+                )
+            `);
+
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS rate_limits (
+                    scope TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    count INTEGER NOT NULL,
+                    reset_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    PRIMARY KEY (scope, key)
+                )
+            `);
+
+            await this.run('CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires_at ON revoked_tokens(expires_at)');
+            await this.run('CREATE INDEX IF NOT EXISTS idx_rate_limits_scope_reset ON rate_limits(scope, reset_at)');
+        } catch (error) {
+            console.error('Security tablo migrasyonu hatası:', error);
+            throw error;
+        }
+    }
+
     async addUpdatedAtColumnToUsers() {
         try {
             const tableExists = await this.get(`
@@ -631,6 +663,176 @@ class Database {
 
             throw error;
         }
+    }
+
+    // === SECURITY UTILITIES ===
+
+    async pruneExpiredRevokedTokens(now = Date.now()) {
+        await this.run('DELETE FROM revoked_tokens WHERE expires_at <= ?', [now]);
+    }
+
+    async revokeToken({ jti, expiresAt, reason = '' }) {
+        if (!jti || typeof jti !== 'string') {
+            return;
+        }
+
+        const normalizedExpiresAt = Number(expiresAt);
+        const safeExpiresAt = Number.isFinite(normalizedExpiresAt) && normalizedExpiresAt > Date.now()
+            ? Math.floor(normalizedExpiresAt)
+            : Date.now() + (7 * 24 * 60 * 60 * 1000);
+
+        await this.run(
+            `INSERT INTO revoked_tokens (jti, expires_at, revoked_at, reason)
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT(jti) DO UPDATE SET
+                expires_at = excluded.expires_at,
+                revoked_at = excluded.revoked_at,
+                reason = excluded.reason`,
+            [jti, safeExpiresAt, Date.now(), String(reason || '')]
+        );
+    }
+
+    async isTokenRevoked(jti) {
+        if (!jti || typeof jti !== 'string') {
+            return false;
+        }
+
+        await this.pruneExpiredRevokedTokens();
+        const row = await this.get('SELECT jti FROM revoked_tokens WHERE jti = ? LIMIT 1', [jti]);
+        return Boolean(row);
+    }
+
+    async getRateLimitState(scope, key, windowMs, maxEntries) {
+        const now = Date.now();
+        const normalizedWindow = Number.isFinite(Number(windowMs)) && Number(windowMs) > 0
+            ? Math.floor(Number(windowMs))
+            : 60 * 1000;
+        const normalizedMaxEntries = Number.isFinite(Number(maxEntries)) && Number(maxEntries) > 0
+            ? Math.floor(Number(maxEntries))
+            : 10000;
+
+        return this.runInTransaction(async () => {
+            await this.run('DELETE FROM rate_limits WHERE reset_at <= ?', [now]);
+
+            const existing = await this.get(
+                'SELECT count, reset_at as resetAt FROM rate_limits WHERE scope = ? AND key = ? LIMIT 1',
+                [scope, key]
+            );
+
+            if (!existing) {
+                const activeCount = await this.get(
+                    'SELECT COUNT(*) as total FROM rate_limits WHERE scope = ?',
+                    [scope]
+                );
+
+                if (activeCount && activeCount.total >= normalizedMaxEntries) {
+                    const pruneCount = activeCount.total - normalizedMaxEntries + 1;
+                    await this.run(
+                        `DELETE FROM rate_limits
+                         WHERE rowid IN (
+                           SELECT rowid
+                           FROM rate_limits
+                           WHERE scope = ?
+                           ORDER BY reset_at ASC
+                           LIMIT ?
+                         )`,
+                        [scope, pruneCount]
+                    );
+                }
+
+                return {
+                    count: 0,
+                    resetAt: now + normalizedWindow,
+                };
+            }
+
+            const currentResetAt = Number(existing.resetAt);
+            if (!Number.isFinite(currentResetAt) || currentResetAt <= now) {
+                return {
+                    count: 0,
+                    resetAt: now + normalizedWindow,
+                };
+            }
+
+            return {
+                count: Number(existing.count) || 0,
+                resetAt: currentResetAt,
+            };
+        });
+    }
+
+    async incrementRateLimit(scope, key, windowMs, maxEntries) {
+        const now = Date.now();
+        const normalizedWindow = Number.isFinite(Number(windowMs)) && Number(windowMs) > 0
+            ? Math.floor(Number(windowMs))
+            : 60 * 1000;
+        const normalizedMaxEntries = Number.isFinite(Number(maxEntries)) && Number(maxEntries) > 0
+            ? Math.floor(Number(maxEntries))
+            : 10000;
+
+        return this.runInTransaction(async () => {
+            await this.run('DELETE FROM rate_limits WHERE reset_at <= ?', [now]);
+
+            const existing = await this.get(
+                'SELECT count, reset_at as resetAt FROM rate_limits WHERE scope = ? AND key = ? LIMIT 1',
+                [scope, key]
+            );
+
+            if (!existing || Number(existing.resetAt) <= now) {
+                const activeCount = await this.get(
+                    'SELECT COUNT(*) as total FROM rate_limits WHERE scope = ?',
+                    [scope]
+                );
+
+                if (activeCount && activeCount.total >= normalizedMaxEntries) {
+                    const pruneCount = activeCount.total - normalizedMaxEntries + 1;
+                    await this.run(
+                        `DELETE FROM rate_limits
+                         WHERE rowid IN (
+                           SELECT rowid
+                           FROM rate_limits
+                           WHERE scope = ?
+                           ORDER BY reset_at ASC
+                           LIMIT ?
+                         )`,
+                        [scope, pruneCount]
+                    );
+                }
+
+                const newResetAt = now + normalizedWindow;
+                await this.run(
+                    `INSERT INTO rate_limits (scope, key, count, reset_at, updated_at)
+                     VALUES (?, ?, ?, ?, ?)
+                     ON CONFLICT(scope, key) DO UPDATE SET
+                        count = excluded.count,
+                        reset_at = excluded.reset_at,
+                        updated_at = excluded.updated_at`,
+                    [scope, key, 1, newResetAt, now]
+                );
+
+                return {
+                    count: 1,
+                    resetAt: newResetAt,
+                };
+            }
+
+            const nextCount = (Number(existing.count) || 0) + 1;
+            const currentResetAt = Number(existing.resetAt);
+
+            await this.run(
+                'UPDATE rate_limits SET count = ?, updated_at = ? WHERE scope = ? AND key = ?',
+                [nextCount, now, scope, key]
+            );
+
+            return {
+                count: nextCount,
+                resetAt: currentResetAt,
+            };
+        });
+    }
+
+    async resetRateLimit(scope, key) {
+        await this.run('DELETE FROM rate_limits WHERE scope = ? AND key = ?', [scope, key]);
     }
 
     // === KULLANICI İŞLEMLERİ ===
@@ -2001,6 +2203,8 @@ class Database {
             await this.run('DELETE FROM payment_attempts');
             await this.run('DELETE FROM payment_events');
             await this.run('DELETE FROM fulfillment_events');
+            await this.run('DELETE FROM revoked_tokens');
+            await this.run('DELETE FROM rate_limits');
             await this.run('DELETE FROM orders');
             await this.run('DELETE FROM course_registrations');
             await this.run('DELETE FROM contacts');

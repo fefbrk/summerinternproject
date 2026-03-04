@@ -170,6 +170,7 @@ DEFAULT_ADMIN_PASSWORD=<strong-password>
 ENABLE_DEMO_ENDPOINTS=false
 CARRIER_WEBHOOK_SECRET=<long-random-webhook-secret>
 ENABLE_MANUAL_FULFILLMENT_OVERRIDE=false
+ENABLE_MANUAL_PAYMENT_OVERRIDE=false
 SUPER_ADMIN_EMAILS=admin@example.com
 SQLITE_DB_PATH=./database/kinderlab.db
 ```
@@ -183,6 +184,7 @@ Production notlari:
 - `ENABLE_DEMO_ENDPOINTS=false` kalmali
 - `CARRIER_WEBHOOK_SECRET` tanimli olmali (carrier webhook akisi icin)
 - `ENABLE_MANUAL_FULFILLMENT_OVERRIDE` normalde `false` kalmali (acil durum disinda acilmaz)
+- `ENABLE_MANUAL_PAYMENT_OVERRIDE` normalde `false` kalmali
 - `TRUST_PROXY` sadece reverse-proxy arkasinda `true` olmali
 - `SQLITE_DB_PATH` opsiyoneldir (test ortaminda gecici DB vermek icin kullanilir)
 
@@ -254,6 +256,8 @@ cd server && npm start
 - [ ] Fulfillment status'lerine gecmeden once payment `paid` dogrulaniyor
 - [ ] Admin `shipping` gecisinde carrier/tracking zorunlu
 - [ ] `delivered` guncellemesi webhook disinda manuel acik degil (`ENABLE_MANUAL_FULFILLMENT_OVERRIDE=false`)
+- [ ] Manual payment status update varsayilan olarak kapali (`ENABLE_MANUAL_PAYMENT_OVERRIDE=false`)
+- [ ] Upload endpointleri dosya signature (magic-byte) kontrolu yapiyor
 - [ ] Admin order modalinda payment alanlari read-only, fulfillment icin tek update aksiyonu aktif
 - [ ] `npm run lint` ve `npm run build` basarili
 - [ ] Demo endpointleri prod ortamda kapali
@@ -300,4 +304,7 @@ cd server && npm start
 - Node test scripti CI uyumu icin explicit dosya listesi kullanir (`server/package.json` test scripti).
 - Address tipi frontendde `home|office`, backendde `delivery|billing` maplenir; bu donusumde regression testi bulunur.
 - Orders tablosunda payment/fulfillment kolonlari ve `payment_attempts`/`payment_events`/`fulfillment_events` tablolari aktiftir; webhook idempotency kayitlari DB tarafinda tutulur.
+- Guvenlik icin `revoked_tokens` (logout denylist) ve `rate_limits` (kalici throttle state) tablolari aktiftir.
+- Auth token cookie (`auth_token`) `httpOnly` olarak set edilir; logout ile token `revoked_tokens` tablosuna yazilarak denylist uygulanir.
+- Login/register/contact rate-limitleri `rate_limits` tablosu uzerinden kalici/podlar-arasi paylasimli state ile takip edilir.
 - Admin dashboard order modalinda payment status manuel edit UI'dan kapali tutulur; fulfillment adimlari operasyonel olarak ayridir.

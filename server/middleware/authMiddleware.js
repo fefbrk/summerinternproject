@@ -7,7 +7,6 @@ const createAuthMiddleware = ({
   registrationWindowMs = 15 * 60 * 1000,
   registrationMaxAttempts = 20,
   demoEndpointsEnabled,
-  trustProxy = false,
   loginRateLimitMaxEntries = 10000,
   registrationRateLimitMaxEntries = 10000,
   contactWindowMs = 10 * 60 * 1000,
@@ -17,25 +16,48 @@ const createAuthMiddleware = ({
   const loginAttempts = new Map();
   const registrationAttempts = new Map();
   const contactAttempts = new Map();
+  const hasPersistentRateLimitStore = Boolean(
+    database &&
+    typeof database.getRateLimitState === 'function' &&
+    typeof database.incrementRateLimit === 'function' &&
+    typeof database.resetRateLimit === 'function'
+  );
+
+  const parseCookies = (cookieHeader) => {
+    if (typeof cookieHeader !== 'string' || cookieHeader.trim().length === 0) {
+      return {};
+    }
+
+    return cookieHeader.split(';').reduce((result, cookiePart) => {
+      const [rawName, ...rawValueParts] = cookiePart.split('=');
+      const name = typeof rawName === 'string' ? rawName.trim() : '';
+      if (!name) {
+        return result;
+      }
+
+      const rawValue = rawValueParts.join('=');
+      try {
+        result[name] = decodeURIComponent(rawValue.trim());
+      } catch (_error) {
+        result[name] = rawValue.trim();
+      }
+
+      return result;
+    }, {});
+  };
 
   const extractBearerToken = (req) => {
     const authorizationHeader = req.headers.authorization;
     if (!authorizationHeader || !authorizationHeader.startsWith('Bearer ')) {
-      return null;
+      const cookies = parseCookies(req.headers.cookie);
+      return cookies.auth_token || null;
     }
 
     return authorizationHeader.slice(7);
   };
 
   const getClientIp = (req) => {
-    if (trustProxy) {
-      const forwarded = req.headers['x-forwarded-for'];
-      if (typeof forwarded === 'string' && forwarded.length > 0) {
-        return forwarded.split(',')[0].trim();
-      }
-    }
-
-    return req.ip || 'unknown';
+    return req.ip || req.socket?.remoteAddress || 'unknown';
   };
 
   const pruneRateLimitMap = (attemptMap, now, maxEntries) => {
@@ -59,8 +81,23 @@ const createAuthMiddleware = ({
     }
   };
 
-  const checkLoginRateLimit = (req, res, next) => {
+  const checkLoginRateLimit = async (req, res, next) => {
     const clientIp = getClientIp(req);
+
+    if (hasPersistentRateLimitStore) {
+      try {
+        const state = await database.getRateLimitState('login', clientIp, loginWindowMs, loginRateLimitMaxEntries);
+        if (state.count >= loginMaxAttempts) {
+          return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
+        }
+
+        return next();
+      } catch (error) {
+        console.error('Persistent login rate-limit error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+
     const now = Date.now();
     pruneRateLimitMap(loginAttempts, now, loginRateLimitMaxEntries);
     const record = loginAttempts.get(clientIp);
@@ -81,8 +118,24 @@ const createAuthMiddleware = ({
     return next();
   };
 
-  const recordLoginAttempt = (req, success) => {
+  const recordLoginAttempt = async (req, success) => {
     const clientIp = getClientIp(req);
+
+    if (hasPersistentRateLimitStore) {
+      try {
+        if (success) {
+          await database.resetRateLimit('login', clientIp);
+        } else {
+          await database.incrementRateLimit('login', clientIp, loginWindowMs, loginRateLimitMaxEntries);
+        }
+
+        return;
+      } catch (error) {
+        console.error('Persistent login attempt recording error:', error);
+        return;
+      }
+    }
+
     const now = Date.now();
     pruneRateLimitMap(loginAttempts, now, loginRateLimitMaxEntries);
     const record = loginAttempts.get(clientIp) || { count: 0, resetAt: now + loginWindowMs };
@@ -105,8 +158,23 @@ const createAuthMiddleware = ({
     loginAttempts.set(clientIp, record);
   };
 
-  const checkContactRateLimit = (req, res, next) => {
+  const checkContactRateLimit = async (req, res, next) => {
     const clientIp = getClientIp(req);
+
+    if (hasPersistentRateLimitStore) {
+      try {
+        const state = await database.incrementRateLimit('contact', clientIp, contactWindowMs, contactRateLimitMaxEntries);
+        if (state.count > contactMaxAttempts) {
+          return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+        }
+
+        return next();
+      } catch (error) {
+        console.error('Persistent contact rate-limit error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+
     const now = Date.now();
     pruneRateLimitMap(contactAttempts, now, contactRateLimitMaxEntries);
 
@@ -129,8 +197,23 @@ const createAuthMiddleware = ({
     return next();
   };
 
-  const checkRegistrationRateLimit = (req, res, next) => {
+  const checkRegistrationRateLimit = async (req, res, next) => {
     const clientIp = getClientIp(req);
+
+    if (hasPersistentRateLimitStore) {
+      try {
+        const state = await database.incrementRateLimit('register', clientIp, registrationWindowMs, registrationRateLimitMaxEntries);
+        if (state.count > registrationMaxAttempts) {
+          return res.status(429).json({ error: 'Too many registration attempts. Please try again later.' });
+        }
+
+        return next();
+      } catch (error) {
+        console.error('Persistent registration rate-limit error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+
     const now = Date.now();
     pruneRateLimitMap(registrationAttempts, now, registrationRateLimitMaxEntries);
 
@@ -174,6 +257,18 @@ const createAuthMiddleware = ({
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
+    if (payload.jti && typeof database?.isTokenRevoked === 'function') {
+      try {
+        const tokenRevoked = await database.isTokenRevoked(payload.jti);
+        if (tokenRevoked) {
+          return res.status(401).json({ error: 'Token has been revoked' });
+        }
+      } catch (error) {
+        console.error('Token revocation check failed:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+
     let currentUser = null;
     try {
       currentUser = await database.getUserById(payload.sub);
@@ -191,6 +286,8 @@ const createAuthMiddleware = ({
       email: currentUser.email,
       isAdmin: Boolean(currentUser.isAdmin),
     };
+    req.authToken = token;
+    req.authPayload = payload;
 
     const cmsWritePaths = ['/blog', '/press-releases', '/media-coverage', '/events'];
     for (const cmsPath of cmsWritePaths) {

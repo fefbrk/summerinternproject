@@ -96,12 +96,30 @@ CREATE TABLE IF NOT EXISTS fulfillment_events (
     FOREIGN KEY (order_id) REFERENCES orders (id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS revoked_tokens (
+    jti TEXT PRIMARY KEY,
+    expires_at INTEGER NOT NULL,
+    revoked_at INTEGER NOT NULL,
+    reason TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS rate_limits (
+    scope TEXT NOT NULL,
+    key TEXT NOT NULL,
+    count INTEGER NOT NULL,
+    reset_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (scope, key)
+);
+
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_order_id ON payment_attempts(order_id);
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_status ON payment_attempts(status);
 CREATE INDEX IF NOT EXISTS idx_payment_events_order_id ON payment_events(order_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_events_order_id ON fulfillment_events(order_id);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_events_source ON fulfillment_events(source);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_events_provider_event ON fulfillment_events(shipment_provider, provider_event_id);
+CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires_at ON revoked_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_rate_limits_scope_reset ON rate_limits(scope, reset_at);
 
 -- Course Registrations Table
 CREATE TABLE IF NOT EXISTS course_registrations (

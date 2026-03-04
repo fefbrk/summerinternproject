@@ -26,7 +26,10 @@ npm run lint && npm test && npm run build -- --logLevel error
 - Admin fulfillment akisi `received -> preparing -> shipping` ile sinirlidir; `shipping` icin carrier + tracking zorunludur.
 - `delivered` durumu varsayilan olarak sadece carrier webhook ile guncellenir (`POST /webhooks/carrier/orders/:id/status`).
 - Admin order modalinda payment alani read-only snapshot olarak gosterilir; tek aksiyon fulfillment update'dir (`Update Order`).
+- Manual payment status update varsayilan olarak kapalidir (`ENABLE_MANUAL_PAYMENT_OVERRIDE=false`).
 - Login/register/contact endpointleri IP bazli rate-limit ile korunur.
+- Auth cookie `httpOnly` olarak set edilir; logout ile token revoke edilerek tekrar kullanimi engellenir.
+- Upload endpointlerinde mime/extension kontrolune ek olarak dosya signature dogrulamasi yapilir.
 - PSP (iyzico/stripe/paytr) henuz bagli degil; payment domain hazirligi (`payment_attempts`, `payment_events`, payment-status endpointleri) aktiftir.
 - Admin panelinde orders/users/contacts/blog/press/media/events tablari ve ana modallar `src/components/admin/*` altina parcali yapiya alinmistir.
 - Route tanimlari `src/routes.tsx` dosyasina ayristirilmistir; `App.tsx` sadece provider ve layout icerir.

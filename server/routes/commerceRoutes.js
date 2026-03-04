@@ -39,6 +39,7 @@ const registerCommerceRoutes = (app, deps) => {
   };
   const allowedCarrierStatuses = new Set(Object.keys(carrierStatusToOrderStatus));
   const manualFulfillmentOverrideEnabled = process.env.ENABLE_MANUAL_FULFILLMENT_OVERRIDE === 'true';
+  const manualPaymentOverrideEnabled = process.env.ENABLE_MANUAL_PAYMENT_OVERRIDE === 'true';
   const carrierWebhookSecret = sanitizePlainText(process.env.CARRIER_WEBHOOK_SECRET, 256);
   const superAdminEmailSet = new Set(
     String(process.env.SUPER_ADMIN_EMAILS || process.env.DEFAULT_ADMIN_EMAIL || '')
@@ -387,6 +388,10 @@ const registerCommerceRoutes = (app, deps) => {
     try {
       if (!req.user.isAdmin) {
         return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      if (!manualPaymentOverrideEnabled) {
+        return res.status(403).json({ error: 'Manual payment status update is disabled' });
       }
 
       const id = sanitizePlainText(req.params.id, 64);

@@ -16,21 +16,35 @@ const registerAuthUserRoutes = (app, deps) => {
     checkLoginRateLimit,
     recordLoginAttempt,
     checkRegistrationRateLimit,
+    authCookieName = 'auth_token',
+    authCookieOptions = {},
   } = deps;
+
+  const setAuthCookie = (res, token) => {
+    res.cookie(authCookieName, token, authCookieOptions);
+  };
+
+  const clearAuthCookie = (res) => {
+    res.clearCookie(authCookieName, {
+      path: authCookieOptions.path || '/',
+      sameSite: authCookieOptions.sameSite || 'lax',
+      secure: Boolean(authCookieOptions.secure),
+    });
+  };
 
   app.post('/api/login', checkLoginRateLimit, async (req, res) => {
     const email = sanitizeEmail(req.body?.email);
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
 
     if (!email || !password || !isValidEmail(email)) {
-      recordLoginAttempt(req, false);
+      await recordLoginAttempt(req, false);
       return res.status(400).json({ error: 'Valid email and password are required' });
     }
 
     try {
       const user = await database.getUserByEmail(email);
       if (!user || !verifyPassword(password, user.password)) {
-        recordLoginAttempt(req, false);
+        await recordLoginAttempt(req, false);
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
@@ -38,9 +52,10 @@ const registerAuthUserRoutes = (app, deps) => {
         await database.updateUserPassword(user.id, hashPassword(password));
       }
 
-      recordLoginAttempt(req, true);
+      await recordLoginAttempt(req, true);
       const safeUser = toSafeUser(user);
       const token = createAuthToken(safeUser);
+      setAuthCookie(res, token);
 
       res.json({
         token,
@@ -100,10 +115,29 @@ const registerAuthUserRoutes = (app, deps) => {
 
       const safeUser = toSafeUser(newUser);
       const token = createAuthToken(safeUser);
+      setAuthCookie(res, token);
       res.status(201).json({ token, user: safeUser });
     } catch (error) {
       console.error('Registration error:', error);
       res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.post('/api/logout', async (req, res) => {
+    try {
+      if (req.authPayload?.jti && typeof database.revokeToken === 'function') {
+        await database.revokeToken({
+          jti: req.authPayload.jti,
+          expiresAt: req.authPayload.exp,
+          reason: 'logout',
+        });
+      }
+
+      clearAuthCookie(res);
+      return res.json({ message: 'Logged out successfully' });
+    } catch (error) {
+      console.error('Logout error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
     }
   });
 

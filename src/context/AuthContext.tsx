@@ -22,7 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
 
-  const setAuthState = (nextUser: User, token: string) => {
+  const setAuthState = (nextUser: User) => {
     const processedUser = {
       ...nextUser,
       isAdmin: Boolean(nextUser.isAdmin),
@@ -30,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setUser(processedUser);
     localStorage.setItem('auth_user', JSON.stringify(processedUser));
-    localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+    localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
   };
 
   const clearAuthState = () => {
@@ -44,9 +44,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initializeAuth = async () => {
       try {
         const savedUser = localStorage.getItem('auth_user');
-        const savedToken = localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
 
-        if (!savedUser || !savedToken) {
+        if (!savedUser) {
           clearAuthState();
           return;
         }
@@ -58,8 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ...currentUser,
             isAdmin: Boolean(currentUser.isAdmin),
             id: currentUser.id || parsedUser.id,
-          },
-          savedToken
+          }
         );
       } catch (error) {
         console.error('Error loading user from storage:', error);
@@ -77,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       const authResponse = await apiService.login(email, password);
-      setAuthState(authResponse.user, authResponse.token);
+      setAuthState(authResponse.user);
       toast({ title: 'Login successful', description: 'You are now logged in.' });
       setIsLoading(false);
       return true;
@@ -93,7 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       const authResponse = await apiService.register(email, password, name);
-      setAuthState(authResponse.user, authResponse.token);
+      setAuthState(authResponse.user);
       toast({ title: 'Registration successful', description: 'Your account has been created.' });
       setIsLoading(false);
       return true;
@@ -105,6 +103,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    void apiService.logout().catch((error) => {
+      console.error('Logout request failed:', error);
+    });
     clearAuthState();
     toast({ title: 'Logged out', description: 'You have been logged out.' });
   };

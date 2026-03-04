@@ -1,9 +1,31 @@
+const fs = require('node:fs');
+const { isValidUploadedImage } = require('../utils/imageSignature');
+
 const registerContentUploadRoutes = (app, deps) => {
   const {
     upload,
     database,
     sanitizeResourceId,
   } = deps;
+
+  const validateUploadedImageOrReject = async (req, res) => {
+    const isValid = await isValidUploadedImage({
+      filePath: req.file?.path,
+      mimeType: req.file?.mimetype,
+      originalName: req.file?.originalname,
+    });
+
+    if (isValid) {
+      return true;
+    }
+
+    if (req.file?.path) {
+      await fs.promises.unlink(req.file.path).catch(() => undefined);
+    }
+
+    res.status(400).json({ error: 'Invalid image signature' });
+    return false;
+  };
 
   // Factory: creates an image upload handler for a specific entity type
   const createEntityImageUploadHandler = (entityType, getEntityById, pathPrefix) => {
@@ -16,6 +38,11 @@ const registerContentUploadRoutes = (app, deps) => {
 
         if (!req.file) {
           return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const imageIsValid = await validateUploadedImageOrReject(req, res);
+        if (!imageIsValid) {
+          return;
         }
 
         const entity = await getEntityById(entityId);
@@ -43,6 +70,11 @@ const registerContentUploadRoutes = (app, deps) => {
       try {
         if (!req.file) {
           return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const imageIsValid = await validateUploadedImageOrReject(req, res);
+        if (!imageIsValid) {
+          return;
         }
 
         const imageUrl = `/postimages/${pathPrefix}/temp/images/${req.file.filename}`;

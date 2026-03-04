@@ -258,18 +258,8 @@ export interface PaginationOptions {
 }
 
 class ApiService {
-  private getAuthToken(): string | null {
-    try {
-      return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
-    } catch (_error) {
-      return null;
-    }
-  }
-
   private getAuthHeaders(additionalHeaders: HeadersInit = {}): HeadersInit {
-    const token = this.getAuthToken();
     return {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...additionalHeaders,
     };
   }
@@ -296,6 +286,7 @@ class ApiService {
     const url = `${API_BASE_URL}${endpoint}`;
     const hasFormDataBody = typeof FormData !== 'undefined' && options.body instanceof FormData;
     const config = {
+      credentials: 'include' as const,
       headers: {
         ...(hasFormDataBody ? {} : { 'Content-Type': 'application/json' }),
         ...this.getAuthHeaders(options.headers || {}),
@@ -330,6 +321,12 @@ class ApiService {
     return this.request('/register', {
       method: 'POST',
       body: JSON.stringify({ email, password, name }),
+    });
+  }
+
+  async logout(): Promise<{ message: string }> {
+    return this.request('/logout', {
+      method: 'POST',
     });
   }
 

@@ -64,12 +64,15 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - Admin işlemleri sunucu tarafında rol kontrolü ile sınırlandırılır.
 - Parolalar `scrypt` ile hashlenerek saklanır (plaintext saklanmaz).
 - Login/register/contact endpointlerinde rate-limit uygulanır.
+- Rate-limit state'i veritabaninda kalici tutulur (`rate_limits`), restart sonrasi sifirlanmaz.
 - Demo/sıfırlama endpoint'leri sadece `ENABLE_DEMO_ENDPOINTS=true` olduğunda açılır.
 - HTML içerikleri istemci ve sunucuda sanitize edilir (XSS koruması).
+- Upload endpointlerinde mime/extension + magic-byte (dosya imzasi) kontrolu uygulanir.
 - `server/database/kinderlab.db` bu repoda bilincli olarak takip edilir; production secret/veri tutulmaz.
 - Public CMS endpoint'leri sadece `published` içerik döndürür; admin list endpoint'leri ayrıdır.
 - `shipping` durumuna geciste `carrier + tracking` zorunludur; `delivered` varsayilan olarak carrier webhook ile guncellenir.
 - Admin dashboard'da payment alanlari operasyonel olarak read-only tutulur; fulfillment adimlari tek update aksiyonuyla yonetilir.
+- Auth token cookie `httpOnly` olarak set edilir; logout ile token denylist'e alinip tekrar kullanimi engellenir (`revoked_tokens`).
 - Event/media URL alanlari server tarafinda protokol dogrulamasi ile filtrelenir (`http/https` veya guvenli relative URL).
 - Lokal prompt yardimci dosyalari (`agentsmdpromptu.txt`, `güvenlikodyazmapromptu.txt`, `optimizasyonpromptu.txt`) gitignore altindadir.
 - Content-Security-Policy header aktif; CARRIER_WEBHOOK_SECRET prod'da zorunlu.
@@ -89,6 +92,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - `ENABLE_DEMO_ENDPOINTS`: `true` ise demo/temizleme endpoint'leri aktif olur.
 - `CARRIER_WEBHOOK_SECRET`: Carrier webhook endpoint gizli anahtarı.
 - `ENABLE_MANUAL_FULFILLMENT_OVERRIDE`: Acil durum manuel delivered override (`false` kalması önerilir).
+- `ENABLE_MANUAL_PAYMENT_OVERRIDE`: Acil durum manuel payment status override (`false` kalması önerilir).
 - `SUPER_ADMIN_EMAILS`: Override için yetkili super-admin e-posta listesi (virgülle ayrılmış).
 - `SQLITE_DB_PATH`: Opsiyonel veritabanı yolu (test ortamları için geçici DB tanımlamakta kullanılır).
 
@@ -103,7 +107,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 
 **Diğer:**
 - 64 UI bileşeni
-- 14+ veritabanı tablosu (orders/content/payment/fulfillment domain dahil)
+- 16+ veritabanı tablosu (orders/content/payment/fulfillment/security domain dahil)
 - 50+ API endpoint
 - 3 Context provider
 
@@ -116,6 +120,8 @@ users
 │  ├─ payment_attempts
 │  ├─ payment_events
 │  └─ fulfillment_events
+├─ revoked_tokens
+├─ rate_limits
 ├─ course_registrations
 ├─ user_addresses
 └─ user_payment_methods

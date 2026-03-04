@@ -53,16 +53,28 @@ const CONTACT_WINDOW_MS = 10 * 60 * 1000;
 const CONTACT_MAX_ATTEMPTS = 20;
 const CONTACT_RATE_LIMIT_MAX_ENTRIES = 20000;
 const MANUAL_FULFILLMENT_OVERRIDE_ENABLED = process.env.ENABLE_MANUAL_FULFILLMENT_OVERRIDE === 'true';
+const MANUAL_PAYMENT_OVERRIDE_ENABLED = process.env.ENABLE_MANUAL_PAYMENT_OVERRIDE === 'true';
 const CARRIER_WEBHOOK_SECRET = typeof process.env.CARRIER_WEBHOOK_SECRET === 'string'
   ? process.env.CARRIER_WEBHOOK_SECRET.trim()
   : '';
 const AUTH_TOKEN_SECRET = typeof process.env.AUTH_TOKEN_SECRET === 'string'
   ? process.env.AUTH_TOKEN_SECRET.trim()
   : '';
+const AUTH_TOKEN_TTL_MS = Number.isFinite(Number(process.env.AUTH_TOKEN_TTL_MS)) && Number(process.env.AUTH_TOKEN_TTL_MS) > 0
+  ? Number(process.env.AUTH_TOKEN_TTL_MS)
+  : 7 * 24 * 60 * 60 * 1000;
 const LEGACY_DEFAULT_ADMIN_EMAIL = 'admin@klr.com';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const MIN_TOKEN_SECRET_LENGTH = 32;
 const MIN_WEBHOOK_SECRET_LENGTH = 24;
+const AUTH_COOKIE_NAME = 'auth_token';
+const AUTH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: IS_PRODUCTION,
+  sameSite: 'lax',
+  path: '/',
+  maxAge: AUTH_TOKEN_TTL_MS,
+};
 const configuredAdminEmail = typeof process.env.DEFAULT_ADMIN_EMAIL === 'string'
   ? process.env.DEFAULT_ADMIN_EMAIL.trim().toLowerCase()
   : '';
@@ -120,6 +132,10 @@ if (IS_PRODUCTION && DEMO_ENDPOINTS_ENABLED) {
 
 if (MANUAL_FULFILLMENT_OVERRIDE_ENABLED) {
   console.warn('ENABLE_MANUAL_FULFILLMENT_OVERRIDE is enabled. Use only for controlled emergency operations.');
+}
+
+if (MANUAL_PAYMENT_OVERRIDE_ENABLED) {
+  console.warn('ENABLE_MANUAL_PAYMENT_OVERRIDE is enabled. Keep disabled for production unless emergency override is required.');
 }
 
 const getDefaultAdminEmail = () => {
@@ -418,7 +434,6 @@ const {
   contactMaxAttempts: CONTACT_MAX_ATTEMPTS,
   contactRateLimitMaxEntries: CONTACT_RATE_LIMIT_MAX_ENTRIES,
   demoEndpointsEnabled: DEMO_ENDPOINTS_ENABLED,
-  trustProxy: TRUST_PROXY,
 });
 
 app.use('/api', authenticateApiRequest);
@@ -438,6 +453,8 @@ registerAuthUserRoutes(app, {
   checkLoginRateLimit,
   recordLoginAttempt,
   checkRegistrationRateLimit,
+  authCookieName: AUTH_COOKIE_NAME,
+  authCookieOptions: AUTH_COOKIE_OPTIONS,
 });
 
 registerCommerceRoutes(app, {
