@@ -59,6 +59,11 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - `npm run test:db-safety`: Track edilen demo DB/fixture e-posta domain guvenlik kontrolu
 - `npm test`: Tüm testleri ardışık çalıştırır
 
+## Operasyon Komutlari
+
+- `npm --prefix server run backup:db`: SQLite icin snapshot backup alir (opsiyonel sifreleme + rotasyon)
+- `npm --prefix server run restore:db -- <backup-file>`: Belirtilen backup'tan DB restore eder
+
 ## Güvenlik Notları
 
 - API endpoint'leri token tabanlı kimlik doğrulama ile korunur.
@@ -70,6 +75,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - Demo/sıfırlama endpoint'leri sadece `ENABLE_DEMO_ENDPOINTS=true` olduğunda açılır.
 - HTML içerikleri istemci ve sunucuda sanitize edilir (XSS koruması).
 - Upload endpointlerinde mime/extension + magic-byte (dosya imzasi) kontrolu uygulanir.
+- Virus scan upload akisina baglidir; provider hatasinda production varsayimi fail-closed'dur.
 - `server/database/kinderlab.db` bu repoda bilincli olarak takip edilir; production secret/veri tutulmaz.
 - Public CMS endpoint'leri sadece `published` içerik döndürür; admin list endpoint'leri ayrıdır.
 - `shipping` durumuna geciste `carrier + tracking` zorunludur; `delivered` varsayilan olarak carrier webhook ile guncellenir.
@@ -112,6 +118,9 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - `ENABLE_MANUAL_PAYMENT_OVERRIDE`: Acil durum manuel payment status override (`false` kalması önerilir).
 - `SUPER_ADMIN_EMAILS`: Override için yetkili super-admin e-posta listesi (virgülle ayrılmış).
 - `SQLITE_DB_PATH`: Opsiyonel veritabanı yolu (test ortamları için geçici DB tanımlamakta kullanılır).
+- `ENABLE_LOGIN_CAPTCHA`, `LOGIN_CAPTCHA_THRESHOLD`, `CAPTCHA_SECRET`, `CAPTCHA_MIN_SCORE`: Login captcha ayarlari.
+- `ENABLE_VIRUS_SCAN`, `VIRUS_SCAN_COMMAND`, `VIRUS_SCAN_FAIL_OPEN`: Upload malware tarama ayarlari.
+- `SQLITE_BACKUP_DIR`, `SQLITE_BACKUP_KEEP_COUNT`, `SQLITE_BACKUP_RETENTION_DAYS`, `SQLITE_BACKUP_ENCRYPTION_KEY`: Backup/restore ayarlari.
 
 ## Proje Büyüklüğü
 

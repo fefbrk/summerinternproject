@@ -7,8 +7,10 @@
     "start": "node --env-file-if-exists=.env server.js",
     "dev": "nodemon --exec \"node --env-file-if-exists=.env\" server.js",
     "migrate": "node migrate-data.js",
-    "test": "node --test tests/api.integration.test.js tests/database.transaction.test.js",
-    "check:db-safety": "node scripts/checkTrackedDbSafety.js"
+    "test": "node --test tests/api.integration.test.js tests/database.transaction.test.js tests/security.virusScan.test.js",
+    "check:db-safety": "node scripts/checkTrackedDbSafety.js",
+    "backup:db": "node --env-file-if-exists=.env scripts/backupDatabase.js",
+    "restore:db": "node --env-file-if-exists=.env scripts/restoreDatabaseBackup.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

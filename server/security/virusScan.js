@@ -2,7 +2,21 @@ const { execFile } = require('node:child_process');
 
 const isVirusScanEnabled = () => process.env.ENABLE_VIRUS_SCAN === 'true';
 
-const isFailOpen = () => process.env.VIRUS_SCAN_FAIL_OPEN !== 'false';
+const isFailOpen = () => {
+  const configuredValue = typeof process.env.VIRUS_SCAN_FAIL_OPEN === 'string'
+    ? process.env.VIRUS_SCAN_FAIL_OPEN.trim().toLowerCase()
+    : '';
+
+  if (configuredValue === 'true') {
+    return true;
+  }
+
+  if (configuredValue === 'false') {
+    return false;
+  }
+
+  return process.env.NODE_ENV !== 'production';
+};
 
 const scanFileForMalware = (filePath) => {
   if (!isVirusScanEnabled()) {

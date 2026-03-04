@@ -4,7 +4,10 @@ PROD SECURITY CHECKLIST (KINDERLAB)
 
 - NODE_ENV=production
 - AUTH_TOKEN_SECRET=<en az 32 karakter guclu secret>
-- AUTH_TOKEN_TTL_MS=604800000
+- AUTH_TOKEN_TTL_MS=86400000
+- AUTH_REFRESH_TOKEN_SECRET=<access token secret'ten farkli guclu secret>
+- AUTH_REFRESH_TOKEN_TTL_MS=604800000
+- PII_ENCRYPTION_KEY=<32-byte gecerli utf8/base64/hex deger>
 - DEFAULT_ADMIN_EMAIL=<gecerli e-posta>
 - DEFAULT_ADMIN_PASSWORD=<guclu sifre>
 - CORS_ORIGINS=https://<frontend-domain>
@@ -19,7 +22,21 @@ PROD SECURITY CHECKLIST (KINDERLAB)
 - REGISTRATION_RATE_LIMIT_MAX_ENTRIES=10000
 - SQLITE_DB_PATH=<kalici disk/volume yolu>
 
-2) GO-LIVE ONCESI TESTLER
+2) OPSIYONEL GUVENLIK/OPERASYON ENV AYARLARI
+
+- ENABLE_LOGIN_CAPTCHA=<true/false>
+- LOGIN_CAPTCHA_THRESHOLD=<captcha tetikleme deneme sayisi>
+- CAPTCHA_SECRET=<provider secret>
+- CAPTCHA_MIN_SCORE=<0-1 arasi>
+- ENABLE_VIRUS_SCAN=<true/false>
+- VIRUS_SCAN_COMMAND=<clamscan veya uyumlu scanner komutu>
+- VIRUS_SCAN_FAIL_OPEN=<production icin false onerilir>
+- SQLITE_BACKUP_DIR=<yedek klasoru>
+- SQLITE_BACKUP_KEEP_COUNT=30
+- SQLITE_BACKUP_RETENTION_DAYS=30
+- SQLITE_BACKUP_ENCRYPTION_KEY=<32-byte utf8/base64/hex, opsiyonel>
+
+3) GO-LIVE ONCESI TESTLER
 
 - npm run lint
 - npm test
@@ -35,8 +52,11 @@ PROD SECURITY CHECKLIST (KINDERLAB)
   - ENABLE_MANUAL_PAYMENT_OVERRIDE=false iken /api/orders/:id/payment-status PUT => 403
 - Upload testi:
   - uzantisi image olup icerigi image olmayan dosya => 400
+- Backup smoke:
+  - npm --prefix server run backup:db
+  - restore dry-run: SQLITE_RESTORE_TARGET_PATH=<gecici db> npm --prefix server run restore:db -- <backup-file>
 
-3) ALTYAPI/KONFIGURASYON
+4) ALTYAPI/KONFIGURASYON
 
 - HTTPS zorunlu (TLS)
 - Reverse proxyde sadece gerekli origin ve headerlar acik
@@ -45,14 +65,15 @@ PROD SECURITY CHECKLIST (KINDERLAB)
 - server/.env repoda yok
 - Uygulama loglarinda sifre/token/secret loglanmiyor
 
-4) OPERASYONEL GUVENLIK
+5) OPERASYONEL GUVENLIK
 
-- Secret rotation plani (AUTH_TOKEN_SECRET, CARRIER_WEBHOOK_SECRET)
+- Secret rotation plani (AUTH_TOKEN_SECRET, AUTH_REFRESH_TOKEN_SECRET, CARRIER_WEBHOOK_SECRET)
 - Failed login / 401 / 429 oranlari izleniyor
 - rate_limits ve revoked_tokens tablolari periyodik kontrol ediliyor
+- security_events ve audit_logs haftalik inceleniyor
 - Acil durum disinda manual override flagleri acilmiyor
 
-5) RELEASE SONRASI HIZLI KONTROL
+6) RELEASE SONRASI HIZLI KONTROL
 
 - Admin paneli aciliyor ve order akisi sorunsuz
 - Payment alani adminde read-only gorunuyor

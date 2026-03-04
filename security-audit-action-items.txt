@@ -1,0 +1,155 @@
+================================================================================
+  KINDERLAB ROBOTICS - SECURITY ACTION PLAN (PROJECT-ALIGNED REVISION)
+================================================================================
+  Tarih: 2026-03-04
+  Durum: Mevcut guvenlik katmanlari guclu; odak artik operasyon ve dogrulama
+================================================================================
+
+Bu dokuman, mevcut kod tabanindaki gercek duruma gore guncellenmis aksiyon planidir.
+Amac: zaten aktif olan kontrolleri tekrar yazmak degil, acik kalan operasyonel riskleri
+kapatmak ve release-oncesi guvenlik kalitesini standardize etmektir.
+
+================================================================================
+  1) HEMEN TAMAMLANAN / KODDA MEVCUT (YENIDEN SINIFLANDIRILDI)
+================================================================================
+
+[x] CAPTCHA backend dogrulama aktif
+    Dosya: server/security/captcha.js, server/routes/authUserRoutes.js
+    Not: LOGIN_CAPTCHA_THRESHOLD ustunde captcha dogrulamasi yapiliyor.
+
+[x] Upload guvenligi aktif (signature + malware scan hook)
+    Dosya: server/routes/contentUploadRoutes.js, server/security/virusScan.js
+    Not: Dosya imzasi dogrulaniyor; malware scan fail-open varsayimi production'da
+         fail-closed olacak sekilde sertlestirildi.
+
+[x] Production env guard'lari kod tarafinda enforce ediliyor
+    Dosya: server/server.js
+    Not: AUTH_TOKEN_SECRET, CARRIER_WEBHOOK_SECRET, PII_ENCRYPTION_KEY,
+         ENABLE_DEMO_ENDPOINTS gibi kritik kontroller production'da zorunlu.
+
+[x] Security header katmani aktif
+    Dosya: server/server.js
+    Not: Helmet + CSP + permissions-policy aktif.
+
+[x] Dependency security audit workflow aktif
+    Dosya: .github/workflows/security.yml
+    Not: npm audit root + server tarafinda moderate seviyede calisiyor.
+
+[x] Dependabot otomatik update takibi eklendi
+    Dosya: .github/dependabot.yml
+    Not: root npm, server npm ve GitHub Actions haftalik takipte.
+
+[x] SQLite backup + restore scriptleri eklendi
+    Dosya: server/scripts/backupDatabase.js, server/scripts/restoreDatabaseBackup.js
+    Komutlar: npm --prefix server run backup:db, npm --prefix server run restore:db -- <backup-file>
+
+================================================================================
+  2) P0 - RELEASE BLOCKER (YAKIN VADEDE KAPANACAK)
+================================================================================
+
+[ ] P0-1 Malware scanner production deployment kararini finalize et
+    Durum: Kod hazir, operasyon eksik
+    Yapilacak:
+      - Production host/container'a scanner kur (clamscan veya kurum standardi)
+      - ENABLE_VIRUS_SCAN=true yap
+      - VIRUS_SCAN_COMMAND ve VIRUS_SCAN_FAIL_OPEN=false ayarla
+      - Kotu dosya yukleme smoke testi calistir
+    Risk: Malware upload denemelerinde tespit zinciri devre disi kalabilir.
+
+[ ] P0-2 Backup job schedule + restore drill'i operasyonel hale getir
+    Durum: Script var, scheduler yok
+    Yapilacak:
+      - backup:db komutunu cron/scheduled task ile gunluk calistir
+      - en az aylik restore provasi yap
+      - restore prosedurunu runbook'a yaz
+    Risk: Olay aninda geri donus suresi uzar.
+
+[ ] P0-3 Production env checklist'ini deploy pipeline'a bagla
+    Durum: Dokuman var, pipeline gate eksik
+    Yapilacak:
+      - prod-security-checklist.txt maddelerini release gate'e map et
+      - kritik env eksiginde deploy'u fail et
+    Risk: Yanlis env ile production'a cikma ihtimali.
+
+================================================================================
+  3) P1 - 30 GUN ICINDE (ONEMLI)
+================================================================================
+
+[ ] P1-1 Frontend CAPTCHA challenge akisini tamamla
+    Durum: Backend destekli, frontend challenge UX eksik
+    Yapilacak:
+      - CAPTCHA_REQUIRED code'u alindiginda challenge goster
+      - captchaToken ile login retry yap
+      - smoke test ekle
+    Risk: CAPTCHA aktif oldugunda kullanici login akisi aksayabilir.
+
+[ ] P1-2 Upload/security unhappy-path test kapsamini artir
+    Durum: Security test altyapisi var, upload negatif testleri dar
+    Yapilacak:
+      - malware scan reject senaryosu
+      - scanner provider error senaryosu
+      - invalid signature + mime mismatch kombinasyonlari
+    Risk: Regression'lar gec fark edilir.
+
+[ ] P1-3 Security event izleme runbook'u olustur
+    Durum: security_events/audit_logs var, operasyon proseduru daginik
+    Yapilacak:
+      - haftalik inceleme checklist'i
+      - alerted=1 olaylari icin SLA ve owner tanimi
+      - incident postmortem template'i
+    Risk: Sinyaller gorunse de aksiyona donusmeyebilir.
+
+[ ] P1-4 Error response format standardizasyonu
+    Durum: Core endpointler tutarli, tek format sozlesmesi eksik
+    Yapilacak:
+      - error response contract dokumani
+      - kritik endpointlerde code/trace alan standardi
+    Risk: Operasyon/izleme tarafinda teshis suresi uzar.
+
+================================================================================
+  4) P2 - BACKLOG / STRATEJIK
+================================================================================
+
+[ ] P2-1 CSP report pipeline (report endpoint + alert)
+    Not: Mevcut CSP guclu; bu madde hardening/observability iyilestirmesidir.
+
+[ ] P2-2 User-based rate limiting genisletmesi
+    Not: Mevcut IP + email hash modeli calisiyor; authenticated user bazli ek katman
+         ileri seviye ince ayar olarak degerlendirilmeli.
+
+[ ] P2-3 SQLite -> PostgreSQL gecis degerlendirmesi
+    Not: Guvenlikten cok olceklenebilirlik/mimari karari; ayri teknik roadmap konusu.
+
+[ ] P2-4 Duzenli pentest/SAST-DAST programi
+    Not: Uretim hacmi ve compliance ihtiyacina gore planlanmali.
+
+================================================================================
+  5) DEPLOYMENT ONCESI KISA GATE
+================================================================================
+
+[ ] npm run lint
+[ ] npm test
+[ ] npm run build -- --logLevel error
+[ ] npm audit --audit-level=moderate (root + server)
+[ ] ENABLE_DEMO_ENDPOINTS=false
+[ ] ENABLE_MANUAL_FULFILLMENT_OVERRIDE=false
+[ ] ENABLE_MANUAL_PAYMENT_OVERRIDE=false
+[ ] AUTH_TOKEN_SECRET >= 32 karakter
+[ ] AUTH_REFRESH_TOKEN_SECRET >= 32 karakter (onerilen)
+[ ] PII_ENCRYPTION_KEY gecerli 32-byte
+[ ] CARRIER_WEBHOOK_SECRET tanimli ve guclu
+[ ] Backup aliniyor + son restore provasi tarihi kayitli
+
+================================================================================
+  6) SAHIPLIK VE TAKIP
+================================================================================
+
+- Guvenlik Sorumlusu: _________________
+- Teknik Lider: _________________
+- DevOps Sorumlusu: _________________
+- Sonraki Denetim Tarihi: _________________
+
+Not:
+1) Bu dokuman yasayan bir plandir; her release sprintinde guncellenmelidir.
+2) Her madde icin owner + deadline + kanit (test/log/PR) tutulmalidir.
+3) P0 kapanmadan production release onerilmez.

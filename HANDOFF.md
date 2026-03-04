@@ -57,8 +57,11 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
 - Guvenlik izleme katmani aktif: admin mutating aksiyonlar `audit_logs`, access-control/rate-limit sinyalleri `security_events` tablosuna yazilir.
 - Security header katmani Helmet ile merkezilestirildi (CSP/HSTS/frame/noSniff/referrer/cross-origin).
 - Alert kurallari aktif: login failure threshold, admin mutation burst, business-hour disi admin mutasyon ve rate-limit ihlalleri `security_events.alerted=1` ile isaretlenir.
+- Virus scan davranisi sertlestirildi: `VIRUS_SCAN_FAIL_OPEN` tanimsizken production'da fail-closed, non-production'da fail-open varsayimi uygulanir.
+- SQLite backup/restore operasyon scriptleri eklendi: `npm --prefix server run backup:db`, `npm --prefix server run restore:db -- <backup-file>`.
+- Dependency patch surekliligi icin Dependabot eklendi: `.github/dependabot.yml`.
 - Test altyapisi guncel:
-  - Backend: `server/tests/api.integration.test.js`, `server/tests/database.transaction.test.js`
+  - Backend: `server/tests/api.integration.test.js`, `server/tests/database.transaction.test.js`, `server/tests/security.virusScan.test.js`
   - Frontend smoke: `src/test/smoke/auth-pages.smoke.test.tsx`
   - Tracked demo data safety check: `npm run test:db-safety`
   - CI: `.github/workflows/ci.yml` (`lint + test + build`).

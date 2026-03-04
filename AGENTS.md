@@ -70,6 +70,7 @@ Asagidaki roller mantiksal ayrimdir; tek agent birden fazla rol ustlenebilir.
 - Tracked demo data safety check (`npm run test:db-safety`)
 - Full test (`npm test`)
 - Nodemon (`server` icinde `npm run dev`)
+- DB backup/restore (`npm --prefix server run backup:db`, `npm --prefix server run restore:db -- <backup-file>`)
 
 ### 3.3 Agent Operasyon Araçlari
 
@@ -173,6 +174,10 @@ REGISTRATION_RATE_LIMIT_MAX_ENTRIES=10000
 LOGIN_LOCKOUT_WINDOW_MS=1800000
 LOGIN_LOCKOUT_MAX_ATTEMPTS=5
 LOGIN_LOCKOUT_RATE_LIMIT_MAX_ENTRIES=50000
+ENABLE_LOGIN_CAPTCHA=false
+LOGIN_CAPTCHA_THRESHOLD=3
+CAPTCHA_SECRET=<captcha-provider-secret>
+CAPTCHA_MIN_SCORE=0.5
 SECURITY_ALERT_LOGIN_FAILURE_THRESHOLD=5
 SECURITY_ALERT_ADMIN_WINDOW_MS=600000
 SECURITY_ALERT_ADMIN_MUTATION_THRESHOLD=15
@@ -186,10 +191,17 @@ CARRIER_WEBHOOK_SECRET=<long-random-webhook-secret>
 CARRIER_WEBHOOK_WINDOW_MS=60000
 CARRIER_WEBHOOK_MAX_ATTEMPTS=120
 CARRIER_WEBHOOK_RATE_LIMIT_MAX_ENTRIES=50000
+ENABLE_VIRUS_SCAN=false
+VIRUS_SCAN_COMMAND=clamscan
+VIRUS_SCAN_FAIL_OPEN=true
 ENABLE_MANUAL_FULFILLMENT_OVERRIDE=false
 ENABLE_MANUAL_PAYMENT_OVERRIDE=false
 SUPER_ADMIN_EMAILS=admin@example.com
 SQLITE_DB_PATH=./database/kinderlab.db
+SQLITE_BACKUP_DIR=./database/backups
+SQLITE_BACKUP_KEEP_COUNT=30
+SQLITE_BACKUP_RETENTION_DAYS=30
+SQLITE_BACKUP_ENCRYPTION_KEY=<optional-32-byte-utf8-base64-or-hex>
 ```
 
 Production notlari:
@@ -205,10 +217,13 @@ Production notlari:
 - `DEFAULT_ADMIN_PASSWORD` zorunlu
 - `ENABLE_DEMO_ENDPOINTS=false` kalmali
 - `CARRIER_WEBHOOK_SECRET` tanimli olmali (carrier webhook akisi icin)
+- `ENABLE_LOGIN_CAPTCHA=true` ise `CAPTCHA_SECRET` zorunludur
+- `VIRUS_SCAN_FAIL_OPEN` production'da normalde `false` olmalidir
 - `ENABLE_MANUAL_FULFILLMENT_OVERRIDE` normalde `false` kalmali (acil durum disinda acilmaz)
 - `ENABLE_MANUAL_PAYMENT_OVERRIDE` normalde `false` kalmali
 - `TRUST_PROXY` sadece reverse-proxy arkasinda `true` olmali
 - `SQLITE_DB_PATH` opsiyoneldir (test ortaminda gecici DB vermek icin kullanilir)
+- `SQLITE_BACKUP_ENCRYPTION_KEY` opsiyoneldir; tanimlanirsa backup dosyalari sifrelenir
 
 ## 8) Kurulum ve Kullanim
 
