@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 
-const DEFAULT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_ACCESS_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const MAX_TOKEN_LENGTH = 4096;
 let generatedDevelopmentTokenSecret = null;
@@ -13,7 +14,7 @@ const decodeBase64Url = (value) => {
   return Buffer.from(value, 'base64url').toString('utf8');
 };
 
-const getTokenSecret = () => {
+const getAccessTokenSecret = () => {
   const configuredSecret = process.env.AUTH_TOKEN_SECRET;
   if (typeof configuredSecret === 'string' && configuredSecret.trim()) {
     return configuredSecret;
@@ -31,39 +32,77 @@ const getTokenSecret = () => {
   return generatedDevelopmentTokenSecret;
 };
 
-const getTokenTtl = () => {
+const getRefreshTokenSecret = () => {
+  const configuredRefreshSecret = process.env.AUTH_REFRESH_TOKEN_SECRET;
+  if (typeof configuredRefreshSecret === 'string' && configuredRefreshSecret.trim()) {
+    return configuredRefreshSecret;
+  }
+
+  return getAccessTokenSecret();
+};
+
+const getAccessTokenTtl = () => {
   const ttl = Number(process.env.AUTH_TOKEN_TTL_MS);
   if (Number.isFinite(ttl) && ttl > 0) {
     return ttl;
   }
 
-  return DEFAULT_TOKEN_TTL_MS;
+  return DEFAULT_ACCESS_TOKEN_TTL_MS;
 };
 
-const signPayload = (encodedPayload) => {
+const getRefreshTokenTtl = () => {
+  const ttl = Number(process.env.AUTH_REFRESH_TOKEN_TTL_MS);
+  if (Number.isFinite(ttl) && ttl > 0) {
+    return ttl;
+  }
+
+  return DEFAULT_REFRESH_TOKEN_TTL_MS;
+};
+
+const signPayload = (encodedPayload, secret) => {
   return crypto
-    .createHmac('sha256', getTokenSecret())
+    .createHmac('sha256', secret)
     .update(encodedPayload)
     .digest('base64url');
 };
 
-const createAuthToken = (user) => {
+const createSignedToken = ({ user, ttlMs, tokenType, secret }) => {
   const issuedAt = Date.now();
   const payload = {
     sub: user.id,
     email: user.email,
     isAdmin: Boolean(user.isAdmin),
+    role: typeof user.role === 'string' && user.role.trim().length > 0 ? user.role : undefined,
+    typ: tokenType,
     jti: crypto.randomUUID(),
     iat: issuedAt,
-    exp: issuedAt + getTokenTtl()
+    exp: issuedAt + ttlMs,
   };
 
   const encodedPayload = encodeBase64Url(JSON.stringify(payload));
-  const signature = signPayload(encodedPayload);
+  const signature = signPayload(encodedPayload, secret);
   return `${encodedPayload}.${signature}`;
 };
 
-const verifyAuthToken = (token) => {
+const createAuthToken = (user) => {
+  return createSignedToken({
+    user,
+    ttlMs: getAccessTokenTtl(),
+    tokenType: 'access',
+    secret: getAccessTokenSecret(),
+  });
+};
+
+const createRefreshToken = (user) => {
+  return createSignedToken({
+    user,
+    ttlMs: getRefreshTokenTtl(),
+    tokenType: 'refresh',
+    secret: getRefreshTokenSecret(),
+  });
+};
+
+const verifySignedToken = (token, { expectedType, secret }) => {
   if (!token || typeof token !== 'string') {
     return null;
   }
@@ -78,7 +117,7 @@ const verifyAuthToken = (token) => {
   }
 
   const [encodedPayload, signature] = parts;
-  const expectedSignature = signPayload(encodedPayload);
+  const expectedSignature = signPayload(encodedPayload, secret);
 
   const providedSignatureBuffer = Buffer.from(signature);
   const expectedSignatureBuffer = Buffer.from(expectedSignature);
@@ -114,13 +153,43 @@ const verifyAuthToken = (token) => {
       return null;
     }
 
+    const tokenType = typeof payload.typ === 'string' ? payload.typ : 'access';
+    if (tokenType !== expectedType) {
+      return null;
+    }
+
     return payload;
   } catch (_error) {
     return null;
   }
 };
 
+const verifyAuthToken = (token) => {
+  return verifySignedToken(token, {
+    expectedType: 'access',
+    secret: getAccessTokenSecret(),
+  });
+};
+
+const verifyRefreshToken = (token) => {
+  return verifySignedToken(token, {
+    expectedType: 'refresh',
+    secret: getRefreshTokenSecret(),
+  });
+};
+
+const hashToken = (token) => {
+  if (typeof token !== 'string' || token.length === 0) {
+    return '';
+  }
+
+  return crypto.createHash('sha256').update(token).digest('hex');
+};
+
 module.exports = {
   createAuthToken,
-  verifyAuthToken
+  createRefreshToken,
+  verifyAuthToken,
+  verifyRefreshToken,
+  hashToken,
 };

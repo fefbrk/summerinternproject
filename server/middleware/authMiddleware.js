@@ -3,7 +3,6 @@ const crypto = require('node:crypto');
 const createAuthMiddleware = ({
   verifyAuthToken,
   database,
-  isSelfOrAdmin,
   loginWindowMs,
   loginMaxAttempts,
   registrationWindowMs = 15 * 60 * 1000,
@@ -17,6 +16,7 @@ const createAuthMiddleware = ({
   accountLockoutWindowMs = 30 * 60 * 1000,
   accountLockoutMaxAttempts = 5,
   accountLockoutRateLimitMaxEntries = 50000,
+  securityAlertLoginFailureThreshold = 5,
   logSecurityEvent = async () => {},
 }) => {
   const loginAttempts = new Map();
@@ -54,6 +54,33 @@ const createAuthMiddleware = ({
   };
 
   const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const ROLE_SET = new Set(['super_admin', 'admin', 'content_manager', 'support', 'user']);
+  const FULL_ADMIN_ROLES = new Set(['super_admin', 'admin']);
+  const CONTENT_ROLES = new Set(['super_admin', 'admin', 'content_manager']);
+  const SUPPORT_ROLES = new Set(['super_admin', 'admin', 'support']);
+
+  const normalizeUserRole = (role, isAdmin) => {
+    if (typeof role === 'string') {
+      const normalized = role.trim().toLowerCase();
+      if (ROLE_SET.has(normalized)) {
+        if (!isAdmin && normalized !== 'user') {
+          return 'user';
+        }
+
+        return normalized;
+      }
+    }
+
+    return isAdmin ? 'admin' : 'user';
+  };
+
+  const hasAnyRole = (user, roleSet) => {
+    if (!user || !roleSet || typeof roleSet.has !== 'function') {
+      return false;
+    }
+
+    return roleSet.has(normalizeUserRole(user.role, Boolean(user.isAdmin)));
+  };
 
   const normalizeRateLimitEmail = (value) => {
     if (typeof value !== 'string') {
@@ -96,6 +123,39 @@ const createAuthMiddleware = ({
     }
 
     return buildRateLimitKey('email', normalizedEmail);
+  };
+
+  const resolveRateLimitKeyType = (key) => {
+    if (typeof key !== 'string') {
+      return 'unknown';
+    }
+
+    if (key.startsWith('ip:')) {
+      return 'ip';
+    }
+
+    if (key.startsWith('email:')) {
+      return 'email_hash';
+    }
+
+    return 'unknown';
+  };
+
+  const emitRateLimitExceededEvent = ({ req, scope, key, count, resetAt, severity = 'high' }) => {
+    emitSecurityEvent({
+      eventType: 'RATE_LIMIT_EXCEEDED',
+      severity,
+      userId: req.user?.id || null,
+      email: req.body?.email || req.user?.email || '',
+      req,
+      details: {
+        scope,
+        keyType: resolveRateLimitKeyType(key),
+        count,
+        resetAt,
+      },
+      alerted: true,
+    });
   };
 
   const getRateLimitKeysForRequest = (req, includeEmail = false) => {
@@ -161,6 +221,13 @@ const createAuthMiddleware = ({
         for (const key of rateLimitKeys) {
           const state = await database.getRateLimitState('login', key, loginWindowMs, loginRateLimitMaxEntries);
           if (state.count >= loginMaxAttempts) {
+            emitRateLimitExceededEvent({
+              req,
+              scope: 'login',
+              key,
+              count: state.count,
+              resetAt: state.resetAt,
+            });
             return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
           }
         }
@@ -188,6 +255,13 @@ const createAuthMiddleware = ({
       }
 
       if (record.count >= loginMaxAttempts) {
+        emitRateLimitExceededEvent({
+          req,
+          scope: 'login',
+          key,
+          count: record.count,
+          resetAt: record.resetAt,
+        });
         return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
       }
     }
@@ -204,7 +278,24 @@ const createAuthMiddleware = ({
           if (success) {
             await database.resetRateLimit('login', key);
           } else {
-            await database.incrementRateLimit('login', key, loginWindowMs, loginRateLimitMaxEntries);
+            const state = await database.incrementRateLimit('login', key, loginWindowMs, loginRateLimitMaxEntries);
+            if (
+              key.startsWith('ip:')
+              && state.count === securityAlertLoginFailureThreshold
+            ) {
+              emitSecurityEvent({
+                eventType: 'AUTH_LOGIN_FAILURE_THRESHOLD',
+                severity: 'high',
+                email: req.body?.email || '',
+                req,
+                details: {
+                  attempts: state.count,
+                  threshold: securityAlertLoginFailureThreshold,
+                  resetAt: state.resetAt,
+                },
+                alerted: true,
+              });
+            }
           }
         }
 
@@ -237,7 +328,61 @@ const createAuthMiddleware = ({
 
       record.count += 1;
       loginAttempts.set(key, record);
+
+      if (key.startsWith('ip:') && record.count === securityAlertLoginFailureThreshold) {
+        emitSecurityEvent({
+          eventType: 'AUTH_LOGIN_FAILURE_THRESHOLD',
+          severity: 'high',
+          email: req.body?.email || '',
+          req,
+          details: {
+            attempts: record.count,
+            threshold: securityAlertLoginFailureThreshold,
+            resetAt: record.resetAt,
+          },
+          alerted: true,
+        });
+      }
     }
+  };
+
+  const getLoginAttemptCount = async (req) => {
+    const rateLimitKeys = getRateLimitKeysForRequest(req, true);
+    if (!rateLimitKeys.length) {
+      return 0;
+    }
+
+    if (hasPersistentRateLimitStore) {
+      try {
+        let maxCount = 0;
+        for (const key of rateLimitKeys) {
+          const state = await database.getRateLimitState('login', key, loginWindowMs, loginRateLimitMaxEntries);
+          const count = Number.isFinite(Number(state?.count)) ? Number(state.count) : 0;
+          maxCount = Math.max(maxCount, count);
+        }
+
+        return maxCount;
+      } catch (_error) {
+        return 0;
+      }
+    }
+
+    const now = Date.now();
+    pruneRateLimitMap(loginAttempts, now, loginRateLimitMaxEntries);
+
+    let maxCount = 0;
+    for (const key of rateLimitKeys) {
+      const record = loginAttempts.get(key);
+      if (!record || now > record.resetAt) {
+        continue;
+      }
+
+      if (Number.isFinite(Number(record.count))) {
+        maxCount = Math.max(maxCount, Number(record.count));
+      }
+    }
+
+    return maxCount;
   };
 
   const checkContactRateLimit = async (req, res, next) => {
@@ -247,6 +392,13 @@ const createAuthMiddleware = ({
       try {
         const state = await database.incrementRateLimit('contact', clientIp, contactWindowMs, contactRateLimitMaxEntries);
         if (state.count > contactMaxAttempts) {
+          emitRateLimitExceededEvent({
+            req,
+            scope: 'contact',
+            key: `ip:${clientIp}`,
+            count: state.count,
+            resetAt: state.resetAt,
+          });
           return res.status(429).json({ error: 'Too many requests. Please try again later.' });
         }
 
@@ -271,6 +423,13 @@ const createAuthMiddleware = ({
     }
 
     if (record.count >= contactMaxAttempts) {
+      emitRateLimitExceededEvent({
+        req,
+        scope: 'contact',
+        key: `ip:${clientIp}`,
+        count: record.count,
+        resetAt: record.resetAt,
+      });
       return res.status(429).json({ error: 'Too many requests. Please try again later.' });
     }
 
@@ -287,6 +446,13 @@ const createAuthMiddleware = ({
         for (const key of rateLimitKeys) {
           const state = await database.incrementRateLimit('register', key, registrationWindowMs, registrationRateLimitMaxEntries);
           if (state.count > registrationMaxAttempts) {
+            emitRateLimitExceededEvent({
+              req,
+              scope: 'register',
+              key,
+              count: state.count,
+              resetAt: state.resetAt,
+            });
             return res.status(429).json({ error: 'Too many registration attempts. Please try again later.' });
           }
         }
@@ -313,6 +479,13 @@ const createAuthMiddleware = ({
       }
 
       if (record.count >= registrationMaxAttempts) {
+        emitRateLimitExceededEvent({
+          req,
+          scope: 'register',
+          key,
+          count: record.count,
+          resetAt: record.resetAt,
+        });
         return res.status(429).json({ error: 'Too many registration attempts. Please try again later.' });
       }
 
@@ -351,6 +524,7 @@ const createAuthMiddleware = ({
               scope: 'login_lockout',
               retryAfterMs,
             },
+            alerted: true,
           });
 
           return res.status(423).json({
@@ -380,6 +554,7 @@ const createAuthMiddleware = ({
           scope: 'login_lockout',
           retryAfterMs,
         },
+        alerted: true,
       });
 
       return res.status(423).json({
@@ -422,6 +597,7 @@ const createAuthMiddleware = ({
               attempts: state.count,
               retryAfterMs: Math.max(0, Number(state.resetAt) - Date.now()),
             },
+            alerted: true,
           });
         }
 
@@ -467,6 +643,7 @@ const createAuthMiddleware = ({
           attempts: record.count,
           retryAfterMs: Math.max(0, Number(record.resetAt) - now),
         },
+        alerted: true,
       });
     }
   };
@@ -475,7 +652,7 @@ const createAuthMiddleware = ({
     const normalizedPath = req.path.replace(/\/+$/, '') || '/';
     const publicGetPattern = /^\/(blog|press-releases|media-coverage|events)(\/[^/]+)?$/;
     const isPublicRequest =
-      (req.method === 'POST' && (normalizedPath === '/login' || normalizedPath === '/register' || normalizedPath === '/contacts')) ||
+      (req.method === 'POST' && (normalizedPath === '/login' || normalizedPath === '/register' || normalizedPath === '/contacts' || normalizedPath === '/refresh')) ||
       (req.method === 'GET' && (normalizedPath === '/csrf-token' || publicGetPattern.test(normalizedPath)));
 
     if (isPublicRequest) {
@@ -521,52 +698,67 @@ const createAuthMiddleware = ({
       return res.status(401).json({ error: 'Token is no longer valid. Please log in again.' });
     }
 
+    const resolvedRole = normalizeUserRole(currentUser.role, Boolean(currentUser.isAdmin));
     req.user = {
       id: currentUser.id,
       email: currentUser.email,
-      isAdmin: Boolean(currentUser.isAdmin),
+      isAdmin: resolvedRole !== 'user',
+      role: resolvedRole,
     };
     req.authToken = token;
     req.authPayload = payload;
 
     const cmsWritePaths = ['/blog', '/press-releases', '/media-coverage', '/events'];
     for (const cmsPath of cmsWritePaths) {
-      if (normalizedPath.startsWith(cmsPath) && req.method !== 'GET' && !req.user.isAdmin) {
+      if (normalizedPath.startsWith(cmsPath) && req.method !== 'GET' && !hasAnyRole(req.user, CONTENT_ROLES)) {
         return res.status(403).json({ error: 'Admin access required' });
       }
     }
 
-    if (normalizedPath.startsWith('/admin/') && !req.user.isAdmin) {
+    if (normalizedPath.startsWith('/admin/')) {
+      const adminContentPaths = ['/admin/blog', '/admin/press-releases', '/admin/media-coverage', '/admin/events'];
+      const adminSupportPaths = ['/admin/orders', '/admin/registrations', '/admin/contacts'];
+
+      if (adminContentPaths.some((pathPrefix) => normalizedPath.startsWith(pathPrefix))) {
+        if (!hasAnyRole(req.user, CONTENT_ROLES)) {
+          return res.status(403).json({ error: 'Admin access required' });
+        }
+      } else if (adminSupportPaths.some((pathPrefix) => normalizedPath.startsWith(pathPrefix))) {
+        if (!hasAnyRole(req.user, SUPPORT_ROLES)) {
+          return res.status(403).json({ error: 'Admin access required' });
+        }
+      } else if (!hasAnyRole(req.user, FULL_ADMIN_ROLES)) {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+    }
+
+    if (normalizedPath.startsWith('/contacts') && req.method !== 'POST' && !hasAnyRole(req.user, SUPPORT_ROLES)) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    if (normalizedPath.startsWith('/contacts') && req.method !== 'POST' && !req.user.isAdmin) {
+    if (normalizedPath === '/users' && !hasAnyRole(req.user, FULL_ADMIN_ROLES)) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    if (normalizedPath === '/users' && !req.user.isAdmin) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    if (normalizedPath === '/users' && req.method === 'POST' && !req.user.isAdmin) {
+    if (normalizedPath === '/users' && req.method === 'POST' && !hasAnyRole(req.user, FULL_ADMIN_ROLES)) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
     const adminOnlyGetPaths = ['/orders', '/registrations'];
-    if (adminOnlyGetPaths.includes(normalizedPath) && req.method === 'GET' && !req.user.isAdmin) {
+    if (adminOnlyGetPaths.includes(normalizedPath) && req.method === 'GET' && !hasAnyRole(req.user, SUPPORT_ROLES)) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
     if (
       ((/^\/orders\/[^/]+\/status$/.test(normalizedPath) || (/^\/orders\/[^/]+$/.test(normalizedPath) && normalizedPath !== '/orders/my')) && req.method !== 'POST') &&
-      !req.user.isAdmin
+      !hasAnyRole(req.user, FULL_ADMIN_ROLES)
     ) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
     if (
       ((/^\/registrations\/[^/]+\/status$/.test(normalizedPath) || (/^\/registrations\/[^/]+$/.test(normalizedPath) && normalizedPath !== '/registrations/my')) && req.method !== 'POST') &&
-      !req.user.isAdmin
+      !hasAnyRole(req.user, FULL_ADMIN_ROLES)
     ) {
       return res.status(403).json({ error: 'Admin access required' });
     }
@@ -576,21 +768,25 @@ const createAuthMiddleware = ({
       if (!demoEndpointsEnabled) {
         return res.status(404).json({ error: 'Endpoint not available' });
       }
-      if (!req.user.isAdmin) {
+      if (!hasAnyRole(req.user, FULL_ADMIN_ROLES)) {
         return res.status(403).json({ error: 'Admin access required' });
       }
     }
 
     if (/^\/users\/[^/]+\/password$/.test(normalizedPath) && req.method === 'PUT') {
       const targetUserId = normalizedPath.split('/')[2];
-      if (!isSelfOrAdmin(req.user, targetUserId)) {
+      if (req.user.id !== targetUserId && !hasAnyRole(req.user, FULL_ADMIN_ROLES)) {
         return res.status(403).json({ error: 'Not authorized for this action' });
       }
     }
 
+    if (/^\/users\/[^/]+\/role$/.test(normalizedPath) && req.method === 'PUT' && !hasAnyRole(req.user, FULL_ADMIN_ROLES)) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
     if (/^\/users\/[^/]+$/.test(normalizedPath) && req.method === 'DELETE') {
       const targetUserId = normalizedPath.split('/')[2];
-      if (!isSelfOrAdmin(req.user, targetUserId)) {
+      if (req.user.id !== targetUserId && !hasAnyRole(req.user, FULL_ADMIN_ROLES)) {
         return res.status(403).json({ error: 'Not authorized for this action' });
       }
     }
@@ -606,6 +802,7 @@ const createAuthMiddleware = ({
     checkContactRateLimit,
     checkAccountLockout,
     recordAccountLoginAttempt,
+    getLoginAttemptCount,
   };
 };
 

@@ -1,3 +1,12 @@
+const {
+  addressCreateSchema,
+  addressUpdateSchema,
+  paymentMethodCreateSchema,
+  paymentMethodUpdateSchema,
+  privacyDeletionRequestSchema,
+  validateRequestBody,
+} = require('../utils/validationSchemas');
+
 const getCardType = (cardNumber) => {
   const firstDigit = cardNumber.charAt(0);
   if (firstDigit === '4') return 'visa';
@@ -12,7 +21,20 @@ const registerAccountRoutes = (app, deps) => {
     uuidv4,
     sanitizePlainText,
     isSelfOrAdmin,
+    logSecurityEvent = async () => {},
   } = deps;
+
+  const emitSecurityEvent = (payload) => {
+    if (typeof logSecurityEvent !== 'function') {
+      return;
+    }
+
+    try {
+      void logSecurityEvent(payload);
+    } catch (_error) {
+      // no-op
+    }
+  };
 
   app.get('/api/addresses/:userId', async (req, res) => {
     try {
@@ -32,18 +54,23 @@ const registerAccountRoutes = (app, deps) => {
 
   app.post('/api/addresses', async (req, res) => {
     try {
-      const userId = sanitizePlainText(req.body?.userId, 64);
-      const title = sanitizePlainText(req.body?.title, 120);
-      const type = sanitizePlainText(req.body?.type, 40);
-      const address = sanitizePlainText(req.body?.address, 300);
-      const apartment = sanitizePlainText(req.body?.apartment, 120);
-      const district = sanitizePlainText(req.body?.district, 120);
-      const city = sanitizePlainText(req.body?.city, 120);
-      const postalCode = sanitizePlainText(req.body?.postalCode, 32);
-      const province = sanitizePlainText(req.body?.province, 120);
-      const country = sanitizePlainText(req.body?.country, 120) || 'Turkey';
-      const hasIsDefault = typeof req.body?.isDefault === 'boolean';
-      const isDefault = hasIsDefault ? Boolean(req.body.isDefault) : undefined;
+      const parsedBody = validateRequestBody(addressCreateSchema, req.body || {});
+      if (!parsedBody.success) {
+        return res.status(400).json({ error: parsedBody.errorMessage || 'Invalid address payload' });
+      }
+
+      const userId = sanitizePlainText(parsedBody.data.userId, 64);
+      const title = sanitizePlainText(parsedBody.data.title, 120);
+      const type = sanitizePlainText(parsedBody.data.type, 40);
+      const address = sanitizePlainText(parsedBody.data.address, 300);
+      const apartment = sanitizePlainText(parsedBody.data.apartment, 120);
+      const district = sanitizePlainText(parsedBody.data.district, 120);
+      const city = sanitizePlainText(parsedBody.data.city, 120);
+      const postalCode = sanitizePlainText(parsedBody.data.postalCode, 32);
+      const province = sanitizePlainText(parsedBody.data.province, 120);
+      const country = sanitizePlainText(parsedBody.data.country, 120) || 'Turkey';
+      const hasIsDefault = typeof parsedBody.data.isDefault === 'boolean';
+      const isDefault = hasIsDefault ? Boolean(parsedBody.data.isDefault) : undefined;
 
       if (!isSelfOrAdmin(req.user, userId)) {
         return res.status(403).json({ error: 'Not authorized to create address for this user' });
@@ -96,17 +123,22 @@ const registerAccountRoutes = (app, deps) => {
         return res.status(403).json({ error: 'Not authorized to update this address' });
       }
 
-      const title = sanitizePlainText(req.body?.title, 120);
-      const type = sanitizePlainText(req.body?.type, 40);
-      const address = sanitizePlainText(req.body?.address, 300);
-      const apartment = sanitizePlainText(req.body?.apartment, 120);
-      const district = sanitizePlainText(req.body?.district, 120);
-      const city = sanitizePlainText(req.body?.city, 120);
-      const postalCode = sanitizePlainText(req.body?.postalCode, 32);
-      const province = sanitizePlainText(req.body?.province, 120);
-      const country = sanitizePlainText(req.body?.country, 120) || 'Turkey';
-      const hasIsDefault = typeof req.body?.isDefault === 'boolean';
-      const isDefault = hasIsDefault ? Boolean(req.body.isDefault) : undefined;
+      const parsedBody = validateRequestBody(addressUpdateSchema, req.body || {});
+      if (!parsedBody.success) {
+        return res.status(400).json({ error: parsedBody.errorMessage || 'Invalid address payload' });
+      }
+
+      const title = sanitizePlainText(parsedBody.data.title, 120);
+      const type = sanitizePlainText(parsedBody.data.type, 40);
+      const address = sanitizePlainText(parsedBody.data.address, 300);
+      const apartment = sanitizePlainText(parsedBody.data.apartment, 120);
+      const district = sanitizePlainText(parsedBody.data.district, 120);
+      const city = sanitizePlainText(parsedBody.data.city, 120);
+      const postalCode = sanitizePlainText(parsedBody.data.postalCode, 32);
+      const province = sanitizePlainText(parsedBody.data.province, 120);
+      const country = sanitizePlainText(parsedBody.data.country, 120) || 'Turkey';
+      const hasIsDefault = typeof parsedBody.data.isDefault === 'boolean';
+      const isDefault = hasIsDefault ? Boolean(parsedBody.data.isDefault) : undefined;
 
       if (!title || !address || !district || !city || !postalCode || !['delivery', 'billing'].includes(type)) {
         return res.status(400).json({ error: 'Invalid address payload' });
@@ -182,14 +214,19 @@ const registerAccountRoutes = (app, deps) => {
 
   app.post('/api/payment-methods', async (req, res) => {
     try {
-      const userId = sanitizePlainText(req.body?.userId, 64);
-      const cardTitle = sanitizePlainText(req.body?.cardTitle, 120);
-      const cardNumber = sanitizePlainText(req.body?.cardNumber, 32).replace(/\s+/g, '');
-      const expiryMonth = sanitizePlainText(req.body?.expiryMonth, 2);
-      const expiryYear = sanitizePlainText(req.body?.expiryYear, 4);
-      const holderName = sanitizePlainText(req.body?.holderName, 120);
-      const hasIsDefault = typeof req.body?.isDefault === 'boolean';
-      const isDefault = hasIsDefault ? Boolean(req.body.isDefault) : undefined;
+      const parsedBody = validateRequestBody(paymentMethodCreateSchema, req.body || {});
+      if (!parsedBody.success) {
+        return res.status(400).json({ error: parsedBody.errorMessage || 'Invalid payment method payload' });
+      }
+
+      const userId = sanitizePlainText(parsedBody.data.userId, 64);
+      const cardTitle = sanitizePlainText(parsedBody.data.cardTitle, 120);
+      const cardNumber = sanitizePlainText(parsedBody.data.cardNumber, 32).replace(/\s+/g, '');
+      const expiryMonth = sanitizePlainText(parsedBody.data.expiryMonth, 2);
+      const expiryYear = sanitizePlainText(parsedBody.data.expiryYear, 4);
+      const holderName = sanitizePlainText(parsedBody.data.holderName, 120);
+      const hasIsDefault = typeof parsedBody.data.isDefault === 'boolean';
+      const isDefault = hasIsDefault ? Boolean(parsedBody.data.isDefault) : undefined;
 
       if (!isSelfOrAdmin(req.user, userId)) {
         return res.status(403).json({ error: 'Not authorized to create payment method for this user' });
@@ -239,13 +276,18 @@ const registerAccountRoutes = (app, deps) => {
         return res.status(403).json({ error: 'Not authorized to update this payment method' });
       }
 
-      const cardTitle = sanitizePlainText(req.body?.cardTitle, 120);
-      const cardNumber = sanitizePlainText(req.body?.cardNumber, 32).replace(/\s+/g, '');
-      const expiryMonth = sanitizePlainText(req.body?.expiryMonth, 2);
-      const expiryYear = sanitizePlainText(req.body?.expiryYear, 4);
-      const holderName = sanitizePlainText(req.body?.holderName, 120);
-      const hasIsDefault = typeof req.body?.isDefault === 'boolean';
-      const isDefault = hasIsDefault ? Boolean(req.body.isDefault) : undefined;
+      const parsedBody = validateRequestBody(paymentMethodUpdateSchema, req.body || {});
+      if (!parsedBody.success) {
+        return res.status(400).json({ error: parsedBody.errorMessage || 'Invalid payment method payload' });
+      }
+
+      const cardTitle = sanitizePlainText(parsedBody.data.cardTitle, 120);
+      const cardNumber = sanitizePlainText(parsedBody.data.cardNumber, 32).replace(/\s+/g, '');
+      const expiryMonth = sanitizePlainText(parsedBody.data.expiryMonth, 2);
+      const expiryYear = sanitizePlainText(parsedBody.data.expiryYear, 4);
+      const holderName = sanitizePlainText(parsedBody.data.holderName, 120);
+      const hasIsDefault = typeof parsedBody.data.isDefault === 'boolean';
+      const isDefault = hasIsDefault ? Boolean(parsedBody.data.isDefault) : undefined;
 
       const updatedPaymentMethod = {
         cardTitle: cardTitle || undefined,
@@ -295,6 +337,134 @@ const registerAccountRoutes = (app, deps) => {
     } catch (error) {
       console.error('Error deleting payment method:', error);
       res.status(500).json({ error: 'Failed to delete payment method' });
+    }
+  });
+
+  app.get('/api/account/privacy/export', async (req, res) => {
+    try {
+      const currentUser = await database.getUserById(req.user.id);
+      if (!currentUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const [orders, registrations, addresses, paymentMethods, requests] = await Promise.all([
+        database.getOrdersByUserId(req.user.id),
+        database.getRegistrationsByUserId(req.user.id),
+        database.getUserAddresses(req.user.id),
+        database.getUserPaymentMethods(req.user.id),
+        typeof database.getPrivacyRequestsByUserId === 'function'
+          ? database.getPrivacyRequestsByUserId(req.user.id)
+          : Promise.resolve([]),
+      ]);
+
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        user: {
+          id: currentUser.id,
+          email: currentUser.email,
+          name: currentUser.name,
+          isAdmin: Boolean(currentUser.isAdmin),
+          role: currentUser.role,
+          createdAt: currentUser.createdAt,
+          updatedAt: currentUser.updatedAt,
+        },
+        addresses,
+        paymentMethods,
+        orders,
+        registrations,
+        privacyRequests: requests,
+      };
+
+      if (typeof database.createPrivacyRequest === 'function') {
+        const now = new Date().toISOString();
+        await database.createPrivacyRequest({
+          id: uuidv4(),
+          userId: req.user.id,
+          requestType: 'export',
+          status: 'completed',
+          reason: null,
+          payload: {
+            generatedAt: now,
+          },
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+
+      emitSecurityEvent({
+        eventType: 'PRIVACY_EXPORT_COMPLETED',
+        severity: 'medium',
+        userId: req.user.id,
+        email: req.user.email,
+        req,
+      });
+
+      return res.json(payload);
+    } catch (error) {
+      console.error('Error exporting privacy data:', error);
+      return res.status(500).json({ error: 'Failed to export privacy data' });
+    }
+  });
+
+  app.post('/api/account/privacy/deletion-request', async (req, res) => {
+    try {
+      const parsedBody = validateRequestBody(privacyDeletionRequestSchema, req.body || {});
+      if (!parsedBody.success) {
+        return res.status(400).json({ error: parsedBody.errorMessage || 'Invalid deletion request payload' });
+      }
+
+      if (typeof database.createPrivacyRequest !== 'function') {
+        return res.status(503).json({ error: 'Privacy requests are not available' });
+      }
+
+      const now = new Date().toISOString();
+      const requestId = uuidv4();
+      await database.createPrivacyRequest({
+        id: requestId,
+        userId: req.user.id,
+        requestType: 'deletion',
+        status: 'requested',
+        reason: sanitizePlainText(parsedBody.data.reason || '', 500) || null,
+        payload: {
+          requestedBy: req.user.id,
+        },
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      emitSecurityEvent({
+        eventType: 'PRIVACY_DELETION_REQUESTED',
+        severity: 'high',
+        userId: req.user.id,
+        email: req.user.email,
+        req,
+        details: {
+          requestId,
+        },
+        alerted: true,
+      });
+
+      return res.status(202).json({
+        id: requestId,
+        status: 'requested',
+      });
+    } catch (error) {
+      console.error('Error creating deletion request:', error);
+      return res.status(500).json({ error: 'Failed to create deletion request' });
+    }
+  });
+
+  app.get('/api/account/privacy/requests', async (req, res) => {
+    try {
+      if (typeof database.getPrivacyRequestsByUserId !== 'function') {
+        return res.json([]);
+      }
+
+      const requests = await database.getPrivacyRequestsByUserId(req.user.id);
+      return res.json(requests);
+    } catch (error) {
+      console.error('Error fetching privacy requests:', error);
+      return res.status(500).json({ error: 'Failed to fetch privacy requests' });
     }
   });
 };

@@ -55,6 +55,8 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
 - Carrier webhook endpoint'i rate-limit ile korunur (`CARRIER_WEBHOOK_*` ayarlari).
 - API parser katmaninda strict JSON + body-size limit + payload-structure guard aktif (malformed/oversized payload 400/413).
 - Guvenlik izleme katmani aktif: admin mutating aksiyonlar `audit_logs`, access-control/rate-limit sinyalleri `security_events` tablosuna yazilir.
+- Security header katmani Helmet ile merkezilestirildi (CSP/HSTS/frame/noSniff/referrer/cross-origin).
+- Alert kurallari aktif: login failure threshold, admin mutation burst, business-hour disi admin mutasyon ve rate-limit ihlalleri `security_events.alerted=1` ile isaretlenir.
 - Test altyapisi guncel:
   - Backend: `server/tests/api.integration.test.js`, `server/tests/database.transaction.test.js`
   - Frontend smoke: `src/test/smoke/auth-pages.smoke.test.tsx`

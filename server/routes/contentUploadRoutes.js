@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const { isValidUploadedImage } = require('../utils/imageSignature');
+const { scanFileForMalware } = require('../security/virusScan');
 
 const registerContentUploadRoutes = (app, deps) => {
   const {
@@ -16,7 +17,17 @@ const registerContentUploadRoutes = (app, deps) => {
     });
 
     if (isValid) {
-      return true;
+      const malwareScanResult = await scanFileForMalware(req.file?.path);
+      if (malwareScanResult.clean) {
+        return true;
+      }
+
+      if (req.file?.path) {
+        await fs.promises.unlink(req.file.path).catch(() => undefined);
+      }
+
+      res.status(400).json({ error: 'Uploaded file failed security scan' });
+      return false;
     }
 
     if (req.file?.path) {

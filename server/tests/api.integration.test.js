@@ -24,6 +24,10 @@ process.env.CARRIER_WEBHOOK_MAX_ATTEMPTS = '5';
 process.env.CARRIER_WEBHOOK_WINDOW_MS = '60000';
 process.env.LOGIN_LOCKOUT_MAX_ATTEMPTS = '3';
 process.env.LOGIN_LOCKOUT_WINDOW_MS = '600000';
+process.env.SECURITY_ALERT_LOGIN_FAILURE_THRESHOLD = '2';
+const currentHour = new Date().getHours();
+process.env.SECURITY_ALERT_BUSINESS_HOUR_START = String((currentHour + 1) % 24);
+process.env.SECURITY_ALERT_BUSINESS_HOUR_END = String((currentHour + 2) % 24);
 process.env.ENABLE_MANUAL_FULFILLMENT_OVERRIDE = 'false';
 process.env.ENABLE_MANUAL_PAYMENT_OVERRIDE = 'true';
 process.env.SUPER_ADMIN_EMAILS = process.env.DEFAULT_ADMIN_EMAIL;
@@ -899,6 +903,24 @@ test('public contact endpoint is rate-limited', async () => {
   assert.equal(lastResponse.status, 429);
 });
 
+test('helmet-based security headers are returned', async () => {
+  const response = await fetch(`${baseUrl}/api/csrf-token`, {
+    method: 'GET',
+    headers: {
+      Origin: TEST_ORIGIN,
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('x-frame-options'), 'DENY');
+  assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(response.headers.get('cross-origin-opener-policy'), 'same-origin');
+
+  const cspHeader = response.headers.get('content-security-policy') || '';
+  assert.ok(cspHeader.includes("default-src 'self'"));
+  assert.ok(cspHeader.includes("frame-ancestors 'none'"));
+});
+
 test('csrf protection rejects missing token and untrusted origins', async () => {
   const missingCsrfResponse = await fetch(`${baseUrl}/api/login`, {
     method: 'POST',
@@ -959,6 +981,19 @@ test('register endpoint is rate-limited', async () => {
   }
 
   assert.equal(hitRateLimit, true);
+
+  const rateLimitAlert = await database.get(
+    `SELECT event_type as eventType, alerted
+     FROM security_events
+     WHERE event_type = ?
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    ['RATE_LIMIT_EXCEEDED']
+  );
+
+  assert.ok(rateLimitAlert);
+  assert.equal(rateLimitAlert.eventType, 'RATE_LIMIT_EXCEEDED');
+  assert.equal(rateLimitAlert.alerted, 1);
 });
 
 test('login endpoint applies account lockout after repeated failures', async () => {
@@ -999,6 +1034,19 @@ test('login endpoint applies account lockout after repeated failures', async () 
     lockedLogin.data.error,
     'Account temporarily locked due to repeated failed login attempts. Please try again later.'
   );
+
+  const failureThresholdAlert = await database.get(
+    `SELECT event_type as eventType, alerted
+     FROM security_events
+     WHERE event_type = ?
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    ['AUTH_LOGIN_FAILURE_THRESHOLD']
+  );
+
+  assert.ok(failureThresholdAlert);
+  assert.equal(failureThresholdAlert.eventType, 'AUTH_LOGIN_FAILURE_THRESHOLD');
+  assert.equal(failureThresholdAlert.alerted, 1);
 });
 
 test('prototype-pollution style payloads are rejected', async () => {
@@ -1074,6 +1122,19 @@ test('admin mutating actions are written to audit logs', async () => {
 
   const parsedNewValue = JSON.parse(auditLogRow.newValue || '{}');
   assert.equal(parsedNewValue.statusCode, 201);
+
+  const businessHourAlert = await database.get(
+    `SELECT event_type as eventType, alerted
+     FROM security_events
+     WHERE event_type = ? AND user_id = ?
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    ['ADMIN_ACTION_OUTSIDE_BUSINESS_HOURS', adminUserId]
+  );
+
+  assert.ok(businessHourAlert);
+  assert.equal(businessHourAlert.eventType, 'ADMIN_ACTION_OUTSIDE_BUSINESS_HOURS');
+  assert.equal(businessHourAlert.alerted, 1);
 });
 
 test('malformed JSON and oversized request payloads are rejected safely', async () => {

@@ -5,9 +5,11 @@
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
+    email_hash TEXT,
     name TEXT NOT NULL,
     password TEXT NOT NULL,
     is_admin INTEGER NOT NULL DEFAULT 0, -- 0 = false, 1 = true
+    role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('super_admin', 'admin', 'content_manager', 'support', 'user')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL DEFAULT ''
 );
@@ -103,6 +105,19 @@ CREATE TABLE IF NOT EXISTS revoked_tokens (
     reason TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    jti TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    last_used_at INTEGER NOT NULL,
+    revoked_at INTEGER,
+    replaced_by_jti TEXT,
+    reason TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS rate_limits (
     scope TEXT NOT NULL,
     key TEXT NOT NULL,
@@ -138,6 +153,18 @@ CREATE TABLE IF NOT EXISTS security_events (
     alerted INTEGER NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS privacy_requests (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    request_type TEXT NOT NULL CHECK (request_type IN ('deletion', 'export')),
+    status TEXT NOT NULL DEFAULT 'requested' CHECK (status IN ('requested', 'processing', 'completed', 'rejected')),
+    reason TEXT,
+    payload TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_order_id ON payment_attempts(order_id);
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_status ON payment_attempts(status);
 CREATE INDEX IF NOT EXISTS idx_payment_events_order_id ON payment_events(order_id);
@@ -145,11 +172,15 @@ CREATE INDEX IF NOT EXISTS idx_fulfillment_events_order_id ON fulfillment_events
 CREATE INDEX IF NOT EXISTS idx_fulfillment_events_source ON fulfillment_events(source);
 CREATE INDEX IF NOT EXISTS idx_fulfillment_events_provider_event ON fulfillment_events(shipment_provider, provider_event_id);
 CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires_at ON revoked_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
 CREATE INDEX IF NOT EXISTS idx_rate_limits_scope_reset ON rate_limits(scope, reset_at);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_user_created ON audit_logs(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
 CREATE INDEX IF NOT EXISTS idx_security_events_type_created ON security_events(event_type, created_at);
 CREATE INDEX IF NOT EXISTS idx_security_events_severity_created ON security_events(severity, created_at);
+CREATE INDEX IF NOT EXISTS idx_privacy_requests_user_id ON privacy_requests(user_id);
+CREATE INDEX IF NOT EXISTS idx_privacy_requests_type_status ON privacy_requests(request_type, status);
 
 -- Course Registrations Table
 CREATE TABLE IF NOT EXISTS course_registrations (
@@ -215,6 +246,7 @@ CREATE TABLE IF NOT EXISTS press_releases (
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_email_hash ON users(email_hash);
 CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);

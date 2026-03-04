@@ -1,6 +1,14 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
+const crypto = require('node:crypto');
+const {
+    decryptPii,
+    encryptPii,
+    hashLookupValue,
+    isEncryptedValue,
+    isPiiEncryptionEnabled,
+} = require('../security/piiCrypto');
 
 // Veritabanı dosya yolu
 const resolveDatabasePath = () => {
@@ -17,6 +25,23 @@ const resolveDatabasePath = () => {
 
 const DB_PATH = resolveDatabasePath();
 const DB_DIR = path.dirname(DB_PATH);
+const USER_ROLES = new Set(['super_admin', 'admin', 'content_manager', 'support', 'user']);
+
+const normalizeRole = (value) => {
+    if (typeof value !== 'string') {
+        return '';
+    }
+
+    const normalized = value.trim().toLowerCase();
+    return USER_ROLES.has(normalized) ? normalized : '';
+};
+
+const SUPER_ADMIN_EMAILS = new Set(
+    String(process.env.SUPER_ADMIN_EMAILS || process.env.DEFAULT_ADMIN_EMAIL || '')
+        .split(',')
+        .map((email) => String(email || '').trim().toLowerCase())
+        .filter(Boolean)
+);
 
 if (!fs.existsSync(DB_DIR)) {
     fs.mkdirSync(DB_DIR, { recursive: true });
@@ -25,6 +50,111 @@ if (!fs.existsSync(DB_DIR)) {
 class Database {
     constructor() {
         this.db = null;
+    }
+
+    isPiiCryptoEnabled() {
+        return isPiiEncryptionEnabled();
+    }
+
+    encryptPiiValue(value) {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        return encryptPii(value);
+    }
+
+    decryptPiiValue(value) {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        return decryptPii(value);
+    }
+
+    hashLookupValue(value) {
+        return hashLookupValue(value);
+    }
+
+    normalizeUserRole(role, isAdmin, email) {
+        const normalizedRole = normalizeRole(role);
+        if (normalizedRole) {
+            if (normalizedRole === 'super_admin') {
+                const normalizedEmail = String(email || '').trim().toLowerCase();
+                return SUPER_ADMIN_EMAILS.has(normalizedEmail) ? 'super_admin' : 'admin';
+            }
+
+            if (!isAdmin && normalizedRole !== 'user') {
+                return 'user';
+            }
+
+            return normalizedRole;
+        }
+
+        if (!isAdmin) {
+            return 'user';
+        }
+
+        const normalizedEmail = String(email || '').trim().toLowerCase();
+        return SUPER_ADMIN_EMAILS.has(normalizedEmail) ? 'super_admin' : 'admin';
+    }
+
+    toNormalizedEmail(value) {
+        return typeof value === 'string' ? value.trim().toLowerCase() : '';
+    }
+
+    isEncryptedPiiValue(value) {
+        return isEncryptedValue(value);
+    }
+
+    maybeEncryptJson(value) {
+        if (typeof value !== 'string') {
+            return value;
+        }
+
+        return this.encryptPiiValue(value);
+    }
+
+    maybeDecryptJson(value, fallback) {
+        if (typeof value !== 'string' || value.length === 0) {
+            return fallback;
+        }
+
+        const decrypted = this.decryptPiiValue(value);
+        return this.safeJsonParse(decrypted, fallback);
+    }
+
+    maybeEncryptEmail(value) {
+        const normalized = this.toNormalizedEmail(value);
+        return this.encryptPiiValue(normalized);
+    }
+
+    maybeDecryptEmail(value) {
+        const decrypted = this.decryptPiiValue(value);
+        return this.toNormalizedEmail(decrypted);
+    }
+
+    mapUserRow(user) {
+        if (!user) {
+            return user;
+        }
+
+        const decryptedEmail = this.maybeDecryptEmail(user.email);
+        const normalizedRole = this.normalizeUserRole(user.role, Boolean(user.isAdmin), decryptedEmail);
+        return {
+            ...user,
+            email: decryptedEmail,
+            role: normalizedRole,
+            isAdmin: Boolean(user.isAdmin),
+        };
+    }
+
+    hashTokenValue(token) {
+        if (typeof token !== 'string' || token.length === 0) {
+            return '';
+        }
+
+        return crypto.createHash('sha256').update(token).digest('hex');
     }
 
     safeJsonParse(value, fallback) {
@@ -86,7 +216,9 @@ class Database {
             shipmentTrackingNumber: typeof order.shipmentTrackingNumber === 'string' ? order.shipmentTrackingNumber : null,
             fulfillmentSource: typeof order.fulfillmentSource === 'string' ? order.fulfillmentSource : 'manual',
             fulfillmentUpdatedAt: typeof order.fulfillmentUpdatedAt === 'string' ? order.fulfillmentUpdatedAt : null,
-            shippingAddress: order.shippingAddress ? this.safeJsonParse(order.shippingAddress, {}) : {},
+            customerName: this.decryptPiiValue(order.customerName),
+            customerEmail: this.maybeDecryptEmail(order.customerEmail),
+            shippingAddress: this.maybeDecryptJson(order.shippingAddress, {}),
             items: this.normalizeOrderItems(parsedItems)
         };
     }
@@ -180,12 +312,20 @@ class Database {
             await this.ensureFulfillmentTables();
             // Revoke ve rate-limit tablolarini olustur
             await this.ensureSecurityTables();
+            // Refresh token tablosunu olustur
+            await this.ensureRefreshTokenTables();
             // Audit ve security event tablolarini olustur
             await this.ensureAuditTables();
+            // Privacy request tablosunu olustur
+            await this.ensurePrivacyTables();
             // Users tablosuna updated_at kolonu ekle
             await this.addUpdatedAtColumnToUsers();
+            // Users tablosuna role/email_hash kolonlari ekle
+            await this.addRoleAndEmailHashColumnsToUsers();
             // Orders tablosuna order_notes kolonu ekle
             await this.addOrderNotesColumnToOrders();
+            // Mevcut PII alanlarini sartlara gore sifrele
+            await this.migrateExistingPiiData();
             console.log('Veritabanı migrasyonları başarıyla çalıştırıldı');
         } catch (error) {
             console.error('Migrasyon hatası:', error);
@@ -588,6 +728,221 @@ class Database {
         }
     }
 
+    async ensureRefreshTokenTables() {
+        try {
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS refresh_tokens (
+                    jti TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    token_hash TEXT NOT NULL UNIQUE,
+                    expires_at INTEGER NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    last_used_at INTEGER NOT NULL,
+                    revoked_at INTEGER,
+                    replaced_by_jti TEXT,
+                    reason TEXT NOT NULL DEFAULT '',
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+                )
+            `);
+
+            await this.run('CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id)');
+            await this.run('CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expires_at)');
+        } catch (error) {
+            console.error('Refresh token tablo migrasyonu hatası:', error);
+            throw error;
+        }
+    }
+
+    async ensurePrivacyTables() {
+        try {
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS privacy_requests (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    request_type TEXT NOT NULL CHECK (request_type IN ('deletion', 'export')),
+                    status TEXT NOT NULL DEFAULT 'requested' CHECK (status IN ('requested', 'processing', 'completed', 'rejected')),
+                    reason TEXT,
+                    payload TEXT NOT NULL DEFAULT '{}',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+                )
+            `);
+
+            await this.run('CREATE INDEX IF NOT EXISTS idx_privacy_requests_user_id ON privacy_requests(user_id)');
+            await this.run('CREATE INDEX IF NOT EXISTS idx_privacy_requests_type_status ON privacy_requests(request_type, status)');
+        } catch (error) {
+            console.error('Privacy request tablo migrasyonu hatası:', error);
+            throw error;
+        }
+    }
+
+    async addRoleAndEmailHashColumnsToUsers() {
+        try {
+            const tableExists = await this.get(`
+                SELECT name FROM sqlite_master
+                WHERE type='table' AND name='users'
+            `);
+
+            if (!tableExists) {
+                return;
+            }
+
+            const columnInfo = await this.all('PRAGMA table_info(users)');
+            const hasRole = columnInfo.some((column) => column.name === 'role');
+            const hasEmailHash = columnInfo.some((column) => column.name === 'email_hash');
+
+            if (!hasRole) {
+                await this.run(`
+                    ALTER TABLE users
+                    ADD COLUMN role TEXT NOT NULL DEFAULT 'user'
+                `);
+
+                await this.run(`
+                    UPDATE users
+                    SET role = CASE WHEN is_admin = 1 THEN 'admin' ELSE 'user' END
+                    WHERE role IS NULL OR TRIM(role) = ''
+                `);
+
+                console.log('Users tablosuna role kolonu eklendi');
+            }
+
+            if (!hasEmailHash) {
+                await this.run(`
+                    ALTER TABLE users
+                    ADD COLUMN email_hash TEXT
+                `);
+
+                console.log('Users tablosuna email_hash kolonu eklendi');
+            }
+
+            await this.run('CREATE INDEX IF NOT EXISTS idx_users_email_hash ON users(email_hash)');
+
+            const users = await this.all('SELECT id, email, is_admin as isAdmin, role FROM users');
+            for (const user of users) {
+                const decryptedEmail = this.maybeDecryptEmail(user.email);
+                const resolvedRole = this.normalizeUserRole(user.role, Boolean(user.isAdmin), decryptedEmail);
+                await this.run(
+                    'UPDATE users SET role = ?, email_hash = ? WHERE id = ?',
+                    [resolvedRole, this.hashLookupValue(decryptedEmail), user.id]
+                );
+            }
+        } catch (error) {
+            console.error('Users role/email_hash kolon migrasyonu hatası:', error);
+            throw error;
+        }
+    }
+
+    async migrateExistingPiiData() {
+        if (!this.isPiiCryptoEnabled()) {
+            return;
+        }
+
+        try {
+            const users = await this.all('SELECT id, email, email_hash FROM users');
+            for (const user of users) {
+                const decryptedEmail = this.maybeDecryptEmail(user.email);
+                const encryptedEmail = this.isEncryptedPiiValue(user.email)
+                    ? user.email
+                    : this.maybeEncryptEmail(decryptedEmail);
+                await this.run('UPDATE users SET email = ?, email_hash = ? WHERE id = ?', [
+                    encryptedEmail,
+                    this.hashLookupValue(decryptedEmail),
+                    user.id,
+                ]);
+            }
+
+            const orders = await this.all('SELECT id, customer_name as customerName, customer_email as customerEmail, shipping_address as shippingAddress FROM orders');
+            for (const order of orders) {
+                const customerName = this.decryptPiiValue(order.customerName || '');
+                const customerEmail = this.maybeDecryptEmail(order.customerEmail || '');
+                const shippingAddress = this.maybeDecryptJson(order.shippingAddress || '', {});
+                await this.run(
+                    'UPDATE orders SET customer_name = ?, customer_email = ?, shipping_address = ? WHERE id = ?',
+                    [
+                        this.isEncryptedPiiValue(order.customerName) ? order.customerName : this.encryptPiiValue(customerName),
+                        this.isEncryptedPiiValue(order.customerEmail) ? order.customerEmail : this.maybeEncryptEmail(customerEmail),
+                        this.isEncryptedPiiValue(order.shippingAddress) ? order.shippingAddress : this.maybeEncryptJson(JSON.stringify(shippingAddress || {})),
+                        order.id,
+                    ]
+                );
+            }
+
+            const registrations = await this.all(`
+                SELECT id, customer_email as customerEmail, customer_phone as customerPhone,
+                       shipping_address as shippingAddress, billing_address as billingAddress
+                FROM course_registrations
+            `);
+            for (const registration of registrations) {
+                await this.run(
+                    `UPDATE course_registrations
+                     SET customer_email = ?, customer_phone = ?, shipping_address = ?, billing_address = ?
+                     WHERE id = ?`,
+                    [
+                        this.isEncryptedPiiValue(registration.customerEmail)
+                            ? registration.customerEmail
+                            : this.maybeEncryptEmail(this.maybeDecryptEmail(registration.customerEmail || '')),
+                        this.isEncryptedPiiValue(registration.customerPhone)
+                            ? registration.customerPhone
+                            : this.encryptPiiValue(this.decryptPiiValue(registration.customerPhone || '')),
+                        this.isEncryptedPiiValue(registration.shippingAddress)
+                            ? registration.shippingAddress
+                            : this.encryptPiiValue(this.decryptPiiValue(registration.shippingAddress || '')),
+                        this.isEncryptedPiiValue(registration.billingAddress)
+                            ? registration.billingAddress
+                            : this.encryptPiiValue(this.decryptPiiValue(registration.billingAddress || '')),
+                        registration.id,
+                    ]
+                );
+            }
+
+            const contacts = await this.all('SELECT id, email, message FROM contacts');
+            for (const contact of contacts) {
+                await this.run('UPDATE contacts SET email = ?, message = ? WHERE id = ?', [
+                    this.isEncryptedPiiValue(contact.email)
+                        ? contact.email
+                        : this.maybeEncryptEmail(this.maybeDecryptEmail(contact.email || '')),
+                    this.isEncryptedPiiValue(contact.message)
+                        ? contact.message
+                        : this.encryptPiiValue(this.decryptPiiValue(contact.message || '')),
+                    contact.id,
+                ]);
+            }
+
+            const addresses = await this.all('SELECT id, address, apartment, district, city, postal_code as postalCode, province, country FROM user_addresses');
+            for (const address of addresses) {
+                await this.run(
+                    `UPDATE user_addresses
+                     SET address = ?, apartment = ?, district = ?, city = ?, postal_code = ?, province = ?, country = ?
+                     WHERE id = ?`,
+                    [
+                        this.isEncryptedPiiValue(address.address) ? address.address : this.encryptPiiValue(this.decryptPiiValue(address.address || '')),
+                        this.isEncryptedPiiValue(address.apartment) ? address.apartment : this.encryptPiiValue(this.decryptPiiValue(address.apartment || '')),
+                        this.isEncryptedPiiValue(address.district) ? address.district : this.encryptPiiValue(this.decryptPiiValue(address.district || '')),
+                        this.isEncryptedPiiValue(address.city) ? address.city : this.encryptPiiValue(this.decryptPiiValue(address.city || '')),
+                        this.isEncryptedPiiValue(address.postalCode) ? address.postalCode : this.encryptPiiValue(this.decryptPiiValue(address.postalCode || '')),
+                        this.isEncryptedPiiValue(address.province) ? address.province : this.encryptPiiValue(this.decryptPiiValue(address.province || '')),
+                        this.isEncryptedPiiValue(address.country) ? address.country : this.encryptPiiValue(this.decryptPiiValue(address.country || '')),
+                        address.id,
+                    ]
+                );
+            }
+
+            const paymentMethods = await this.all('SELECT id, holder_name as holderName FROM user_payment_methods');
+            for (const paymentMethod of paymentMethods) {
+                await this.run('UPDATE user_payment_methods SET holder_name = ? WHERE id = ?', [
+                    this.isEncryptedPiiValue(paymentMethod.holderName)
+                        ? paymentMethod.holderName
+                        : this.encryptPiiValue(this.decryptPiiValue(paymentMethod.holderName || '')),
+                    paymentMethod.id,
+                ]);
+            }
+        } catch (error) {
+            console.error('PII data migration hatası:', error);
+            throw error;
+        }
+    }
+
     async addUpdatedAtColumnToUsers() {
         try {
             const tableExists = await this.get(`
@@ -744,6 +1099,131 @@ class Database {
         await this.pruneExpiredRevokedTokens();
         const row = await this.get('SELECT jti FROM revoked_tokens WHERE jti = ? LIMIT 1', [jti]);
         return Boolean(row);
+    }
+
+    async pruneExpiredRefreshTokens(now = Date.now()) {
+        await this.run('DELETE FROM refresh_tokens WHERE expires_at <= ?', [now]);
+    }
+
+    async storeRefreshToken({ jti, userId, tokenHash, expiresAt, createdAt }) {
+        if (!jti || !userId || !tokenHash) {
+            return;
+        }
+
+        const now = Number.isFinite(Number(createdAt)) ? Number(createdAt) : Date.now();
+        const normalizedExpiresAt = Number(expiresAt);
+        const safeExpiresAt = Number.isFinite(normalizedExpiresAt) && normalizedExpiresAt > now
+            ? Math.floor(normalizedExpiresAt)
+            : now + (7 * 24 * 60 * 60 * 1000);
+
+        await this.run(
+            `INSERT INTO refresh_tokens (jti, user_id, token_hash, expires_at, created_at, last_used_at, revoked_at, replaced_by_jti, reason)
+             VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, '')
+             ON CONFLICT(jti) DO UPDATE SET
+                user_id = excluded.user_id,
+                token_hash = excluded.token_hash,
+                expires_at = excluded.expires_at,
+                created_at = excluded.created_at,
+                last_used_at = excluded.last_used_at,
+                revoked_at = NULL,
+                replaced_by_jti = NULL,
+                reason = ''`,
+            [jti, userId, tokenHash, safeExpiresAt, now, now]
+        );
+    }
+
+    async getRefreshTokenByJti(jti) {
+        if (!jti || typeof jti !== 'string') {
+            return null;
+        }
+
+        await this.pruneExpiredRefreshTokens();
+        const row = await this.get(
+            `SELECT jti, user_id as userId, token_hash as tokenHash, expires_at as expiresAt,
+                    created_at as createdAt, last_used_at as lastUsedAt, revoked_at as revokedAt,
+                    replaced_by_jti as replacedByJti, reason
+             FROM refresh_tokens
+             WHERE jti = ?
+             LIMIT 1`,
+            [jti]
+        );
+
+        return row || null;
+    }
+
+    async touchRefreshToken(jti, usedAt = Date.now()) {
+        await this.run('UPDATE refresh_tokens SET last_used_at = ? WHERE jti = ?', [usedAt, jti]);
+    }
+
+    async revokeRefreshToken(jti, reason = 'revoked', replacedByJti = null) {
+        if (!jti || typeof jti !== 'string') {
+            return;
+        }
+
+        await this.run(
+            `UPDATE refresh_tokens
+             SET revoked_at = ?, reason = ?, replaced_by_jti = ?
+             WHERE jti = ?`,
+            [Date.now(), String(reason || 'revoked'), replacedByJti || null, jti]
+        );
+    }
+
+    async revokeAllRefreshTokensForUser(userId, reason = 'user-credential-change') {
+        if (!userId || typeof userId !== 'string') {
+            return;
+        }
+
+        await this.run(
+            `UPDATE refresh_tokens
+             SET revoked_at = ?, reason = COALESCE(NULLIF(reason, ''), ?)
+             WHERE user_id = ? AND revoked_at IS NULL`,
+            [Date.now(), String(reason || 'user-credential-change'), userId]
+        );
+    }
+
+    async rotateRefreshToken({ currentJti, newToken }) {
+        if (!currentJti || !newToken || !newToken.jti) {
+            throw new Error('Invalid refresh token rotation payload');
+        }
+
+        await this.runInTransaction(async () => {
+            await this.revokeRefreshToken(currentJti, 'rotated', newToken.jti);
+            await this.storeRefreshToken(newToken);
+        });
+    }
+
+    async createPrivacyRequest(request) {
+        await this.run(
+            `INSERT INTO privacy_requests (
+                id, user_id, request_type, status, reason, payload, created_at, updated_at
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                request.id,
+                request.userId,
+                request.requestType,
+                request.status || 'requested',
+                request.reason || null,
+                JSON.stringify(request.payload || {}),
+                request.createdAt,
+                request.updatedAt,
+            ]
+        );
+    }
+
+    async getPrivacyRequestsByUserId(userId) {
+        const rows = await this.all(
+            `SELECT id, user_id as userId, request_type as requestType, status,
+                    reason, payload, created_at as createdAt, updated_at as updatedAt
+             FROM privacy_requests
+             WHERE user_id = ?
+             ORDER BY created_at DESC`,
+            [userId]
+        );
+
+        return rows.map((row) => ({
+            ...row,
+            payload: row.payload ? this.safeJsonParse(row.payload, {}) : {},
+        }));
     }
 
     async getRateLimitState(scope, key, windowMs, maxEntries) {
@@ -947,29 +1427,64 @@ class Database {
     // === KULLANICI İŞLEMLERİ ===
 
     async getAllUsers(limit, offset) {
-        const sql = 'SELECT id, email, name, is_admin as isAdmin, created_at as createdAt, updated_at as updatedAt FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?';
-        return this.all(sql, [limit, offset]);
+        const sql = 'SELECT id, email, email_hash as emailHash, name, role, is_admin as isAdmin, created_at as createdAt, updated_at as updatedAt FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?';
+        const rows = await this.all(sql, [limit, offset]);
+        return rows.map((row) => this.mapUserRow(row));
     }
 
     async getAllUsersWithPasswords() {
-        const sql = 'SELECT id, email, name, password, is_admin as isAdmin, created_at as createdAt, updated_at as updatedAt FROM users ORDER BY created_at DESC';
-        return this.all(sql);
+        const sql = 'SELECT id, email, email_hash as emailHash, name, password, role, is_admin as isAdmin, created_at as createdAt, updated_at as updatedAt FROM users ORDER BY created_at DESC';
+        const rows = await this.all(sql);
+        return rows.map((row) => this.mapUserRow(row));
     }
 
     async getUserById(id) {
-        const sql = 'SELECT id, email, name, password, is_admin as isAdmin, created_at as createdAt, updated_at as updatedAt FROM users WHERE id = ?';
-        return this.get(sql, [id]);
+        const sql = 'SELECT id, email, email_hash as emailHash, name, password, role, is_admin as isAdmin, created_at as createdAt, updated_at as updatedAt FROM users WHERE id = ?';
+        const row = await this.get(sql, [id]);
+        return this.mapUserRow(row);
     }
 
     async getUserByEmail(email) {
-        const sql = 'SELECT id, email, name, password, is_admin as isAdmin, created_at as createdAt, updated_at as updatedAt FROM users WHERE email = ?';
-        return this.get(sql, [email]);
+        const normalizedEmail = this.toNormalizedEmail(email);
+        if (!normalizedEmail) {
+            return null;
+        }
+
+        const emailHash = this.hashLookupValue(normalizedEmail);
+        let user = null;
+
+        if (emailHash) {
+            const sqlByHash = 'SELECT id, email, email_hash as emailHash, name, password, role, is_admin as isAdmin, created_at as createdAt, updated_at as updatedAt FROM users WHERE email_hash = ? LIMIT 1';
+            user = await this.get(sqlByHash, [emailHash]);
+        }
+
+        if (!user) {
+            const maybeEncryptedEmail = this.maybeEncryptEmail(normalizedEmail);
+            const sqlFallback = 'SELECT id, email, email_hash as emailHash, name, password, role, is_admin as isAdmin, created_at as createdAt, updated_at as updatedAt FROM users WHERE email = ? OR email = ? LIMIT 1';
+            user = await this.get(sqlFallback, [normalizedEmail, maybeEncryptedEmail]);
+        }
+
+        return this.mapUserRow(user);
     }
 
     async createUser(user) {
         const now = user.createdAt || new Date().toISOString();
-        const sql = 'INSERT INTO users (id, email, name, password, is_admin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)';
-        return this.run(sql, [user.id, user.email, user.name, user.password, user.isAdmin || 0, now, user.updatedAt || now]);
+        const normalizedEmail = this.toNormalizedEmail(user.email);
+        const encryptedEmail = this.maybeEncryptEmail(normalizedEmail);
+        const isAdmin = Number(Boolean(user.isAdmin));
+        const role = this.normalizeUserRole(user.role, Boolean(isAdmin), normalizedEmail);
+        const sql = 'INSERT INTO users (id, email, email_hash, name, password, is_admin, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
+        return this.run(sql, [
+            user.id,
+            encryptedEmail,
+            this.hashLookupValue(normalizedEmail),
+            user.name,
+            user.password,
+            isAdmin,
+            role,
+            now,
+            user.updatedAt || now,
+        ]);
     }
 
     async updateUserPassword(userId, newPassword) {
@@ -978,9 +1493,23 @@ class Database {
     }
 
     async updateUser(userId, userData) {
-        const { email, name, password, isAdmin, createdAt } = userData;
-        const sql = 'UPDATE users SET email = ?, name = ?, password = ?, is_admin = ?, created_at = ?, updated_at = ? WHERE id = ?';
-        return this.run(sql, [email, name, password, isAdmin || 0, createdAt, new Date().toISOString(), userId]);
+        const { email, name, password, isAdmin, createdAt, role } = userData;
+        const normalizedEmail = this.toNormalizedEmail(email);
+        const encryptedEmail = this.maybeEncryptEmail(normalizedEmail);
+        const resolvedIsAdmin = Number(Boolean(isAdmin));
+        const resolvedRole = this.normalizeUserRole(role, Boolean(resolvedIsAdmin), normalizedEmail);
+        const sql = 'UPDATE users SET email = ?, email_hash = ?, name = ?, password = ?, is_admin = ?, role = ?, created_at = ?, updated_at = ? WHERE id = ?';
+        return this.run(sql, [
+            encryptedEmail,
+            this.hashLookupValue(normalizedEmail),
+            name,
+            password,
+            resolvedIsAdmin,
+            resolvedRole,
+            createdAt,
+            new Date().toISOString(),
+            userId,
+        ]);
     }
 
     async deleteUser(userId) {
@@ -1053,9 +1582,9 @@ class Database {
                 order.userId,
                 order.totalAmount,
                 order.status,
-                order.customerName,
-                order.customerEmail,
-                JSON.stringify(order.shippingAddress),
+                this.encryptPiiValue(String(order.customerName || '')),
+                this.maybeEncryptEmail(order.customerEmail),
+                this.maybeEncryptJson(JSON.stringify(order.shippingAddress || {})),
                 order.orderNotes || '',
                 order.createdAt,
                 order.paymentStatus || 'pending',
@@ -1434,7 +1963,11 @@ class Database {
         const registrations = await this.all(sql, [limit, offset]);
         return registrations.map(registration => ({
             ...registration,
-            registrationData: registration.registrationData ? this.safeJsonParse(registration.registrationData, {}) : {}
+            registrationData: registration.registrationData ? this.safeJsonParse(registration.registrationData, {}) : {},
+            customerEmail: this.maybeDecryptEmail(registration.customerEmail),
+            customerPhone: this.decryptPiiValue(registration.customerPhone),
+            shippingAddress: this.decryptPiiValue(registration.shippingAddress),
+            billingAddress: this.decryptPiiValue(registration.billingAddress),
         }));
     }
 
@@ -1453,7 +1986,11 @@ class Database {
         const registrations = await this.all(sql, [userId]);
         return registrations.map(registration => ({
             ...registration,
-            registrationData: registration.registrationData ? this.safeJsonParse(registration.registrationData, {}) : {}
+            registrationData: registration.registrationData ? this.safeJsonParse(registration.registrationData, {}) : {},
+            customerEmail: this.maybeDecryptEmail(registration.customerEmail),
+            customerPhone: this.decryptPiiValue(registration.customerPhone),
+            shippingAddress: this.decryptPiiValue(registration.shippingAddress),
+            billingAddress: this.decryptPiiValue(registration.billingAddress),
         }));
     }
 
@@ -1471,6 +2008,12 @@ class Database {
         const registration = await this.get(sql, [id]);
         if (registration && registration.registrationData) {
             registration.registrationData = this.safeJsonParse(registration.registrationData, {});
+        }
+        if (registration) {
+            registration.customerEmail = this.maybeDecryptEmail(registration.customerEmail);
+            registration.customerPhone = this.decryptPiiValue(registration.customerPhone);
+            registration.shippingAddress = this.decryptPiiValue(registration.shippingAddress);
+            registration.billingAddress = this.decryptPiiValue(registration.billingAddress);
         }
         return registration;
     }
@@ -1490,13 +2033,13 @@ class Database {
             JSON.stringify(registration.registrationData),
             registration.status,
             registration.customerName,
-            registration.customerEmail,
-            registration.customerPhone,
-            registration.shippingAddress,
+            this.maybeEncryptEmail(registration.customerEmail),
+            this.encryptPiiValue(registration.customerPhone),
+            this.encryptPiiValue(registration.shippingAddress),
             registration.shippingCity,
             registration.shippingState,
             registration.shippingZipCode,
-            registration.billingAddress,
+            this.encryptPiiValue(registration.billingAddress),
             registration.billingCity,
             registration.billingState,
             registration.billingZipCode,
@@ -1530,7 +2073,12 @@ class Database {
             ORDER BY created_at DESC
             LIMIT ? OFFSET ?
         `;
-        return this.all(sql, [limit, offset]);
+        const contacts = await this.all(sql, [limit, offset]);
+        return contacts.map((contact) => ({
+            ...contact,
+            email: this.maybeDecryptEmail(contact.email),
+            message: this.decryptPiiValue(contact.message),
+        }));
     }
 
     async getContactById(id) {
@@ -1539,7 +2087,16 @@ class Database {
             FROM contacts
             WHERE id = ?
         `;
-        return this.get(sql, [id]);
+        const contact = await this.get(sql, [id]);
+        if (!contact) {
+            return null;
+        }
+
+        return {
+            ...contact,
+            email: this.maybeDecryptEmail(contact.email),
+            message: this.decryptPiiValue(contact.message),
+        };
     }
 
     async createContact(contact) {
@@ -1551,9 +2108,9 @@ class Database {
             contact.id,
             contact.type,
             contact.name,
-            contact.email,
+            this.maybeEncryptEmail(contact.email),
             contact.subject,
-            contact.message,
+            this.encryptPiiValue(contact.message),
             contact.status,
             contact.createdAt
         ]);
@@ -2107,7 +2664,17 @@ class Database {
             WHERE user_id = ?
             ORDER BY is_default DESC, created_at DESC
         `;
-        return this.all(sql, [userId]);
+        const rows = await this.all(sql, [userId]);
+        return rows.map((row) => ({
+            ...row,
+            address: this.decryptPiiValue(row.address),
+            apartment: this.decryptPiiValue(row.apartment),
+            district: this.decryptPiiValue(row.district),
+            city: this.decryptPiiValue(row.city),
+            postalCode: this.decryptPiiValue(row.postalCode),
+            province: this.decryptPiiValue(row.province),
+            country: this.decryptPiiValue(row.country),
+        }));
     }
 
     async getUserAddressById(id) {
@@ -2118,7 +2685,21 @@ class Database {
             FROM user_addresses
             WHERE id = ?
         `;
-        return this.get(sql, [id]);
+        const row = await this.get(sql, [id]);
+        if (!row) {
+            return null;
+        }
+
+        return {
+            ...row,
+            address: this.decryptPiiValue(row.address),
+            apartment: this.decryptPiiValue(row.apartment),
+            district: this.decryptPiiValue(row.district),
+            city: this.decryptPiiValue(row.city),
+            postalCode: this.decryptPiiValue(row.postalCode),
+            province: this.decryptPiiValue(row.province),
+            country: this.decryptPiiValue(row.country),
+        };
     }
 
     async createUserAddress(address) {
@@ -2139,13 +2720,13 @@ class Database {
                 address.title,
                 address.type,
                 address.isDefault,
-                address.address,
-                address.apartment,
-                address.district,
-                address.city,
-                address.postalCode,
-                address.province,
-                address.country,
+                this.encryptPiiValue(address.address),
+                this.encryptPiiValue(address.apartment || ''),
+                this.encryptPiiValue(address.district),
+                this.encryptPiiValue(address.city),
+                this.encryptPiiValue(address.postalCode),
+                this.encryptPiiValue(address.province || ''),
+                this.encryptPiiValue(address.country || ''),
                 address.createdAt,
                 address.updatedAt
             ]);
@@ -2171,13 +2752,13 @@ class Database {
                 address.title,
                 address.type,
                 address.isDefault,
-                address.address,
-                address.apartment,
-                address.district,
-                address.city,
-                address.postalCode,
-                address.province,
-                address.country,
+                this.encryptPiiValue(address.address),
+                this.encryptPiiValue(address.apartment || ''),
+                this.encryptPiiValue(address.district),
+                this.encryptPiiValue(address.city),
+                this.encryptPiiValue(address.postalCode),
+                this.encryptPiiValue(address.province || ''),
+                this.encryptPiiValue(address.country || ''),
                 address.updatedAt,
                 id
             ]);
@@ -2201,7 +2782,11 @@ class Database {
             WHERE user_id = ?
             ORDER BY is_default DESC, created_at DESC
         `;
-        return this.all(sql, [userId]);
+        const rows = await this.all(sql, [userId]);
+        return rows.map((row) => ({
+            ...row,
+            holderName: this.decryptPiiValue(row.holderName),
+        }));
     }
 
     async getUserPaymentMethodById(id) {
@@ -2213,7 +2798,15 @@ class Database {
             FROM user_payment_methods
             WHERE id = ?
         `;
-        return this.get(sql, [id]);
+        const row = await this.get(sql, [id]);
+        if (!row) {
+            return null;
+        }
+
+        return {
+            ...row,
+            holderName: this.decryptPiiValue(row.holderName),
+        };
     }
 
     async createUserPaymentMethod(paymentMethod) {
@@ -2236,7 +2829,7 @@ class Database {
                 paymentMethod.cardType,
                 paymentMethod.expiryMonth,
                 paymentMethod.expiryYear,
-                paymentMethod.holderName,
+                this.encryptPiiValue(paymentMethod.holderName),
                 paymentMethod.isDefault,
                 paymentMethod.createdAt,
                 paymentMethod.updatedAt
@@ -2278,7 +2871,7 @@ class Database {
             }
             if (paymentMethod.holderName !== undefined) {
                 fields.push('holder_name = ?');
-                values.push(paymentMethod.holderName);
+                values.push(this.encryptPiiValue(paymentMethod.holderName));
             }
             if (paymentMethod.isDefault !== undefined) {
                 fields.push('is_default = ?');
@@ -2313,7 +2906,11 @@ class Database {
             await this.run('DELETE FROM payment_events');
             await this.run('DELETE FROM fulfillment_events');
             await this.run('DELETE FROM revoked_tokens');
+            await this.run('DELETE FROM refresh_tokens');
             await this.run('DELETE FROM rate_limits');
+            await this.run('DELETE FROM audit_logs');
+            await this.run('DELETE FROM security_events');
+            await this.run('DELETE FROM privacy_requests');
             await this.run('DELETE FROM orders');
             await this.run('DELETE FROM course_registrations');
             await this.run('DELETE FROM contacts');

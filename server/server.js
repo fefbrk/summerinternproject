@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -8,7 +9,13 @@ const sanitizeHtml = require('sanitize-html');
 const { v4: uuidv4 } = require('uuid');
 const database = require('./database/database');
 const { hashPassword, verifyPassword, isHashedPassword } = require('./security/password');
-const { createAuthToken, verifyAuthToken } = require('./security/token');
+const {
+  createAuthToken,
+  createRefreshToken,
+  verifyAuthToken,
+  verifyRefreshToken,
+  hashToken,
+} = require('./security/token');
 const createAuthMiddleware = require('./middleware/authMiddleware');
 const createCsrfMiddleware = require('./middleware/csrfMiddleware');
 const createBootstrapService = require('./services/bootstrapService');
@@ -52,6 +59,8 @@ const LOGIN_LOCKOUT_RATE_LIMIT_MAX_ENTRIES = Number.isFinite(Number(process.env.
   : 50000;
 const DEFAULT_AUTH_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_PRODUCTION_AUTH_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_PRODUCTION_REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const API_JSON_BODY_LIMIT = (typeof process.env.API_JSON_BODY_LIMIT === 'string' && process.env.API_JSON_BODY_LIMIT.trim().length > 0)
   ? process.env.API_JSON_BODY_LIMIT.trim()
   : '256kb';
@@ -78,9 +87,15 @@ const CARRIER_WEBHOOK_SECRET = typeof process.env.CARRIER_WEBHOOK_SECRET === 'st
 const AUTH_TOKEN_SECRET = typeof process.env.AUTH_TOKEN_SECRET === 'string'
   ? process.env.AUTH_TOKEN_SECRET.trim()
   : '';
+const AUTH_REFRESH_TOKEN_SECRET = typeof process.env.AUTH_REFRESH_TOKEN_SECRET === 'string'
+  ? process.env.AUTH_REFRESH_TOKEN_SECRET.trim()
+  : '';
 const AUTH_TOKEN_TTL_MS = Number.isFinite(Number(process.env.AUTH_TOKEN_TTL_MS)) && Number(process.env.AUTH_TOKEN_TTL_MS) > 0
   ? Number(process.env.AUTH_TOKEN_TTL_MS)
   : DEFAULT_AUTH_TOKEN_TTL_MS;
+const AUTH_REFRESH_TOKEN_TTL_MS = Number.isFinite(Number(process.env.AUTH_REFRESH_TOKEN_TTL_MS)) && Number(process.env.AUTH_REFRESH_TOKEN_TTL_MS) > 0
+  ? Number(process.env.AUTH_REFRESH_TOKEN_TTL_MS)
+  : DEFAULT_REFRESH_TOKEN_TTL_MS;
 const LEGACY_DEFAULT_ADMIN_EMAIL = 'admin@klr.com';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const MIN_TOKEN_SECRET_LENGTH = 32;
@@ -92,6 +107,24 @@ const MAX_AUDIT_ITEMS = 40;
 const MAX_AUDIT_STRING_LENGTH = 500;
 const AUDIT_STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const VALID_SECURITY_SEVERITIES = new Set(['low', 'medium', 'high', 'critical']);
+const SECURITY_ALERT_LOGIN_FAILURE_THRESHOLD = Number.isFinite(Number(process.env.SECURITY_ALERT_LOGIN_FAILURE_THRESHOLD))
+  && Number(process.env.SECURITY_ALERT_LOGIN_FAILURE_THRESHOLD) > 0
+  ? Math.floor(Number(process.env.SECURITY_ALERT_LOGIN_FAILURE_THRESHOLD))
+  : 5;
+const SECURITY_ALERT_ADMIN_WINDOW_MS = Number.isFinite(Number(process.env.SECURITY_ALERT_ADMIN_WINDOW_MS))
+  && Number(process.env.SECURITY_ALERT_ADMIN_WINDOW_MS) > 0
+  ? Number(process.env.SECURITY_ALERT_ADMIN_WINDOW_MS)
+  : 10 * 60 * 1000;
+const SECURITY_ALERT_ADMIN_MUTATION_THRESHOLD = Number.isFinite(Number(process.env.SECURITY_ALERT_ADMIN_MUTATION_THRESHOLD))
+  && Number(process.env.SECURITY_ALERT_ADMIN_MUTATION_THRESHOLD) > 0
+  ? Math.floor(Number(process.env.SECURITY_ALERT_ADMIN_MUTATION_THRESHOLD))
+  : 15;
+const SECURITY_ALERT_BUSINESS_HOUR_START = Number.isFinite(Number(process.env.SECURITY_ALERT_BUSINESS_HOUR_START))
+  ? Math.max(0, Math.min(23, Math.floor(Number(process.env.SECURITY_ALERT_BUSINESS_HOUR_START))))
+  : 8;
+const SECURITY_ALERT_BUSINESS_HOUR_END = Number.isFinite(Number(process.env.SECURITY_ALERT_BUSINESS_HOUR_END))
+  ? Math.max(0, Math.min(23, Math.floor(Number(process.env.SECURITY_ALERT_BUSINESS_HOUR_END))))
+  : 20;
 const SENSITIVE_AUDIT_FIELDS = new Set([
   'password',
   'newpassword',
@@ -106,6 +139,7 @@ const SENSITIVE_AUDIT_FIELDS = new Set([
   'paymentreference',
 ]);
 const AUTH_COOKIE_NAME = 'auth_token';
+const REFRESH_COOKIE_NAME = 'refresh_token';
 const CSRF_COOKIE_NAME = 'csrf_token';
 const CSRF_HEADER_NAME = 'x-csrf-token';
 const AUTH_COOKIE_OPTIONS = {
@@ -114,6 +148,13 @@ const AUTH_COOKIE_OPTIONS = {
   sameSite: 'lax',
   path: '/',
   maxAge: AUTH_TOKEN_TTL_MS,
+};
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: IS_PRODUCTION,
+  sameSite: 'lax',
+  path: '/',
+  maxAge: AUTH_REFRESH_TOKEN_TTL_MS,
 };
 const CSRF_COOKIE_OPTIONS = {
   httpOnly: false,
@@ -145,12 +186,28 @@ if (AUTH_TOKEN_SECRET && AUTH_TOKEN_SECRET.length < MIN_TOKEN_SECRET_LENGTH) {
   console.warn(`AUTH_TOKEN_SECRET is shorter than ${MIN_TOKEN_SECRET_LENGTH} characters. Use a longer secret for non-production too.`);
 }
 
+if (AUTH_REFRESH_TOKEN_SECRET && AUTH_REFRESH_TOKEN_SECRET.length < MIN_TOKEN_SECRET_LENGTH) {
+  if (IS_PRODUCTION) {
+    throw new Error(`AUTH_REFRESH_TOKEN_SECRET must be at least ${MIN_TOKEN_SECRET_LENGTH} characters in production.`);
+  }
+
+  console.warn(`AUTH_REFRESH_TOKEN_SECRET is shorter than ${MIN_TOKEN_SECRET_LENGTH} characters. Use a longer secret for non-production too.`);
+}
+
 if (IS_PRODUCTION && AUTH_TOKEN_TTL_MS > MAX_PRODUCTION_AUTH_TOKEN_TTL_MS) {
   throw new Error(`AUTH_TOKEN_TTL_MS cannot exceed ${MAX_PRODUCTION_AUTH_TOKEN_TTL_MS} ms in production.`);
 }
 
 if (!IS_PRODUCTION && AUTH_TOKEN_TTL_MS > MAX_PRODUCTION_AUTH_TOKEN_TTL_MS) {
   console.warn(`AUTH_TOKEN_TTL_MS is set above ${MAX_PRODUCTION_AUTH_TOKEN_TTL_MS} ms. Consider shorter-lived tokens.`);
+}
+
+if (IS_PRODUCTION && AUTH_REFRESH_TOKEN_TTL_MS > MAX_PRODUCTION_REFRESH_TOKEN_TTL_MS) {
+  throw new Error(`AUTH_REFRESH_TOKEN_TTL_MS cannot exceed ${MAX_PRODUCTION_REFRESH_TOKEN_TTL_MS} ms in production.`);
+}
+
+if (!IS_PRODUCTION && AUTH_REFRESH_TOKEN_TTL_MS > MAX_PRODUCTION_REFRESH_TOKEN_TTL_MS) {
+  console.warn(`AUTH_REFRESH_TOKEN_TTL_MS is set above ${MAX_PRODUCTION_REFRESH_TOKEN_TTL_MS} ms. Consider shorter-lived refresh tokens.`);
 }
 
 if (IS_PRODUCTION && !configuredAdminEmail) {
@@ -340,9 +397,14 @@ const toSafeUser = (user) => {
   }
 
   const { password: _password, ...safeUser } = user;
+  const role = typeof safeUser.role === 'string' && safeUser.role.trim().length > 0
+    ? safeUser.role.trim().toLowerCase()
+    : (safeUser.isAdmin ? 'admin' : 'user');
+
   return {
     ...safeUser,
-    isAdmin: Boolean(safeUser.isAdmin)
+    isAdmin: Boolean(safeUser.isAdmin),
+    role: Boolean(safeUser.isAdmin) ? role : 'user',
   };
 };
 
@@ -488,27 +550,143 @@ const getUserAgent = (req) => {
   return sanitizePlainText(req.headers['user-agent'], 255);
 };
 
+const adminMutationWindows = new Map();
+
+const pruneCounterWindowMap = (counterMap, now) => {
+  for (const [key, record] of counterMap.entries()) {
+    if (!record || typeof record.resetAt !== 'number' || now > record.resetAt) {
+      counterMap.delete(key);
+    }
+  }
+};
+
+const isOutsideBusinessHours = (dateValue) => {
+  const hour = dateValue.getHours();
+
+  if (SECURITY_ALERT_BUSINESS_HOUR_START === SECURITY_ALERT_BUSINESS_HOUR_END) {
+    return false;
+  }
+
+  if (SECURITY_ALERT_BUSINESS_HOUR_START < SECURITY_ALERT_BUSINESS_HOUR_END) {
+    return hour < SECURITY_ALERT_BUSINESS_HOUR_START || hour >= SECURITY_ALERT_BUSINESS_HOUR_END;
+  }
+
+  return hour < SECURITY_ALERT_BUSINESS_HOUR_START && hour >= SECURITY_ALERT_BUSINESS_HOUR_END;
+};
+
+const trackAdminMutationBurst = ({ userId, ipAddress, action }) => {
+  const now = Date.now();
+  pruneCounterWindowMap(adminMutationWindows, now);
+
+  const key = `${userId}:${ipAddress}`;
+  const record = adminMutationWindows.get(key) || {
+    count: 0,
+    resetAt: now + SECURITY_ALERT_ADMIN_WINDOW_MS,
+  };
+
+  if (now > record.resetAt) {
+    record.count = 0;
+    record.resetAt = now + SECURITY_ALERT_ADMIN_WINDOW_MS;
+  }
+
+  record.count += 1;
+  adminMutationWindows.set(key, record);
+
+  if (record.count === SECURITY_ALERT_ADMIN_MUTATION_THRESHOLD) {
+    void logSecurityEvent({
+      eventType: 'ADMIN_MUTATION_BURST',
+      severity: 'high',
+      userId,
+      details: {
+        action,
+        attempts: record.count,
+        windowMs: SECURITY_ALERT_ADMIN_WINDOW_MS,
+      },
+      ipAddress,
+      alerted: true,
+    });
+  }
+};
+
 const logAuditEvent = async ({ req, action, resourceType, resourceId, oldValue, newValue }) => {
   if (!req?.user?.id || typeof database.createAuditLog !== 'function') {
     return;
   }
 
+  const createdAt = new Date();
+  const safeAction = sanitizePlainText(action, 180);
+  const safeIpAddress = sanitizePlainText(getClientIp(req), 80);
+
   try {
     await database.createAuditLog({
       id: uuidv4(),
       userId: req.user.id,
-      action: sanitizePlainText(action, 180),
+      action: safeAction,
       resourceType: sanitizePlainText(resourceType, 80),
       resourceId: sanitizePlainText(resourceId || '', 80) || null,
       oldValue: sanitizeAuditValue(oldValue),
       newValue: sanitizeAuditValue(newValue),
-      ipAddress: sanitizePlainText(getClientIp(req), 80),
+      ipAddress: safeIpAddress,
       userAgent: getUserAgent(req),
-      createdAt: new Date().toISOString(),
+      createdAt: createdAt.toISOString(),
+    });
+
+    if (isOutsideBusinessHours(createdAt)) {
+      void logSecurityEvent({
+        eventType: 'ADMIN_ACTION_OUTSIDE_BUSINESS_HOURS',
+        severity: 'medium',
+        userId: req.user.id,
+        email: req.user.email || '',
+        details: {
+          action: safeAction,
+          localHour: createdAt.getHours(),
+          businessHourStart: SECURITY_ALERT_BUSINESS_HOUR_START,
+          businessHourEnd: SECURITY_ALERT_BUSINESS_HOUR_END,
+        },
+        req,
+        alerted: true,
+      });
+    }
+
+    trackAdminMutationBurst({
+      userId: req.user.id,
+      ipAddress: safeIpAddress,
+      action: safeAction,
     });
   } catch (error) {
     console.error('Audit logging error:', error);
   }
+};
+
+const resolveNumericDetail = (value) => {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+};
+
+const shouldAlertSecurityEvent = ({ eventType, severity, details }) => {
+  if (severity === 'critical') {
+    return true;
+  }
+
+  const statusCode = resolveNumericDetail(details?.statusCode);
+  if (statusCode === 429 || statusCode === 423) {
+    return true;
+  }
+
+  if (eventType === 'AUTH_LOGIN_FAILURE_THRESHOLD') {
+    const attempts = resolveNumericDetail(details?.attempts);
+    return attempts !== null && attempts >= SECURITY_ALERT_LOGIN_FAILURE_THRESHOLD;
+  }
+
+  if (eventType === 'ADMIN_MUTATION_BURST') {
+    return true;
+  }
+
+  if (eventType === 'ADMIN_ACTION_OUTSIDE_BUSINESS_HOURS') {
+    return true;
+  }
+
+  return false;
 };
 
 const logSecurityEvent = async ({
@@ -527,6 +705,13 @@ const logSecurityEvent = async ({
   }
 
   const normalizedSeverity = VALID_SECURITY_SEVERITIES.has(severity) ? severity : 'low';
+  const sanitizedDetails = sanitizeAuditValue(details);
+  const shouldAlert = shouldAlertSecurityEvent({
+    eventType,
+    severity: normalizedSeverity,
+    details: sanitizedDetails,
+  });
+  const finalAlerted = Boolean(alerted) || shouldAlert;
 
   try {
     await database.createSecurityEvent({
@@ -535,12 +720,20 @@ const logSecurityEvent = async ({
       severity: normalizedSeverity,
       userId: userId ? sanitizePlainText(userId, 80) : null,
       email: sanitizeEmail(email),
-      details: sanitizeAuditValue(details),
+      details: sanitizedDetails,
       ipAddress: req ? sanitizePlainText(getClientIp(req), 80) : sanitizePlainText(ipAddress, 80),
       userAgent: req ? getUserAgent(req) : sanitizePlainText(userAgent, 255),
       createdAt: new Date().toISOString(),
-      alerted: Boolean(alerted),
+      alerted: finalAlerted,
     });
+
+    if (finalAlerted) {
+      console.warn('[SECURITY ALERT]', {
+        eventType: sanitizePlainText(eventType, 120),
+        severity: normalizedSeverity,
+        userId: userId ? sanitizePlainText(userId, 80) : null,
+      });
+    }
   } catch (error) {
     console.error('Security event logging error:', error);
   }
@@ -610,18 +803,66 @@ app.use((req, res, next) => {
 
   return next();
 });
-app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+
+const contentSecurityPolicyDirectives = {
+  defaultSrc: ["'self'"],
+  scriptSrc: ["'self'"],
+  styleSrc: ["'self'"],
+  styleSrcAttr: ["'unsafe-inline'"],
+  imgSrc: ["'self'", 'data:', 'https:'],
+  fontSrc: ["'self'", 'https:'],
+  connectSrc: ["'self'"],
+  objectSrc: ["'none'"],
+  baseUri: ["'self'"],
+  formAction: ["'self'"],
+  frameAncestors: ["'none'"],
+};
+
+if (!IS_PRODUCTION) {
+  contentSecurityPolicyDirectives.upgradeInsecureRequests = null;
+}
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: contentSecurityPolicyDirectives,
+  },
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: {
+    policy: 'same-origin',
+  },
+  crossOriginResourcePolicy: {
+    policy: 'cross-origin',
+  },
+  hsts: IS_PRODUCTION
+    ? {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    }
+    : false,
+  noSniff: true,
+  frameguard: {
+    action: 'deny',
+  },
+  referrerPolicy: {
+    policy: 'no-referrer',
+  },
+  permittedCrossDomainPolicies: {
+    permittedPolicies: 'none',
+  },
+}));
+
+app.use((_req, res, next) => {
   res.setHeader('Permissions-Policy', 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()');
-  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
-  if (IS_PRODUCTION) {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  next();
+});
+
+app.use((req, _res, next) => {
+  if (req.url === '/api/v1' || req.url.startsWith('/api/v1/')) {
+    const suffix = req.url.slice('/api/v1'.length);
+    req.url = `/api${suffix}`;
   }
-  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'");
+
   next();
 });
 
@@ -732,6 +973,7 @@ const {
   checkContactRateLimit,
   checkAccountLockout,
   recordAccountLoginAttempt,
+  getLoginAttemptCount,
 } = createAuthMiddleware({
   verifyAuthToken,
   database,
@@ -748,6 +990,7 @@ const {
   accountLockoutWindowMs: LOGIN_LOCKOUT_WINDOW_MS,
   accountLockoutMaxAttempts: LOGIN_LOCKOUT_MAX_ATTEMPTS,
   accountLockoutRateLimitMaxEntries: LOGIN_LOCKOUT_RATE_LIMIT_MAX_ENTRIES,
+  securityAlertLoginFailureThreshold: SECURITY_ALERT_LOGIN_FAILURE_THRESHOLD,
   logSecurityEvent,
   demoEndpointsEnabled: DEMO_ENDPOINTS_ENABLED,
 });
@@ -833,6 +1076,9 @@ registerAuthUserRoutes(app, {
   verifyPassword,
   isHashedPassword,
   createAuthToken,
+  createRefreshToken,
+  verifyRefreshToken,
+  hashToken,
   toSafeUser,
   sanitizeEmail,
   sanitizePlainText,
@@ -842,10 +1088,13 @@ registerAuthUserRoutes(app, {
   recordLoginAttempt,
   checkAccountLockout,
   recordAccountLoginAttempt,
+  getLoginAttemptCount,
   checkRegistrationRateLimit,
   logSecurityEvent,
   authCookieName: AUTH_COOKIE_NAME,
   authCookieOptions: AUTH_COOKIE_OPTIONS,
+  refreshCookieName: REFRESH_COOKIE_NAME,
+  refreshCookieOptions: REFRESH_COOKIE_OPTIONS,
 });
 
 registerCommerceRoutes(app, {
@@ -867,6 +1116,7 @@ registerAccountRoutes(app, {
   uuidv4,
   sanitizePlainText,
   isSelfOrAdmin,
+  logSecurityEvent,
 });
 
 registerMaintenanceRoutes(app, {

@@ -83,6 +83,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - JSON/form request body size limitleri ayarlanmistir (`API_JSON_BODY_LIMIT`, `API_FORM_BODY_LIMIT`); malformed/oversized payload'lar 400/413 ile reddedilir.
 - Carrier webhook endpoint'i rate-limit ile korunur (`CARRIER_WEBHOOK_WINDOW_MS`, `CARRIER_WEBHOOK_MAX_ATTEMPTS`, `CARRIER_WEBHOOK_RATE_LIMIT_MAX_ENTRIES`).
 - Admin state-changing aksiyonlari `audit_logs` tablosuna, erisim/rate-limit ihlalleri `security_events` tablosuna kaydedilir.
+- Security header katmani Helmet ile yonetilir (CSP/HSTS/frame/noSniff/referrer/cross-origin policy).
 - CMS ID uretimi UUID v4 ile yapilir; SQLite WAL mode aktif.
 
 ### Backend Ortam Değişkenleri
@@ -95,6 +96,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - `API_JSON_BODY_LIMIT`, `API_FORM_BODY_LIMIT`: API body parser limitleri.
 - `REGISTRATION_WINDOW_MS`, `REGISTRATION_MAX_ATTEMPTS`, `REGISTRATION_RATE_LIMIT_MAX_ENTRIES`: Register rate-limit ayarları.
 - `LOGIN_LOCKOUT_WINDOW_MS`, `LOGIN_LOCKOUT_MAX_ATTEMPTS`, `LOGIN_LOCKOUT_RATE_LIMIT_MAX_ENTRIES`: Hesap lockout ayarlari.
+- `SECURITY_ALERT_LOGIN_FAILURE_THRESHOLD`, `SECURITY_ALERT_ADMIN_WINDOW_MS`, `SECURITY_ALERT_ADMIN_MUTATION_THRESHOLD`, `SECURITY_ALERT_BUSINESS_HOUR_START`, `SECURITY_ALERT_BUSINESS_HOUR_END`: Guvenlik alert esikleri.
 - `TRUST_PROXY`: Sadece reverse-proxy arkasında `true` olmalı.
 - `DEFAULT_ADMIN_EMAIL`: İlk admin hesabı e-posta adresi.
 - `DEFAULT_ADMIN_PASSWORD`: İlk admin hesabı şifresi (üretimde zorunlu).
