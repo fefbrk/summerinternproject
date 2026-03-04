@@ -47,10 +47,14 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
   - Tüm fulfillment gecisleri `fulfillment_events` tablosuna loglanir.
 - Content URL alanlari server tarafinda `http/https` + guvenli relative URL filtrelemesi ile dogrulaniyor.
 - Auth cookie akisi aktif: `auth_token` httpOnly cookie set edilir; logout ile token `revoked_tokens` denylist tablosuna yazilir.
+- Parola degisikligi sonrasinda onceki tokenlar `updated_at` kontrolu ile gecersizlenir.
 - Rate-limit state'i kalici hale getirildi (`rate_limits` tablosu).
+- Login/register rate-limitleri IP + e-posta hash kombinasyonu ile takip edilir.
+- Carrier webhook dogrulamasi `x-carrier-webhook-timestamp` + `x-carrier-webhook-signature` HMAC ile yapilir (replay penceresi kontrolu).
 - Test altyapisi guncel:
   - Backend: `server/tests/api.integration.test.js`, `server/tests/database.transaction.test.js`
   - Frontend smoke: `src/test/smoke/auth-pages.smoke.test.tsx`
+  - Tracked demo data safety check: `npm run test:db-safety`
   - CI: `.github/workflows/ci.yml` (`lint + test + build`).
 - Admin dashboard sadeletme (phase-3) uygulandi:
   - Orders, users, contacts, blog, press, media, events tablari `src/components/admin/*` altina tasindi,

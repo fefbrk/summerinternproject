@@ -7,7 +7,8 @@
     "start": "node --env-file-if-exists=.env server.js",
     "dev": "nodemon --exec \"node --env-file-if-exists=.env\" server.js",
     "migrate": "node migrate-data.js",
-    "test": "node --test tests/api.integration.test.js tests/database.transaction.test.js"
+    "test": "node --test tests/api.integration.test.js tests/database.transaction.test.js",
+    "check:db-safety": "node scripts/checkTrackedDbSafety.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

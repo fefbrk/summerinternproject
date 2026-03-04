@@ -67,6 +67,7 @@ Asagidaki roller mantiksal ayrimdir; tek agent birden fazla rol ustlenebilir.
 - Vite build (`npm run build`)
 - Backend test (`npm run test:backend`)
 - Frontend smoke + admin component test (`npm run test:frontend`)
+- Tracked demo data safety check (`npm run test:db-safety`)
 - Full test (`npm test`)
 - Nodemon (`server` icinde `npm run dev`)
 
@@ -132,7 +133,7 @@ Temel endpoint gruplari (`server/routes/*`):
 - Auth: `/api/login`, `/api/register`, `/api/me`
 - Users: `/api/users`, `/api/users/:id/password`
 - Orders: `/api/orders`, `/api/orders/my`, `/api/orders/:id/status`, `/api/orders/:id/payment-status`
-- Carrier webhook: `POST /webhooks/carrier/orders/:id/status` (secret header ile)
+- Carrier webhook: `POST /webhooks/carrier/orders/:id/status` (`x-carrier-webhook-timestamp` + `x-carrier-webhook-signature` HMAC)
 - Registrations: `/api/registrations`, `/api/registrations/my`, `/api/registrations/:id/status`
 - Contacts: `/api/contacts`, `/api/contacts/:id/status`
 - CMS Public: `/api/blog`, `/api/press-releases`, `/api/media-coverage`, `/api/events` (yalnizca `published`)

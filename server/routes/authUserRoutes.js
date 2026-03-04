@@ -99,7 +99,7 @@ const registerAuthUserRoutes = (app, deps) => {
 
       const existingUser = await database.getUserByEmail(email);
       if (existingUser) {
-        return res.status(400).json({ error: 'User already exists' });
+        return res.status(400).json({ error: 'Unable to process registration request' });
       }
 
       const newUser = {

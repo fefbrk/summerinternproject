@@ -1,9 +1,8 @@
 const crypto = require('crypto');
 
 const DEFAULT_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-const INSECURE_DEV_TOKEN_SECRET = 'change-this-in-production';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-let hasWarnedAboutDefaultTokenSecret = false;
+let generatedDevelopmentTokenSecret = null;
 
 const encodeBase64Url = (value) => {
   return Buffer.from(value, 'utf8').toString('base64url');
@@ -23,12 +22,12 @@ const getTokenSecret = () => {
     throw new Error('AUTH_TOKEN_SECRET must be set in production');
   }
 
-  if (!hasWarnedAboutDefaultTokenSecret) {
-    hasWarnedAboutDefaultTokenSecret = true;
-    console.warn('Using fallback AUTH_TOKEN_SECRET in non-production environment.');
+  if (!generatedDevelopmentTokenSecret) {
+    generatedDevelopmentTokenSecret = crypto.randomBytes(64).toString('hex');
+    console.warn('AUTH_TOKEN_SECRET is not configured; generated ephemeral secret for non-production runtime.');
   }
 
-  return INSECURE_DEV_TOKEN_SECRET;
+  return generatedDevelopmentTokenSecret;
 };
 
 const getTokenTtl = () => {
@@ -102,7 +101,11 @@ const verifyAuthToken = (token) => {
       return null;
     }
 
-    if (!payload.exp || typeof payload.exp !== 'number' || payload.exp < Date.now()) {
+    if (!payload.iat || typeof payload.iat !== 'number' || payload.iat <= 0) {
+      return null;
+    }
+
+    if (!payload.exp || typeof payload.exp !== 'number' || payload.exp <= payload.iat || payload.exp < Date.now()) {
       return null;
     }
 

@@ -41,6 +41,7 @@ const registerCommerceRoutes = (app, deps) => {
   const manualFulfillmentOverrideEnabled = process.env.ENABLE_MANUAL_FULFILLMENT_OVERRIDE === 'true';
   const manualPaymentOverrideEnabled = process.env.ENABLE_MANUAL_PAYMENT_OVERRIDE === 'true';
   const carrierWebhookSecret = sanitizePlainText(process.env.CARRIER_WEBHOOK_SECRET, 256);
+  const CARRIER_WEBHOOK_MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
   const superAdminEmailSet = new Set(
     String(process.env.SUPER_ADMIN_EMAILS || process.env.DEFAULT_ADMIN_EMAIL || '')
       .split(',')
@@ -57,13 +58,56 @@ const registerCommerceRoutes = (app, deps) => {
     return normalizedEmail ? superAdminEmailSet.has(normalizedEmail) : false;
   };
 
-  const isValidCarrierWebhookSecret = (providedSecret) => {
-    if (!carrierWebhookSecret || typeof providedSecret !== 'string') {
+  const toSingleHeaderValue = (headerValue) => {
+    if (Array.isArray(headerValue)) {
+      return headerValue[0] || '';
+    }
+
+    return typeof headerValue === 'string' ? headerValue : '';
+  };
+
+  const resolveCarrierWebhookTimestamp = (rawHeaderValue) => {
+    const raw = sanitizePlainText(rawHeaderValue, 32);
+    if (!raw || !/^\d{10,16}$/.test(raw)) {
+      return null;
+    }
+
+    const numeric = Number(raw);
+    if (!Number.isFinite(numeric) || numeric <= 0) {
+      return null;
+    }
+
+    return raw.length <= 10 ? numeric * 1000 : numeric;
+  };
+
+  const isFreshCarrierWebhookTimestamp = (timestampMs) => {
+    if (!Number.isFinite(timestampMs)) {
       return false;
     }
 
-    const expectedBuffer = Buffer.from(carrierWebhookSecret);
-    const providedBuffer = Buffer.from(providedSecret);
+    return Math.abs(Date.now() - timestampMs) <= CARRIER_WEBHOOK_MAX_CLOCK_SKEW_MS;
+  };
+
+  const computeCarrierWebhookSignature = ({ timestampMs, rawBody }) => {
+    return crypto
+      .createHmac('sha256', carrierWebhookSecret)
+      .update(`${timestampMs}.${rawBody}`)
+      .digest('hex');
+  };
+
+  const isValidCarrierWebhookSignature = ({ providedSignature, timestampMs, rawBody }) => {
+    if (!carrierWebhookSecret) {
+      return false;
+    }
+
+    const normalizedProvidedSignature = sanitizePlainText(providedSignature, 256).toLowerCase();
+    if (!/^[a-f0-9]{64}$/.test(normalizedProvidedSignature)) {
+      return false;
+    }
+
+    const expectedSignature = computeCarrierWebhookSignature({ timestampMs, rawBody });
+    const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+    const providedBuffer = Buffer.from(normalizedProvidedSignature, 'utf8');
 
     if (expectedBuffer.length !== providedBuffer.length) {
       return false;
@@ -501,13 +545,20 @@ const registerCommerceRoutes = (app, deps) => {
         return res.status(503).json({ error: 'Carrier webhook secret is not configured' });
       }
 
-      const providedSecretHeader = req.headers['x-carrier-webhook-secret'];
-      const providedSecret = Array.isArray(providedSecretHeader)
-        ? providedSecretHeader[0]
-        : providedSecretHeader;
+      const providedTimestamp = toSingleHeaderValue(req.headers['x-carrier-webhook-timestamp']);
+      const providedSignature = toSingleHeaderValue(req.headers['x-carrier-webhook-signature']);
 
-      if (!isValidCarrierWebhookSecret(providedSecret)) {
-        return res.status(401).json({ error: 'Invalid carrier webhook secret' });
+      const timestampMs = resolveCarrierWebhookTimestamp(providedTimestamp);
+      if (!timestampMs || !isFreshCarrierWebhookTimestamp(timestampMs)) {
+        return res.status(401).json({ error: 'Invalid carrier webhook timestamp' });
+      }
+
+      const rawBody = typeof req.rawBody === 'string'
+        ? req.rawBody
+        : JSON.stringify(req.body || {});
+
+      if (!isValidCarrierWebhookSignature({ providedSignature, timestampMs, rawBody })) {
+        return res.status(401).json({ error: 'Invalid carrier webhook signature' });
       }
 
       const id = sanitizePlainText(req.params.id, 64);
@@ -515,7 +566,11 @@ const registerCommerceRoutes = (app, deps) => {
       const providerEventId = sanitizePlainText(req.body?.providerEventId, 200);
       const carrierStatus = sanitizePlainText(req.body?.status, 40).toLowerCase();
       const shipmentTrackingNumber = sanitizePlainText(req.body?.trackingNumber, 200);
-      const occurredAt = sanitizePlainText(req.body?.occurredAt, 64) || new Date().toISOString();
+      const occurredAtRaw = sanitizePlainText(req.body?.occurredAt, 64);
+      const occurredAtMs = Date.parse(occurredAtRaw);
+      const occurredAt = Number.isFinite(occurredAtMs)
+        ? new Date(occurredAtMs).toISOString()
+        : new Date(timestampMs).toISOString();
 
       if (!shipmentProvider || !providerEventId || !allowedCarrierStatuses.has(carrierStatus) || !shipmentTrackingNumber) {
         return res.status(400).json({ error: 'Invalid carrier webhook payload' });

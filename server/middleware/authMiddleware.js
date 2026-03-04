@@ -1,3 +1,5 @@
+const crypto = require('node:crypto');
+
 const createAuthMiddleware = ({
   verifyAuthToken,
   database,
@@ -46,6 +48,50 @@ const createAuthMiddleware = ({
     }, {});
   };
 
+  const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const normalizeRateLimitEmail = (value) => {
+    if (typeof value !== 'string') {
+      return '';
+    }
+
+    const normalized = value.trim().toLowerCase();
+    return EMAIL_PATTERN.test(normalized) ? normalized : '';
+  };
+
+  const buildRateLimitKey = (type, value) => {
+    if (!value) {
+      return '';
+    }
+
+    if (type === 'email') {
+      const digest = crypto.createHash('sha256').update(value).digest('hex');
+      return `email:${digest}`;
+    }
+
+    return `${type}:${value}`;
+  };
+
+  const getRateLimitKeysForRequest = (req, includeEmail = false) => {
+    const clientIp = getClientIp(req);
+    const keys = [];
+
+    const ipKey = buildRateLimitKey('ip', clientIp);
+    if (ipKey) {
+      keys.push(ipKey);
+    }
+
+    if (includeEmail) {
+      const email = normalizeRateLimitEmail(req.body?.email);
+      const emailKey = buildRateLimitKey('email', email);
+      if (emailKey) {
+        keys.push(emailKey);
+      }
+    }
+
+    return keys;
+  };
+
   const extractBearerToken = (req) => {
     const authorizationHeader = req.headers.authorization;
     if (!authorizationHeader || !authorizationHeader.startsWith('Bearer ')) {
@@ -82,13 +128,15 @@ const createAuthMiddleware = ({
   };
 
   const checkLoginRateLimit = async (req, res, next) => {
-    const clientIp = getClientIp(req);
+    const rateLimitKeys = getRateLimitKeysForRequest(req, true);
 
     if (hasPersistentRateLimitStore) {
       try {
-        const state = await database.getRateLimitState('login', clientIp, loginWindowMs, loginRateLimitMaxEntries);
-        if (state.count >= loginMaxAttempts) {
-          return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
+        for (const key of rateLimitKeys) {
+          const state = await database.getRateLimitState('login', key, loginWindowMs, loginRateLimitMaxEntries);
+          if (state.count >= loginMaxAttempts) {
+            return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
+          }
         }
 
         return next();
@@ -100,33 +148,38 @@ const createAuthMiddleware = ({
 
     const now = Date.now();
     pruneRateLimitMap(loginAttempts, now, loginRateLimitMaxEntries);
-    const record = loginAttempts.get(clientIp);
 
-    if (!record || now > record.resetAt) {
-      if (loginAttempts.size >= loginRateLimitMaxEntries) {
-        return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
+    for (const key of rateLimitKeys) {
+      const record = loginAttempts.get(key);
+
+      if (!record || now > record.resetAt) {
+        if (loginAttempts.size >= loginRateLimitMaxEntries) {
+          return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
+        }
+
+        loginAttempts.set(key, { count: 0, resetAt: now + loginWindowMs });
+        continue;
       }
 
-      loginAttempts.set(clientIp, { count: 0, resetAt: now + loginWindowMs });
-      return next();
-    }
-
-    if (record.count >= loginMaxAttempts) {
-      return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
+      if (record.count >= loginMaxAttempts) {
+        return res.status(429).json({ error: 'Too many login attempts. Please try again later.' });
+      }
     }
 
     return next();
   };
 
   const recordLoginAttempt = async (req, success) => {
-    const clientIp = getClientIp(req);
+    const rateLimitKeys = getRateLimitKeysForRequest(req, true);
 
     if (hasPersistentRateLimitStore) {
       try {
-        if (success) {
-          await database.resetRateLimit('login', clientIp);
-        } else {
-          await database.incrementRateLimit('login', clientIp, loginWindowMs, loginRateLimitMaxEntries);
+        for (const key of rateLimitKeys) {
+          if (success) {
+            await database.resetRateLimit('login', key);
+          } else {
+            await database.incrementRateLimit('login', key, loginWindowMs, loginRateLimitMaxEntries);
+          }
         }
 
         return;
@@ -138,24 +191,27 @@ const createAuthMiddleware = ({
 
     const now = Date.now();
     pruneRateLimitMap(loginAttempts, now, loginRateLimitMaxEntries);
-    const record = loginAttempts.get(clientIp) || { count: 0, resetAt: now + loginWindowMs };
 
-    if (now > record.resetAt) {
-      record.count = 0;
-      record.resetAt = now + loginWindowMs;
+    for (const key of rateLimitKeys) {
+      const record = loginAttempts.get(key) || { count: 0, resetAt: now + loginWindowMs };
+
+      if (now > record.resetAt) {
+        record.count = 0;
+        record.resetAt = now + loginWindowMs;
+      }
+
+      if (success) {
+        loginAttempts.delete(key);
+        continue;
+      }
+
+      if (!loginAttempts.has(key) && loginAttempts.size >= loginRateLimitMaxEntries) {
+        continue;
+      }
+
+      record.count += 1;
+      loginAttempts.set(key, record);
     }
-
-    if (success) {
-      loginAttempts.delete(clientIp);
-      return;
-    }
-
-    if (!loginAttempts.has(clientIp) && loginAttempts.size >= loginRateLimitMaxEntries) {
-      return;
-    }
-
-    record.count += 1;
-    loginAttempts.set(clientIp, record);
   };
 
   const checkContactRateLimit = async (req, res, next) => {
@@ -198,13 +254,15 @@ const createAuthMiddleware = ({
   };
 
   const checkRegistrationRateLimit = async (req, res, next) => {
-    const clientIp = getClientIp(req);
+    const rateLimitKeys = getRateLimitKeysForRequest(req, true);
 
     if (hasPersistentRateLimitStore) {
       try {
-        const state = await database.incrementRateLimit('register', clientIp, registrationWindowMs, registrationRateLimitMaxEntries);
-        if (state.count > registrationMaxAttempts) {
-          return res.status(429).json({ error: 'Too many registration attempts. Please try again later.' });
+        for (const key of rateLimitKeys) {
+          const state = await database.incrementRateLimit('register', key, registrationWindowMs, registrationRateLimitMaxEntries);
+          if (state.count > registrationMaxAttempts) {
+            return res.status(429).json({ error: 'Too many registration attempts. Please try again later.' });
+          }
         }
 
         return next();
@@ -217,22 +275,25 @@ const createAuthMiddleware = ({
     const now = Date.now();
     pruneRateLimitMap(registrationAttempts, now, registrationRateLimitMaxEntries);
 
-    const record = registrationAttempts.get(clientIp);
-    if (!record || now > record.resetAt) {
-      if (registrationAttempts.size >= registrationRateLimitMaxEntries) {
+    for (const key of rateLimitKeys) {
+      const record = registrationAttempts.get(key);
+      if (!record || now > record.resetAt) {
+        if (registrationAttempts.size >= registrationRateLimitMaxEntries) {
+          return res.status(429).json({ error: 'Too many registration attempts. Please try again later.' });
+        }
+
+        registrationAttempts.set(key, { count: 1, resetAt: now + registrationWindowMs });
+        continue;
+      }
+
+      if (record.count >= registrationMaxAttempts) {
         return res.status(429).json({ error: 'Too many registration attempts. Please try again later.' });
       }
 
-      registrationAttempts.set(clientIp, { count: 1, resetAt: now + registrationWindowMs });
-      return next();
+      record.count += 1;
+      registrationAttempts.set(key, record);
     }
 
-    if (record.count >= registrationMaxAttempts) {
-      return res.status(429).json({ error: 'Too many registration attempts. Please try again later.' });
-    }
-
-    record.count += 1;
-    registrationAttempts.set(clientIp, record);
     return next();
   };
 
@@ -279,6 +340,11 @@ const createAuthMiddleware = ({
 
     if (!currentUser) {
       return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+
+    const userUpdatedAtMs = Date.parse(currentUser.updatedAt || currentUser.createdAt || '');
+    if (Number.isFinite(userUpdatedAtMs) && typeof payload.iat === 'number' && payload.iat < userUpdatedAtMs) {
+      return res.status(401).json({ error: 'Token is no longer valid. Please log in again.' });
     }
 
     req.user = {

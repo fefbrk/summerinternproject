@@ -9,9 +9,10 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "npm run test:backend && npm run test:frontend",
+    "test": "npm run test:backend && npm run test:frontend && npm run test:db-safety",
     "test:backend": "npm --prefix server test",
-    "test:frontend": "vitest run"
+    "test:frontend": "vitest run",
+    "test:db-safety": "npm --prefix server run check:db-safety"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^6.7.2",

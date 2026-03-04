@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -28,6 +29,20 @@ const database = require('../database/database');
 
 let server;
 let baseUrl;
+
+const createCarrierWebhookHeaders = (payload, timestamp = Date.now()) => {
+  const timestampValue = String(timestamp);
+  const rawBody = JSON.stringify(payload || {});
+  const signature = crypto
+    .createHmac('sha256', process.env.CARRIER_WEBHOOK_SECRET)
+    .update(`${timestampValue}.${rawBody}`)
+    .digest('hex');
+
+  return {
+    'x-carrier-webhook-timestamp': timestampValue,
+    'x-carrier-webhook-signature': signature,
+  };
+};
 
 const requestJson = async (endpoint, options = {}) => {
   const headers = {
@@ -269,6 +284,51 @@ test('critical auth and authorization flow works end-to-end', async () => {
     token: adminToken,
   });
   assert.equal(loadDemoAsAdminWhenDisabled.status, 404);
+});
+
+test('password change revokes previously issued token access', async () => {
+  const email = `password_change_${Date.now()}@example.com`;
+  const initialPassword = 'StartPass123A';
+  const nextPassword = 'NextPass123A';
+
+  const registerResponse = await requestJson('/api/register', {
+    method: 'POST',
+    body: {
+      name: 'Password Change User',
+      email,
+      password: initialPassword,
+    },
+  });
+
+  assert.equal(registerResponse.status, 201);
+  const tokenBeforePasswordChange = registerResponse.data.token;
+  const userId = registerResponse.data.user.id;
+
+  const changePasswordResponse = await requestJson(`/api/users/${userId}/password`, {
+    method: 'PUT',
+    token: tokenBeforePasswordChange,
+    body: {
+      currentPassword: initialPassword,
+      newPassword: nextPassword,
+    },
+  });
+
+  assert.equal(changePasswordResponse.status, 200);
+
+  const meWithOldToken = await requestJson('/api/me', {
+    token: tokenBeforePasswordChange,
+  });
+  assert.equal(meWithOldToken.status, 401);
+
+  const loginWithNewPassword = await requestJson('/api/login', {
+    method: 'POST',
+    body: {
+      email,
+      password: nextPassword,
+    },
+  });
+
+  assert.equal(loginWithNewPassword.status, 200);
 });
 
 test('content and status endpoints return full entities', async () => {
@@ -657,17 +717,17 @@ test('order creation enforces backend catalog prices and totals', async () => {
 
   assert.equal(carrierWebhookUnauthorized.status, 401);
 
+  const carrierWebhookPayload = {
+    provider: 'ups',
+    providerEventId: 'carrier-event-1',
+    status: 'delivered',
+    trackingNumber: '1Z999AA10123456784',
+  };
+
   const carrierWebhookDelivered = await requestJson(`/webhooks/carrier/orders/${validTotalResponse.data.id}/status`, {
     method: 'POST',
-    headers: {
-      'x-carrier-webhook-secret': process.env.CARRIER_WEBHOOK_SECRET,
-    },
-    body: {
-      provider: 'ups',
-      providerEventId: 'carrier-event-1',
-      status: 'delivered',
-      trackingNumber: '1Z999AA10123456784',
-    },
+    headers: createCarrierWebhookHeaders(carrierWebhookPayload),
+    body: carrierWebhookPayload,
   });
 
   assert.equal(carrierWebhookDelivered.status, 200);
@@ -677,15 +737,8 @@ test('order creation enforces backend catalog prices and totals', async () => {
 
   const carrierWebhookDeliveredDuplicate = await requestJson(`/webhooks/carrier/orders/${validTotalResponse.data.id}/status`, {
     method: 'POST',
-    headers: {
-      'x-carrier-webhook-secret': process.env.CARRIER_WEBHOOK_SECRET,
-    },
-    body: {
-      provider: 'ups',
-      providerEventId: 'carrier-event-1',
-      status: 'delivered',
-      trackingNumber: '1Z999AA10123456784',
-    },
+    headers: createCarrierWebhookHeaders(carrierWebhookPayload),
+    body: carrierWebhookPayload,
   });
 
   assert.equal(carrierWebhookDeliveredDuplicate.status, 200);

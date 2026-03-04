@@ -56,6 +56,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 
 - `npm run test:backend`: Backend entegrasyon testleri
 - `npm run test:frontend`: Frontend smoke + admin component testleri (Vitest + RTL)
+- `npm run test:db-safety`: Track edilen demo DB/fixture e-posta domain guvenlik kontrolu
 - `npm test`: Tüm testleri ardışık çalıştırır
 
 ## Güvenlik Notları
@@ -73,9 +74,11 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - `shipping` durumuna geciste `carrier + tracking` zorunludur; `delivered` varsayilan olarak carrier webhook ile guncellenir.
 - Admin dashboard'da payment alanlari operasyonel olarak read-only tutulur; fulfillment adimlari tek update aksiyonuyla yonetilir.
 - Auth token cookie `httpOnly` olarak set edilir; logout ile token denylist'e alinip tekrar kullanimi engellenir (`revoked_tokens`).
+- Parola degisikligi sonrasinda onceki tokenlar sunucu tarafinda gecersiz sayilir.
 - Event/media URL alanlari server tarafinda protokol dogrulamasi ile filtrelenir (`http/https` veya guvenli relative URL).
 - Lokal prompt yardimci dosyalari (`agentsmdpromptu.txt`, `güvenlikodyazmapromptu.txt`, `optimizasyonpromptu.txt`) gitignore altindadir.
 - Content-Security-Policy header aktif; CARRIER_WEBHOOK_SECRET prod'da zorunlu.
+- Carrier webhook dogrulamasi `x-carrier-webhook-timestamp` + `x-carrier-webhook-signature` (HMAC-SHA256) ile yapilir.
 - CMS ID uretimi UUID v4 ile yapilir; SQLite WAL mode aktif.
 
 ### Backend Ortam Değişkenleri

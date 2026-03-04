@@ -6,7 +6,7 @@ const SANITIZE_OPTIONS = {
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'img',
     'span', 'div'
   ],
-  ALLOWED_ATTR: ['href', 'target', 'rel', 'title', 'src', 'alt', 'style'],
+  ALLOWED_ATTR: ['href', 'target', 'rel', 'title', 'src', 'alt'],
   ALLOW_UNKNOWN_PROTOCOLS: false,
   FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input'],
   FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus']

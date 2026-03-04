@@ -219,7 +219,6 @@ const sanitizeRichText = (value) => {
     allowedAttributes: {
       a: ['href', 'target', 'rel', 'title'],
       img: ['src', 'alt', 'title'],
-      '*': ['style']
     },
     allowedSchemes: ['http', 'https', 'mailto'],
     allowedSchemesAppliedToAttributes: ['href', 'src'],
@@ -320,7 +319,12 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({
+  limit: '1mb',
+  verify: (req, _res, buffer) => {
+    req.rawBody = buffer.toString('utf8');
+  }
+}));
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
