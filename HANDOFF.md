@@ -50,7 +50,11 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
 - Parola degisikligi sonrasinda onceki tokenlar `updated_at` kontrolu ile gecersizlenir.
 - Rate-limit state'i kalici hale getirildi (`rate_limits` tablosu).
 - Login/register rate-limitleri IP + e-posta hash kombinasyonu ile takip edilir.
+- Login icin hesap lockout akisi aktif (`LOGIN_LOCKOUT_WINDOW_MS`, `LOGIN_LOCKOUT_MAX_ATTEMPTS`).
 - Carrier webhook dogrulamasi `x-carrier-webhook-timestamp` + `x-carrier-webhook-signature` HMAC ile yapilir (replay penceresi kontrolu).
+- Carrier webhook endpoint'i rate-limit ile korunur (`CARRIER_WEBHOOK_*` ayarlari).
+- API parser katmaninda strict JSON + body-size limit + payload-structure guard aktif (malformed/oversized payload 400/413).
+- Guvenlik izleme katmani aktif: admin mutating aksiyonlar `audit_logs`, access-control/rate-limit sinyalleri `security_events` tablosuna yazilir.
 - Test altyapisi guncel:
   - Backend: `server/tests/api.integration.test.js`, `server/tests/database.transaction.test.js`
   - Frontend smoke: `src/test/smoke/auth-pages.smoke.test.tsx`

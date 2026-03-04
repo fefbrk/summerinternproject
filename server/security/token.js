@@ -1,7 +1,8 @@
 const crypto = require('crypto');
 
-const DEFAULT_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const DEFAULT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const MAX_TOKEN_LENGTH = 4096;
 let generatedDevelopmentTokenSecret = null;
 
 const encodeBase64Url = (value) => {
@@ -64,6 +65,10 @@ const createAuthToken = (user) => {
 
 const verifyAuthToken = (token) => {
   if (!token || typeof token !== 'string') {
+    return null;
+  }
+
+  if (token.length > MAX_TOKEN_LENGTH) {
     return null;
   }
 

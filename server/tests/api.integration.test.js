@@ -20,12 +20,17 @@ process.env.DEFAULT_ADMIN_PASSWORD = 'StrongPass123A';
 process.env.CORS_ORIGINS = 'http://localhost:5173';
 process.env.ENABLE_DEMO_ENDPOINTS = 'false';
 process.env.CARRIER_WEBHOOK_SECRET = 'carrier-webhook-test-secret';
+process.env.CARRIER_WEBHOOK_MAX_ATTEMPTS = '5';
+process.env.CARRIER_WEBHOOK_WINDOW_MS = '60000';
+process.env.LOGIN_LOCKOUT_MAX_ATTEMPTS = '3';
+process.env.LOGIN_LOCKOUT_WINDOW_MS = '600000';
 process.env.ENABLE_MANUAL_FULFILLMENT_OVERRIDE = 'false';
 process.env.ENABLE_MANUAL_PAYMENT_OVERRIDE = 'true';
 process.env.SUPER_ADMIN_EMAILS = process.env.DEFAULT_ADMIN_EMAIL;
 
 const { startServer } = require('../server');
 const database = require('../database/database');
+const { hashPassword } = require('../security/password');
 
 let server;
 let baseUrl;
@@ -954,4 +959,188 @@ test('register endpoint is rate-limited', async () => {
   }
 
   assert.equal(hitRateLimit, true);
+});
+
+test('login endpoint applies account lockout after repeated failures', async () => {
+  const email = `lockout_${Date.now()}@example.com`;
+  const password = 'LockoutPass123A';
+  await database.createUser({
+    id: crypto.randomUUID(),
+    email,
+    name: 'Lockout User',
+    password: hashPassword(password),
+    isAdmin: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const failedLogin = await requestJson('/api/login', {
+      method: 'POST',
+      body: {
+        email,
+        password: 'WrongPass123A',
+      },
+    });
+
+    assert.equal(failedLogin.status, 401);
+  }
+
+  const lockedLogin = await requestJson('/api/login', {
+    method: 'POST',
+    body: {
+      email,
+      password,
+    },
+  });
+
+  assert.equal(lockedLogin.status, 423);
+  assert.equal(
+    lockedLogin.data.error,
+    'Account temporarily locked due to repeated failed login attempts. Please try again later.'
+  );
+});
+
+test('prototype-pollution style payloads are rejected', async () => {
+  const freshCsrf = await ensureCsrfState(true);
+  const maliciousEmail = `proto_${Date.now()}@example.com`;
+  const maliciousPayload = `{"name":"Prototype Attack","email":"${maliciousEmail}","password":"ProtoPass123A","__proto__":{"polluted":"yes"}}`;
+
+  const response = await fetch(`${baseUrl}/api/register`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: TEST_ORIGIN,
+      'x-csrf-token': freshCsrf.token,
+      Cookie: freshCsrf.cookie,
+    },
+    body: maliciousPayload,
+  });
+
+  assert.equal(response.status, 400);
+  const payload = await response.json().catch(() => ({}));
+  assert.equal(payload.error, 'Invalid request payload structure');
+  assert.equal(({}).polluted, undefined);
+});
+
+test('admin mutating actions are written to audit logs', async () => {
+  const adminLogin = await requestJson('/api/login', {
+    method: 'POST',
+    body: {
+      email: process.env.DEFAULT_ADMIN_EMAIL,
+      password: process.env.DEFAULT_ADMIN_PASSWORD,
+    },
+  });
+
+  assert.equal(adminLogin.status, 200);
+  const adminToken = adminLogin.authToken;
+  const adminUserId = adminLogin.data.user.id;
+
+  const createBlogResponse = await requestJson('/api/blog', {
+    method: 'POST',
+    token: adminToken,
+    body: {
+      title: `Audit Log Test ${Date.now()}`,
+      excerpt: 'Audit log coverage',
+      author: 'Integration Admin',
+      content: '<p>Audit log content</p>',
+      status: 'draft',
+      images: [],
+    },
+  });
+
+  assert.equal(createBlogResponse.status, 201);
+
+  const deadline = Date.now() + 2000;
+  let auditLogRow = null;
+  while (!auditLogRow && Date.now() < deadline) {
+    auditLogRow = await database.get(
+      `SELECT user_id as userId, action, resource_type as resourceType, new_value as newValue
+       FROM audit_logs
+       WHERE user_id = ? AND action = ?
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [adminUserId, 'POST /blog']
+    );
+
+    if (!auditLogRow) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+  }
+
+  assert.ok(auditLogRow);
+  assert.equal(auditLogRow.userId, adminUserId);
+  assert.equal(auditLogRow.resourceType, 'blog');
+
+  const parsedNewValue = JSON.parse(auditLogRow.newValue || '{}');
+  assert.equal(parsedNewValue.statusCode, 201);
+});
+
+test('malformed JSON and oversized request payloads are rejected safely', async () => {
+  const freshCsrf = await ensureCsrfState(true);
+
+  const malformedJsonResponse = await fetch(`${baseUrl}/api/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: TEST_ORIGIN,
+      'x-csrf-token': freshCsrf.token,
+      Cookie: freshCsrf.cookie,
+    },
+    body: '{"email":"broken@example.com",',
+  });
+
+  assert.equal(malformedJsonResponse.status, 400);
+  const malformedJsonPayload = await malformedJsonResponse.json().catch(() => ({}));
+  assert.equal(malformedJsonPayload.error, 'Invalid JSON payload');
+
+  const oversizedBody = JSON.stringify({
+    type: 'general',
+    name: 'Payload Limit Test',
+    email: 'payload-limit@example.com',
+    subject: 'Payload limit check',
+    message: 'a'.repeat(300 * 1024),
+  });
+
+  const oversizedPayloadResponse = await fetch(`${baseUrl}/api/contacts`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Origin: TEST_ORIGIN,
+      'x-csrf-token': freshCsrf.token,
+      Cookie: freshCsrf.cookie,
+    },
+    body: oversizedBody,
+  });
+
+  assert.equal(oversizedPayloadResponse.status, 413);
+  const oversizedPayload = await oversizedPayloadResponse.json().catch(() => ({}));
+  assert.equal(oversizedPayload.error, 'Request payload too large');
+});
+
+test('carrier webhook endpoint applies rate limiting', async () => {
+  await database.run('DELETE FROM rate_limits WHERE scope = ?', ['carrier_webhook']);
+
+  const webhookPayload = {
+    provider: 'ups',
+    providerEventId: 'rate-limit-check',
+    status: 'shipping',
+    trackingNumber: '1ZRATECHECK123456',
+  };
+
+  const responses = [];
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const response = await requestJson('/webhooks/carrier/orders/non-existent-order/status', {
+      method: 'POST',
+      body: {
+        ...webhookPayload,
+        providerEventId: `${webhookPayload.providerEventId}-${attempt}`,
+      },
+    });
+
+    responses.push(response.status);
+  }
+
+  assert.equal(responses[0], 401);
+  assert.equal(responses[5], 429);
 });

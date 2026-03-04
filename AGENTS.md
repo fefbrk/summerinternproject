@@ -160,16 +160,24 @@ VITE_API_URL=http://localhost:3001
 
 ```env
 AUTH_TOKEN_SECRET=<long-random-secret>
-AUTH_TOKEN_TTL_MS=604800000
+AUTH_TOKEN_TTL_MS=86400000
 CORS_ORIGINS=http://localhost:8080,http://localhost:5173
+API_JSON_BODY_LIMIT=256kb
+API_FORM_BODY_LIMIT=256kb
 REGISTRATION_WINDOW_MS=900000
 REGISTRATION_MAX_ATTEMPTS=20
 REGISTRATION_RATE_LIMIT_MAX_ENTRIES=10000
+LOGIN_LOCKOUT_WINDOW_MS=1800000
+LOGIN_LOCKOUT_MAX_ATTEMPTS=5
+LOGIN_LOCKOUT_RATE_LIMIT_MAX_ENTRIES=50000
 TRUST_PROXY=false
 DEFAULT_ADMIN_EMAIL=admin@example.com
 DEFAULT_ADMIN_PASSWORD=<strong-password>
 ENABLE_DEMO_ENDPOINTS=false
 CARRIER_WEBHOOK_SECRET=<long-random-webhook-secret>
+CARRIER_WEBHOOK_WINDOW_MS=60000
+CARRIER_WEBHOOK_MAX_ATTEMPTS=120
+CARRIER_WEBHOOK_RATE_LIMIT_MAX_ENTRIES=50000
 ENABLE_MANUAL_FULFILLMENT_OVERRIDE=false
 ENABLE_MANUAL_PAYMENT_OVERRIDE=false
 SUPER_ADMIN_EMAILS=admin@example.com
@@ -180,6 +188,7 @@ Production notlari:
 
 - `AUTH_TOKEN_SECRET` zorunlu
 - `AUTH_TOKEN_SECRET` guclu/uzun olmali (kisa secretlar production'da reject edilir)
+- `AUTH_TOKEN_TTL_MS` production'da 24 saati asmamali
 - `DEFAULT_ADMIN_EMAIL` gecerli e-posta olmali
 - `DEFAULT_ADMIN_PASSWORD` zorunlu
 - `ENABLE_DEMO_ENDPOINTS=false` kalmali
@@ -306,6 +315,7 @@ cd server && npm start
 - Address tipi frontendde `home|office`, backendde `delivery|billing` maplenir; bu donusumde regression testi bulunur.
 - Orders tablosunda payment/fulfillment kolonlari ve `payment_attempts`/`payment_events`/`fulfillment_events` tablolari aktiftir; webhook idempotency kayitlari DB tarafinda tutulur.
 - Guvenlik icin `revoked_tokens` (logout denylist) ve `rate_limits` (kalici throttle state) tablolari aktiftir.
+- Guvenlik izleme icin `audit_logs` (admin mutating aksiyonlar) ve `security_events` (auth/rate-limit ihlalleri) tablolari aktiftir.
 - Auth token cookie (`auth_token`) `httpOnly` olarak set edilir; logout ile token `revoked_tokens` tablosuna yazilarak denylist uygulanir.
-- Login/register/contact rate-limitleri `rate_limits` tablosu uzerinden kalici/podlar-arasi paylasimli state ile takip edilir.
+- Login/register/contact rate-limitleri `rate_limits` tablosu uzerinden kalici/podlar-arasi paylasimli state ile takip edilir; login icin hesap lockout akisi da ayni store uzerindedir.
 - Admin dashboard order modalinda payment status manuel edit UI'dan kapali tutulur; fulfillment adimlari operasyonel olarak ayridir.

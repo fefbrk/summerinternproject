@@ -14,10 +14,15 @@ const createAuthMiddleware = ({
   contactWindowMs = 10 * 60 * 1000,
   contactMaxAttempts = 20,
   contactRateLimitMaxEntries = 20000,
+  accountLockoutWindowMs = 30 * 60 * 1000,
+  accountLockoutMaxAttempts = 5,
+  accountLockoutRateLimitMaxEntries = 50000,
+  logSecurityEvent = async () => {},
 }) => {
   const loginAttempts = new Map();
   const registrationAttempts = new Map();
   const contactAttempts = new Map();
+  const accountLockouts = new Map();
   const hasPersistentRateLimitStore = Boolean(
     database &&
     typeof database.getRateLimitState === 'function' &&
@@ -70,6 +75,27 @@ const createAuthMiddleware = ({
     }
 
     return `${type}:${value}`;
+  };
+
+  const emitSecurityEvent = (payload) => {
+    if (typeof logSecurityEvent !== 'function') {
+      return;
+    }
+
+    try {
+      void logSecurityEvent(payload);
+    } catch (_error) {
+      // no-op
+    }
+  };
+
+  const buildAccountLockoutKeyFromEmail = (email) => {
+    const normalizedEmail = normalizeRateLimitEmail(email);
+    if (!normalizedEmail) {
+      return '';
+    }
+
+    return buildRateLimitKey('email', normalizedEmail);
   };
 
   const getRateLimitKeysForRequest = (req, includeEmail = false) => {
@@ -297,6 +323,154 @@ const createAuthMiddleware = ({
     return next();
   };
 
+  const checkAccountLockout = async (req, res, next) => {
+    const email = normalizeRateLimitEmail(req.body?.email);
+    const accountLockoutKey = buildAccountLockoutKeyFromEmail(email);
+
+    if (!accountLockoutKey) {
+      return next();
+    }
+
+    if (hasPersistentRateLimitStore) {
+      try {
+        const state = await database.getRateLimitState(
+          'login_lockout',
+          accountLockoutKey,
+          accountLockoutWindowMs,
+          accountLockoutRateLimitMaxEntries
+        );
+
+        if (state.count >= accountLockoutMaxAttempts) {
+          const retryAfterMs = Math.max(0, Number(state.resetAt) - Date.now());
+          emitSecurityEvent({
+            eventType: 'AUTH_ACCOUNT_LOCKED',
+            severity: 'high',
+            email,
+            ipAddress: getClientIp(req),
+            details: {
+              scope: 'login_lockout',
+              retryAfterMs,
+            },
+          });
+
+          return res.status(423).json({
+            error: 'Account temporarily locked due to repeated failed login attempts. Please try again later.',
+          });
+        }
+
+        return next();
+      } catch (error) {
+        console.error('Persistent account lockout check error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+
+    const now = Date.now();
+    pruneRateLimitMap(accountLockouts, now, accountLockoutRateLimitMaxEntries);
+    const record = accountLockouts.get(accountLockoutKey);
+
+    if (record && now <= record.resetAt && record.count >= accountLockoutMaxAttempts) {
+      const retryAfterMs = Math.max(0, Number(record.resetAt) - now);
+      emitSecurityEvent({
+        eventType: 'AUTH_ACCOUNT_LOCKED',
+        severity: 'high',
+        email,
+        ipAddress: getClientIp(req),
+        details: {
+          scope: 'login_lockout',
+          retryAfterMs,
+        },
+      });
+
+      return res.status(423).json({
+        error: 'Account temporarily locked due to repeated failed login attempts. Please try again later.',
+      });
+    }
+
+    return next();
+  };
+
+  const recordAccountLoginAttempt = async (email, success) => {
+    const normalizedEmail = normalizeRateLimitEmail(email);
+    const accountLockoutKey = buildAccountLockoutKeyFromEmail(normalizedEmail);
+
+    if (!accountLockoutKey) {
+      return;
+    }
+
+    if (hasPersistentRateLimitStore) {
+      try {
+        if (success) {
+          await database.resetRateLimit('login_lockout', accountLockoutKey);
+          return;
+        }
+
+        const state = await database.incrementRateLimit(
+          'login_lockout',
+          accountLockoutKey,
+          accountLockoutWindowMs,
+          accountLockoutRateLimitMaxEntries
+        );
+
+        if (state.count === accountLockoutMaxAttempts) {
+          emitSecurityEvent({
+            eventType: 'AUTH_ACCOUNT_LOCKOUT_TRIGGERED',
+            severity: 'high',
+            email: normalizedEmail,
+            details: {
+              scope: 'login_lockout',
+              attempts: state.count,
+              retryAfterMs: Math.max(0, Number(state.resetAt) - Date.now()),
+            },
+          });
+        }
+
+        return;
+      } catch (error) {
+        console.error('Persistent account lockout recording error:', error);
+        return;
+      }
+    }
+
+    const now = Date.now();
+    pruneRateLimitMap(accountLockouts, now, accountLockoutRateLimitMaxEntries);
+
+    if (success) {
+      accountLockouts.delete(accountLockoutKey);
+      return;
+    }
+
+    const record = accountLockouts.get(accountLockoutKey) || {
+      count: 0,
+      resetAt: now + accountLockoutWindowMs,
+    };
+
+    if (now > record.resetAt) {
+      record.count = 0;
+      record.resetAt = now + accountLockoutWindowMs;
+    }
+
+    if (!accountLockouts.has(accountLockoutKey) && accountLockouts.size >= accountLockoutRateLimitMaxEntries) {
+      return;
+    }
+
+    record.count += 1;
+    accountLockouts.set(accountLockoutKey, record);
+
+    if (record.count === accountLockoutMaxAttempts) {
+      emitSecurityEvent({
+        eventType: 'AUTH_ACCOUNT_LOCKOUT_TRIGGERED',
+        severity: 'high',
+        email: normalizedEmail,
+        details: {
+          scope: 'login_lockout',
+          attempts: record.count,
+          retryAfterMs: Math.max(0, Number(record.resetAt) - now),
+        },
+      });
+    }
+  };
+
   const authenticateApiRequest = async (req, res, next) => {
     const normalizedPath = req.path.replace(/\/+$/, '') || '/';
     const publicGetPattern = /^\/(blog|press-releases|media-coverage|events)(\/[^/]+)?$/;
@@ -430,6 +604,8 @@ const createAuthMiddleware = ({
     recordLoginAttempt,
     checkRegistrationRateLimit,
     checkContactRateLimit,
+    checkAccountLockout,
+    recordAccountLoginAttempt,
   };
 };
 

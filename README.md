@@ -65,6 +65,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - Admin işlemleri sunucu tarafında rol kontrolü ile sınırlandırılır.
 - Parolalar `scrypt` ile hashlenerek saklanır (plaintext saklanmaz).
 - Login/register/contact endpointlerinde rate-limit uygulanır.
+- Login endpointinde hesap-bazli lockout uygulanir (`LOGIN_LOCKOUT_WINDOW_MS`, `LOGIN_LOCKOUT_MAX_ATTEMPTS`).
 - Rate-limit state'i veritabaninda kalici tutulur (`rate_limits`), restart sonrasi sifirlanmaz.
 - Demo/sıfırlama endpoint'leri sadece `ENABLE_DEMO_ENDPOINTS=true` olduğunda açılır.
 - HTML içerikleri istemci ve sunucuda sanitize edilir (XSS koruması).
@@ -79,6 +80,9 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - Lokal prompt yardimci dosyalari (`agentsmdpromptu.txt`, `güvenlikodyazmapromptu.txt`, `optimizasyonpromptu.txt`) gitignore altindadir.
 - Content-Security-Policy header aktif; CARRIER_WEBHOOK_SECRET prod'da zorunlu.
 - Carrier webhook dogrulamasi `x-carrier-webhook-timestamp` + `x-carrier-webhook-signature` (HMAC-SHA256) ile yapilir.
+- JSON/form request body size limitleri ayarlanmistir (`API_JSON_BODY_LIMIT`, `API_FORM_BODY_LIMIT`); malformed/oversized payload'lar 400/413 ile reddedilir.
+- Carrier webhook endpoint'i rate-limit ile korunur (`CARRIER_WEBHOOK_WINDOW_MS`, `CARRIER_WEBHOOK_MAX_ATTEMPTS`, `CARRIER_WEBHOOK_RATE_LIMIT_MAX_ENTRIES`).
+- Admin state-changing aksiyonlari `audit_logs` tablosuna, erisim/rate-limit ihlalleri `security_events` tablosuna kaydedilir.
 - CMS ID uretimi UUID v4 ile yapilir; SQLite WAL mode aktif.
 
 ### Backend Ortam Değişkenleri
@@ -86,14 +90,17 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - `server/.env` dosyası `npm start` ve `npm run dev` ile otomatik yüklenir.
 
 - `AUTH_TOKEN_SECRET`: Üretimde güçlü bir gizli anahtar zorunlu.
-- `AUTH_TOKEN_TTL_MS`: Token süresi (ms), varsayılan 7 gün.
+- `AUTH_TOKEN_TTL_MS`: Token süresi (ms), varsayılan 24 saat (üretimde 24 saati asmamali).
 - `CORS_ORIGINS`: İzin verilen origin listesi (virgülle ayrılmış).
+- `API_JSON_BODY_LIMIT`, `API_FORM_BODY_LIMIT`: API body parser limitleri.
 - `REGISTRATION_WINDOW_MS`, `REGISTRATION_MAX_ATTEMPTS`, `REGISTRATION_RATE_LIMIT_MAX_ENTRIES`: Register rate-limit ayarları.
+- `LOGIN_LOCKOUT_WINDOW_MS`, `LOGIN_LOCKOUT_MAX_ATTEMPTS`, `LOGIN_LOCKOUT_RATE_LIMIT_MAX_ENTRIES`: Hesap lockout ayarlari.
 - `TRUST_PROXY`: Sadece reverse-proxy arkasında `true` olmalı.
 - `DEFAULT_ADMIN_EMAIL`: İlk admin hesabı e-posta adresi.
 - `DEFAULT_ADMIN_PASSWORD`: İlk admin hesabı şifresi (üretimde zorunlu).
 - `ENABLE_DEMO_ENDPOINTS`: `true` ise demo/temizleme endpoint'leri aktif olur.
 - `CARRIER_WEBHOOK_SECRET`: Carrier webhook endpoint gizli anahtarı.
+- `CARRIER_WEBHOOK_WINDOW_MS`, `CARRIER_WEBHOOK_MAX_ATTEMPTS`, `CARRIER_WEBHOOK_RATE_LIMIT_MAX_ENTRIES`: Carrier webhook rate-limit ayarları.
 - `ENABLE_MANUAL_FULFILLMENT_OVERRIDE`: Acil durum manuel delivered override (`false` kalması önerilir).
 - `ENABLE_MANUAL_PAYMENT_OVERRIDE`: Acil durum manuel payment status override (`false` kalması önerilir).
 - `SUPER_ADMIN_EMAILS`: Override için yetkili super-admin e-posta listesi (virgülle ayrılmış).

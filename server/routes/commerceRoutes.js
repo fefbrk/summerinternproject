@@ -24,11 +24,6 @@ const registerCommerceRoutes = (app, deps) => {
   const effectivePaymentStatuses = paymentStatuses instanceof Set
     ? paymentStatuses
     : new Set(['pending', 'paid', 'failed', 'refunded']);
-
-
-
-
-
   const fulfillmentStatusesRequiringPaid = new Set(['preparing', 'shipping', 'delivered']);
   const manualFulfillmentStatuses = new Set(['received', 'preparing', 'shipping']);
   const carrierStatusToOrderStatus = {
@@ -42,6 +37,16 @@ const registerCommerceRoutes = (app, deps) => {
   const manualPaymentOverrideEnabled = process.env.ENABLE_MANUAL_PAYMENT_OVERRIDE === 'true';
   const carrierWebhookSecret = sanitizePlainText(process.env.CARRIER_WEBHOOK_SECRET, 256);
   const CARRIER_WEBHOOK_MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
+  const CARRIER_WEBHOOK_WINDOW_MS = Number.isFinite(Number(process.env.CARRIER_WEBHOOK_WINDOW_MS)) && Number(process.env.CARRIER_WEBHOOK_WINDOW_MS) > 0
+    ? Number(process.env.CARRIER_WEBHOOK_WINDOW_MS)
+    : 60 * 1000;
+  const CARRIER_WEBHOOK_MAX_ATTEMPTS = Number.isFinite(Number(process.env.CARRIER_WEBHOOK_MAX_ATTEMPTS)) && Number(process.env.CARRIER_WEBHOOK_MAX_ATTEMPTS) > 0
+    ? Number(process.env.CARRIER_WEBHOOK_MAX_ATTEMPTS)
+    : 120;
+  const CARRIER_WEBHOOK_RATE_LIMIT_MAX_ENTRIES = Number.isFinite(Number(process.env.CARRIER_WEBHOOK_RATE_LIMIT_MAX_ENTRIES)) && Number(process.env.CARRIER_WEBHOOK_RATE_LIMIT_MAX_ENTRIES) > 0
+    ? Number(process.env.CARRIER_WEBHOOK_RATE_LIMIT_MAX_ENTRIES)
+    : 50000;
+  const carrierWebhookAttempts = new Map();
   const superAdminEmailSet = new Set(
     String(process.env.SUPER_ADMIN_EMAILS || process.env.DEFAULT_ADMIN_EMAIL || '')
       .split(',')
@@ -64,6 +69,81 @@ const registerCommerceRoutes = (app, deps) => {
     }
 
     return typeof headerValue === 'string' ? headerValue : '';
+  };
+
+  const getClientIp = (req) => {
+    return req.ip || req.socket?.remoteAddress || 'unknown';
+  };
+
+  const pruneRateLimitMap = (attemptMap, now, maxEntries) => {
+    for (const [key, record] of attemptMap.entries()) {
+      if (!record || typeof record.resetAt !== 'number' || now > record.resetAt) {
+        attemptMap.delete(key);
+      }
+    }
+
+    if (attemptMap.size <= maxEntries) {
+      return;
+    }
+
+    const sortedEntries = [...attemptMap.entries()].sort((a, b) => {
+      return a[1].resetAt - b[1].resetAt;
+    });
+
+    const removeCount = attemptMap.size - maxEntries;
+    for (let index = 0; index < removeCount; index += 1) {
+      attemptMap.delete(sortedEntries[index][0]);
+    }
+  };
+
+  const checkCarrierWebhookRateLimit = async (req, res, next) => {
+    const clientIp = getClientIp(req);
+
+    if (typeof database.incrementRateLimit === 'function') {
+      try {
+        const key = `ip:${clientIp}`;
+        const state = await database.incrementRateLimit(
+          'carrier_webhook',
+          key,
+          CARRIER_WEBHOOK_WINDOW_MS,
+          CARRIER_WEBHOOK_RATE_LIMIT_MAX_ENTRIES
+        );
+
+        if (state.count > CARRIER_WEBHOOK_MAX_ATTEMPTS) {
+          return res.status(429).json({ error: 'Too many webhook requests. Please try again later.' });
+        }
+
+        return next();
+      } catch (error) {
+        console.error('Carrier webhook rate-limit error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+
+    const now = Date.now();
+    pruneRateLimitMap(carrierWebhookAttempts, now, CARRIER_WEBHOOK_RATE_LIMIT_MAX_ENTRIES);
+
+    const record = carrierWebhookAttempts.get(clientIp);
+    if (!record || now > record.resetAt) {
+      if (carrierWebhookAttempts.size >= CARRIER_WEBHOOK_RATE_LIMIT_MAX_ENTRIES) {
+        return res.status(429).json({ error: 'Too many webhook requests. Please try again later.' });
+      }
+
+      carrierWebhookAttempts.set(clientIp, {
+        count: 1,
+        resetAt: now + CARRIER_WEBHOOK_WINDOW_MS,
+      });
+
+      return next();
+    }
+
+    if (record.count >= CARRIER_WEBHOOK_MAX_ATTEMPTS) {
+      return res.status(429).json({ error: 'Too many webhook requests. Please try again later.' });
+    }
+
+    record.count += 1;
+    carrierWebhookAttempts.set(clientIp, record);
+    return next();
   };
 
   const resolveCarrierWebhookTimestamp = (rawHeaderValue) => {
@@ -539,7 +619,7 @@ const registerCommerceRoutes = (app, deps) => {
     }
   });
 
-  app.post('/webhooks/carrier/orders/:id/status', async (req, res) => {
+  app.post('/webhooks/carrier/orders/:id/status', checkCarrierWebhookRateLimit, async (req, res) => {
     try {
       if (!carrierWebhookSecret) {
         return res.status(503).json({ error: 'Carrier webhook secret is not configured' });

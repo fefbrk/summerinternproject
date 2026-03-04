@@ -112,6 +112,32 @@ CREATE TABLE IF NOT EXISTS rate_limits (
     PRIMARY KEY (scope, key)
 );
 
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    action TEXT NOT NULL,
+    resource_type TEXT,
+    resource_id TEXT,
+    old_value TEXT,
+    new_value TEXT,
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS security_events (
+    id TEXT PRIMARY KEY,
+    event_type TEXT NOT NULL,
+    severity TEXT NOT NULL CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+    user_id TEXT,
+    email TEXT,
+    details TEXT NOT NULL DEFAULT '{}',
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at TEXT NOT NULL,
+    alerted INTEGER NOT NULL DEFAULT 0
+);
+
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_order_id ON payment_attempts(order_id);
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_status ON payment_attempts(status);
 CREATE INDEX IF NOT EXISTS idx_payment_events_order_id ON payment_events(order_id);
@@ -120,6 +146,10 @@ CREATE INDEX IF NOT EXISTS idx_fulfillment_events_source ON fulfillment_events(s
 CREATE INDEX IF NOT EXISTS idx_fulfillment_events_provider_event ON fulfillment_events(shipment_provider, provider_event_id);
 CREATE INDEX IF NOT EXISTS idx_revoked_tokens_expires_at ON revoked_tokens(expires_at);
 CREATE INDEX IF NOT EXISTS idx_rate_limits_scope_reset ON rate_limits(scope, reset_at);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_created ON audit_logs(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_security_events_type_created ON security_events(event_type, created_at);
+CREATE INDEX IF NOT EXISTS idx_security_events_severity_created ON security_events(severity, created_at);
 
 -- Course Registrations Table
 CREATE TABLE IF NOT EXISTS course_registrations (

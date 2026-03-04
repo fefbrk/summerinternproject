@@ -180,6 +180,8 @@ class Database {
             await this.ensureFulfillmentTables();
             // Revoke ve rate-limit tablolarini olustur
             await this.ensureSecurityTables();
+            // Audit ve security event tablolarini olustur
+            await this.ensureAuditTables();
             // Users tablosuna updated_at kolonu ekle
             await this.addUpdatedAtColumnToUsers();
             // Orders tablosuna order_notes kolonu ekle
@@ -544,6 +546,48 @@ class Database {
         }
     }
 
+    async ensureAuditTables() {
+        try {
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS audit_logs (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    resource_type TEXT,
+                    resource_id TEXT,
+                    old_value TEXT,
+                    new_value TEXT,
+                    ip_address TEXT,
+                    user_agent TEXT,
+                    created_at TEXT NOT NULL
+                )
+            `);
+
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS security_events (
+                    id TEXT PRIMARY KEY,
+                    event_type TEXT NOT NULL,
+                    severity TEXT NOT NULL CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+                    user_id TEXT,
+                    email TEXT,
+                    details TEXT NOT NULL DEFAULT '{}',
+                    ip_address TEXT,
+                    user_agent TEXT,
+                    created_at TEXT NOT NULL,
+                    alerted INTEGER NOT NULL DEFAULT 0
+                )
+            `);
+
+            await this.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_user_created ON audit_logs(user_id, created_at)');
+            await this.run('CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id)');
+            await this.run('CREATE INDEX IF NOT EXISTS idx_security_events_type_created ON security_events(event_type, created_at)');
+            await this.run('CREATE INDEX IF NOT EXISTS idx_security_events_severity_created ON security_events(severity, created_at)');
+        } catch (error) {
+            console.error('Audit/security event tablo migrasyonu hatası:', error);
+            throw error;
+        }
+    }
+
     async addUpdatedAtColumnToUsers() {
         try {
             const tableExists = await this.get(`
@@ -679,7 +723,7 @@ class Database {
         const normalizedExpiresAt = Number(expiresAt);
         const safeExpiresAt = Number.isFinite(normalizedExpiresAt) && normalizedExpiresAt > Date.now()
             ? Math.floor(normalizedExpiresAt)
-            : Date.now() + (7 * 24 * 60 * 60 * 1000);
+            : Date.now() + (24 * 60 * 60 * 1000);
 
         await this.run(
             `INSERT INTO revoked_tokens (jti, expires_at, revoked_at, reason)
@@ -833,6 +877,71 @@ class Database {
 
     async resetRateLimit(scope, key) {
         await this.run('DELETE FROM rate_limits WHERE scope = ? AND key = ?', [scope, key]);
+    }
+
+    async createAuditLog(entry) {
+        const sql = `
+            INSERT INTO audit_logs (
+                id, user_id, action, resource_type, resource_id,
+                old_value, new_value, ip_address, user_agent, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        const toJson = (value) => {
+            if (value === undefined) {
+                return null;
+            }
+
+            try {
+                return JSON.stringify(value);
+            } catch (_error) {
+                return JSON.stringify({ serializationError: true });
+            }
+        };
+
+        await this.run(sql, [
+            entry.id,
+            entry.userId,
+            entry.action,
+            entry.resourceType || null,
+            entry.resourceId || null,
+            toJson(entry.oldValue),
+            toJson(entry.newValue),
+            entry.ipAddress || null,
+            entry.userAgent || null,
+            entry.createdAt || new Date().toISOString(),
+        ]);
+    }
+
+    async createSecurityEvent(event) {
+        const sql = `
+            INSERT INTO security_events (
+                id, event_type, severity, user_id, email,
+                details, ip_address, user_agent, created_at, alerted
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+
+        let serializedDetails = '{}';
+        try {
+            serializedDetails = JSON.stringify(event.details || {});
+        } catch (_error) {
+            serializedDetails = '{"serializationError":true}';
+        }
+
+        await this.run(sql, [
+            event.id,
+            event.eventType,
+            event.severity || 'low',
+            event.userId || null,
+            event.email || null,
+            serializedDetails,
+            event.ipAddress || null,
+            event.userAgent || null,
+            event.createdAt || new Date().toISOString(),
+            event.alerted ? 1 : 0,
+        ]);
     }
 
     // === KULLANICI İŞLEMLERİ ===

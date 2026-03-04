@@ -41,6 +41,23 @@ const REGISTRATION_STATUSES = new Set(['registered', 'active', 'completed']);
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
 const LOGIN_RATE_LIMIT_MAX_ENTRIES = 10000;
+const LOGIN_LOCKOUT_WINDOW_MS = Number.isFinite(Number(process.env.LOGIN_LOCKOUT_WINDOW_MS)) && Number(process.env.LOGIN_LOCKOUT_WINDOW_MS) > 0
+  ? Number(process.env.LOGIN_LOCKOUT_WINDOW_MS)
+  : 30 * 60 * 1000;
+const LOGIN_LOCKOUT_MAX_ATTEMPTS = Number.isFinite(Number(process.env.LOGIN_LOCKOUT_MAX_ATTEMPTS)) && Number(process.env.LOGIN_LOCKOUT_MAX_ATTEMPTS) > 0
+  ? Number(process.env.LOGIN_LOCKOUT_MAX_ATTEMPTS)
+  : 5;
+const LOGIN_LOCKOUT_RATE_LIMIT_MAX_ENTRIES = Number.isFinite(Number(process.env.LOGIN_LOCKOUT_RATE_LIMIT_MAX_ENTRIES)) && Number(process.env.LOGIN_LOCKOUT_RATE_LIMIT_MAX_ENTRIES) > 0
+  ? Number(process.env.LOGIN_LOCKOUT_RATE_LIMIT_MAX_ENTRIES)
+  : 50000;
+const DEFAULT_AUTH_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_PRODUCTION_AUTH_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const API_JSON_BODY_LIMIT = (typeof process.env.API_JSON_BODY_LIMIT === 'string' && process.env.API_JSON_BODY_LIMIT.trim().length > 0)
+  ? process.env.API_JSON_BODY_LIMIT.trim()
+  : '256kb';
+const API_FORM_BODY_LIMIT = (typeof process.env.API_FORM_BODY_LIMIT === 'string' && process.env.API_FORM_BODY_LIMIT.trim().length > 0)
+  ? process.env.API_FORM_BODY_LIMIT.trim()
+  : '256kb';
 const REGISTRATION_WINDOW_MS = Number.isFinite(Number(process.env.REGISTRATION_WINDOW_MS)) && Number(process.env.REGISTRATION_WINDOW_MS) > 0
   ? Number(process.env.REGISTRATION_WINDOW_MS)
   : 15 * 60 * 1000;
@@ -63,11 +80,31 @@ const AUTH_TOKEN_SECRET = typeof process.env.AUTH_TOKEN_SECRET === 'string'
   : '';
 const AUTH_TOKEN_TTL_MS = Number.isFinite(Number(process.env.AUTH_TOKEN_TTL_MS)) && Number(process.env.AUTH_TOKEN_TTL_MS) > 0
   ? Number(process.env.AUTH_TOKEN_TTL_MS)
-  : 7 * 24 * 60 * 60 * 1000;
+  : DEFAULT_AUTH_TOKEN_TTL_MS;
 const LEGACY_DEFAULT_ADMIN_EMAIL = 'admin@klr.com';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const MIN_TOKEN_SECRET_LENGTH = 32;
 const MIN_WEBHOOK_SECRET_LENGTH = 24;
+const UNSAFE_OBJECT_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+const MAX_PAYLOAD_VALIDATION_DEPTH = 12;
+const MAX_AUDIT_DEPTH = 4;
+const MAX_AUDIT_ITEMS = 40;
+const MAX_AUDIT_STRING_LENGTH = 500;
+const AUDIT_STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const VALID_SECURITY_SEVERITIES = new Set(['low', 'medium', 'high', 'critical']);
+const SENSITIVE_AUDIT_FIELDS = new Set([
+  'password',
+  'newpassword',
+  'currentpassword',
+  'token',
+  'authtoken',
+  'authorization',
+  'csrf',
+  'csrftoken',
+  'cardnumber',
+  'cvv',
+  'paymentreference',
+]);
 const AUTH_COOKIE_NAME = 'auth_token';
 const CSRF_COOKIE_NAME = 'csrf_token';
 const CSRF_HEADER_NAME = 'x-csrf-token';
@@ -106,6 +143,14 @@ if (AUTH_TOKEN_SECRET && AUTH_TOKEN_SECRET.length < MIN_TOKEN_SECRET_LENGTH) {
   }
 
   console.warn(`AUTH_TOKEN_SECRET is shorter than ${MIN_TOKEN_SECRET_LENGTH} characters. Use a longer secret for non-production too.`);
+}
+
+if (IS_PRODUCTION && AUTH_TOKEN_TTL_MS > MAX_PRODUCTION_AUTH_TOKEN_TTL_MS) {
+  throw new Error(`AUTH_TOKEN_TTL_MS cannot exceed ${MAX_PRODUCTION_AUTH_TOKEN_TTL_MS} ms in production.`);
+}
+
+if (!IS_PRODUCTION && AUTH_TOKEN_TTL_MS > MAX_PRODUCTION_AUTH_TOKEN_TTL_MS) {
+  console.warn(`AUTH_TOKEN_TTL_MS is set above ${MAX_PRODUCTION_AUTH_TOKEN_TTL_MS} ms. Consider shorter-lived tokens.`);
 }
 
 if (IS_PRODUCTION && !configuredAdminEmail) {
@@ -305,6 +350,202 @@ const isSelfOrAdmin = (requestUser, targetUserId) => {
   return Boolean(requestUser && (requestUser.isAdmin || requestUser.id === targetUserId));
 };
 
+const normalizeOrigin = (origin) => {
+  if (typeof origin !== 'string' || origin.trim().length === 0) {
+    return '';
+  }
+
+  try {
+    return new URL(origin).origin;
+  } catch (_error) {
+    return '';
+  }
+};
+
+const isPlainObject = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+};
+
+const hasUnsafePayloadStructure = (value, depth = 0) => {
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  if (depth > MAX_PAYLOAD_VALIDATION_DEPTH) {
+    return true;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (hasUnsafePayloadStructure(item, depth + 1)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  if (typeof value !== 'object') {
+    return false;
+  }
+
+  if (!isPlainObject(value)) {
+    return true;
+  }
+
+  for (const [key, nestedValue] of Object.entries(value)) {
+    if (UNSAFE_OBJECT_KEYS.has(String(key).toLowerCase())) {
+      return true;
+    }
+
+    if (hasUnsafePayloadStructure(nestedValue, depth + 1)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const sanitizeAuditValue = (value, depth = 0) => {
+  if (value === null || value === undefined) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    return sanitizePlainText(value, MAX_AUDIT_STRING_LENGTH);
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    if (depth >= MAX_AUDIT_DEPTH) {
+      return '[truncated]';
+    }
+
+    return value
+      .slice(0, MAX_AUDIT_ITEMS)
+      .map((item) => sanitizeAuditValue(item, depth + 1));
+  }
+
+  if (typeof value === 'object') {
+    if (depth >= MAX_AUDIT_DEPTH) {
+      return '[truncated]';
+    }
+
+    const result = {};
+    const entries = Object.entries(value).slice(0, MAX_AUDIT_ITEMS);
+    for (const [rawKey, nestedValue] of entries) {
+      const key = sanitizePlainText(rawKey, 64);
+      if (!key) {
+        continue;
+      }
+
+      if (SENSITIVE_AUDIT_FIELDS.has(key.toLowerCase())) {
+        result[key] = '[redacted]';
+        continue;
+      }
+
+      result[key] = sanitizeAuditValue(nestedValue, depth + 1);
+    }
+
+    return result;
+  }
+
+  return sanitizePlainText(String(value), MAX_AUDIT_STRING_LENGTH);
+};
+
+const resolveAuditResourceFromPath = (normalizedPath) => {
+  const segments = String(normalizedPath || '')
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+
+  if (!segments.length) {
+    return {
+      resourceType: 'unknown',
+      resourceId: null,
+    };
+  }
+
+  return {
+    resourceType: sanitizePlainText(segments[0], 80) || 'unknown',
+    resourceId: segments[1] ? sanitizePlainText(segments[1], 80) : null,
+  };
+};
+
+const getClientIp = (req) => {
+  return req.ip || req.socket?.remoteAddress || 'unknown';
+};
+
+const getUserAgent = (req) => {
+  return sanitizePlainText(req.headers['user-agent'], 255);
+};
+
+const logAuditEvent = async ({ req, action, resourceType, resourceId, oldValue, newValue }) => {
+  if (!req?.user?.id || typeof database.createAuditLog !== 'function') {
+    return;
+  }
+
+  try {
+    await database.createAuditLog({
+      id: uuidv4(),
+      userId: req.user.id,
+      action: sanitizePlainText(action, 180),
+      resourceType: sanitizePlainText(resourceType, 80),
+      resourceId: sanitizePlainText(resourceId || '', 80) || null,
+      oldValue: sanitizeAuditValue(oldValue),
+      newValue: sanitizeAuditValue(newValue),
+      ipAddress: sanitizePlainText(getClientIp(req), 80),
+      userAgent: getUserAgent(req),
+      createdAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Audit logging error:', error);
+  }
+};
+
+const logSecurityEvent = async ({
+  eventType,
+  severity = 'low',
+  userId = null,
+  email = '',
+  details = {},
+  req = null,
+  ipAddress = '',
+  userAgent = '',
+  alerted = false,
+}) => {
+  if (typeof database.createSecurityEvent !== 'function') {
+    return;
+  }
+
+  const normalizedSeverity = VALID_SECURITY_SEVERITIES.has(severity) ? severity : 'low';
+
+  try {
+    await database.createSecurityEvent({
+      id: uuidv4(),
+      eventType: sanitizePlainText(eventType, 120),
+      severity: normalizedSeverity,
+      userId: userId ? sanitizePlainText(userId, 80) : null,
+      email: sanitizeEmail(email),
+      details: sanitizeAuditValue(details),
+      ipAddress: req ? sanitizePlainText(getClientIp(req), 80) : sanitizePlainText(ipAddress, 80),
+      userAgent: req ? getUserAgent(req) : sanitizePlainText(userAgent, 255),
+      createdAt: new Date().toISOString(),
+      alerted: Boolean(alerted),
+    });
+  } catch (error) {
+    console.error('Security event logging error:', error);
+  }
+};
+
 // Middleware
 if (TRUST_PROXY) {
   app.set('trust proxy', true);
@@ -312,12 +553,23 @@ if (TRUST_PROXY) {
 
 const defaultAllowedOrigins = ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173'];
 const configuredOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
-  : defaultAllowedOrigins;
+  ? process.env.CORS_ORIGINS
+    .split(',')
+    .map((origin) => normalizeOrigin(origin))
+    .filter(Boolean)
+  : defaultAllowedOrigins
+    .map((origin) => normalizeOrigin(origin))
+    .filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || configuredOrigins.includes(origin)) {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (normalizedOrigin && configuredOrigins.includes(normalizedOrigin)) {
       callback(null, true);
       return;
     }
@@ -325,20 +577,50 @@ const corsOptions = {
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
-  optionsSuccessStatus: 200
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', CSRF_HEADER_NAME],
+  maxAge: 600,
+  optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
 app.use(express.json({
-  limit: '1mb',
+  limit: API_JSON_BODY_LIMIT,
+  strict: true,
+  type: ['application/json', 'application/*+json'],
   verify: (req, _res, buffer) => {
     req.rawBody = buffer.toString('utf8');
   }
 }));
+app.use(express.urlencoded({
+  extended: false,
+  limit: API_FORM_BODY_LIMIT,
+}));
+app.use((req, res, next) => {
+  const requestPath = typeof req.path === 'string' ? req.path : '';
+  const isProtectedPayload = requestPath === '/api' || requestPath.startsWith('/api/') || requestPath.startsWith('/webhooks/');
+
+  if (!isProtectedPayload) {
+    return next();
+  }
+
+  if (hasUnsafePayloadStructure(req.body) || hasUnsafePayloadStructure(req.query)) {
+    return res.status(400).json({ error: 'Invalid request payload structure' });
+  }
+
+  return next();
+});
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Permissions-Policy', 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()');
+  res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
+  if (IS_PRODUCTION) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  }
   res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'");
   next();
 });
@@ -448,6 +730,8 @@ const {
   recordLoginAttempt,
   checkRegistrationRateLimit,
   checkContactRateLimit,
+  checkAccountLockout,
+  recordAccountLoginAttempt,
 } = createAuthMiddleware({
   verifyAuthToken,
   database,
@@ -461,11 +745,86 @@ const {
   contactWindowMs: CONTACT_WINDOW_MS,
   contactMaxAttempts: CONTACT_MAX_ATTEMPTS,
   contactRateLimitMaxEntries: CONTACT_RATE_LIMIT_MAX_ENTRIES,
+  accountLockoutWindowMs: LOGIN_LOCKOUT_WINDOW_MS,
+  accountLockoutMaxAttempts: LOGIN_LOCKOUT_MAX_ATTEMPTS,
+  accountLockoutRateLimitMaxEntries: LOGIN_LOCKOUT_RATE_LIMIT_MAX_ENTRIES,
+  logSecurityEvent,
   demoEndpointsEnabled: DEMO_ENDPOINTS_ENABLED,
+});
+
+app.use((req, res, next) => {
+  const startedAt = Date.now();
+
+  res.on('finish', () => {
+    const requestPath = typeof req.originalUrl === 'string' ? req.originalUrl : (req.path || '');
+    const isSecurityRelevantPath = requestPath.startsWith('/api/') || requestPath === '/api' || requestPath.startsWith('/webhooks/');
+
+    if (!isSecurityRelevantPath) {
+      return;
+    }
+
+    if (![401, 403, 423, 429].includes(res.statusCode)) {
+      return;
+    }
+
+    void logSecurityEvent({
+      eventType: 'ACCESS_CONTROL_RESPONSE',
+      severity: res.statusCode === 429 || res.statusCode === 423 ? 'high' : 'medium',
+      userId: req.user?.id || null,
+      email: req.user?.email || '',
+      details: {
+        method: req.method,
+        path: requestPath,
+        statusCode: res.statusCode,
+        durationMs: Date.now() - startedAt,
+      },
+      req,
+      alerted: res.statusCode === 423,
+    });
+  });
+
+  return next();
 });
 
 app.use('/api', validateCsrfRequest);
 app.use('/api', authenticateApiRequest);
+app.use('/api', (req, res, next) => {
+  if (!AUDIT_STATE_CHANGING_METHODS.has(req.method)) {
+    return next();
+  }
+
+  if (!req.user || !req.user.isAdmin) {
+    return next();
+  }
+
+  const startedAt = Date.now();
+  const requestPath = req.path;
+  const requestBodySnapshot = sanitizeAuditValue(req.body);
+  const querySnapshot = sanitizeAuditValue(req.query);
+
+  res.on('finish', () => {
+    if (res.statusCode >= 500) {
+      return;
+    }
+
+    const { resourceType, resourceId } = resolveAuditResourceFromPath(requestPath);
+    void logAuditEvent({
+      req,
+      action: `${req.method} ${requestPath}`,
+      resourceType,
+      resourceId,
+      oldValue: null,
+      newValue: {
+        statusCode: res.statusCode,
+        durationMs: Date.now() - startedAt,
+        query: querySnapshot,
+        requestBody: requestBodySnapshot,
+      },
+    });
+  });
+
+  return next();
+});
 
 registerAuthUserRoutes(app, {
   database,
@@ -481,7 +840,10 @@ registerAuthUserRoutes(app, {
   isValidPassword,
   checkLoginRateLimit,
   recordLoginAttempt,
+  checkAccountLockout,
+  recordAccountLoginAttempt,
   checkRegistrationRateLimit,
+  logSecurityEvent,
   authCookieName: AUTH_COOKIE_NAME,
   authCookieOptions: AUTH_COOKIE_OPTIONS,
 });
@@ -547,8 +909,28 @@ app.use((err, req, res, next) => {
     return next();
   }
 
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({ error: 'Request payload too large' });
+  }
+
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Invalid JSON payload' });
+  }
+
+  if (err instanceof SyntaxError && err.status === 400 && Object.prototype.hasOwnProperty.call(err, 'body')) {
+    return res.status(400).json({ error: 'Invalid JSON payload' });
+  }
+
   if (err.message === 'Not allowed by CORS') {
     return res.status(403).json({ error: 'Origin is not allowed' });
+  }
+
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ error: 'Uploaded image is too large' });
+    }
+
+    return res.status(400).json({ error: 'Invalid upload payload' });
   }
 
   if (err.message && err.message.toLowerCase().includes('image')) {

@@ -15,7 +15,10 @@ const registerAuthUserRoutes = (app, deps) => {
     isValidPassword,
     checkLoginRateLimit,
     recordLoginAttempt,
+    checkAccountLockout = (_req, _res, next) => next(),
+    recordAccountLoginAttempt = async () => {},
     checkRegistrationRateLimit,
+    logSecurityEvent = async () => {},
     authCookieName = 'auth_token',
     authCookieOptions = {},
   } = deps;
@@ -32,19 +35,61 @@ const registerAuthUserRoutes = (app, deps) => {
     });
   };
 
-  app.post('/api/login', checkLoginRateLimit, async (req, res) => {
+  const MAX_LOGIN_PASSWORD_LENGTH = 256;
+  const MAX_CURRENT_PASSWORD_LENGTH = 256;
+
+  const emitSecurityEvent = (payload) => {
+    if (typeof logSecurityEvent !== 'function') {
+      return;
+    }
+
+    try {
+      void logSecurityEvent(payload);
+    } catch (_error) {
+      // no-op
+    }
+  };
+
+  app.post('/api/login', checkLoginRateLimit, checkAccountLockout, async (req, res) => {
     const email = sanitizeEmail(req.body?.email);
     const password = typeof req.body?.password === 'string' ? req.body.password : '';
 
     if (!email || !password || !isValidEmail(email)) {
       await recordLoginAttempt(req, false);
+      emitSecurityEvent({
+        eventType: 'AUTH_LOGIN_INVALID_PAYLOAD',
+        severity: 'medium',
+        email,
+        req,
+      });
       return res.status(400).json({ error: 'Valid email and password are required' });
+    }
+
+    if (password.length > MAX_LOGIN_PASSWORD_LENGTH) {
+      await recordLoginAttempt(req, false);
+      emitSecurityEvent({
+        eventType: 'AUTH_LOGIN_PASSWORD_TOO_LONG',
+        severity: 'medium',
+        email,
+        req,
+      });
+      return res.status(400).json({ error: 'Invalid credentials' });
     }
 
     try {
       const user = await database.getUserByEmail(email);
       if (!user || !verifyPassword(password, user.password)) {
         await recordLoginAttempt(req, false);
+        if (user) {
+          await recordAccountLoginAttempt(user.email, false);
+        }
+        emitSecurityEvent({
+          eventType: 'AUTH_LOGIN_FAILED',
+          severity: 'medium',
+          userId: user?.id || null,
+          email,
+          req,
+        });
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
@@ -53,9 +98,18 @@ const registerAuthUserRoutes = (app, deps) => {
       }
 
       await recordLoginAttempt(req, true);
+      await recordAccountLoginAttempt(user.email, true);
       const safeUser = toSafeUser(user);
       const token = createAuthToken(safeUser);
       setAuthCookie(res, token);
+
+      emitSecurityEvent({
+        eventType: 'AUTH_LOGIN_SUCCESS',
+        severity: 'low',
+        userId: safeUser.id,
+        email: safeUser.email,
+        req,
+      });
 
       res.json({
         user: safeUser,
@@ -115,6 +169,14 @@ const registerAuthUserRoutes = (app, deps) => {
       const safeUser = toSafeUser(newUser);
       const token = createAuthToken(safeUser);
       setAuthCookie(res, token);
+
+      emitSecurityEvent({
+        eventType: 'AUTH_REGISTER_SUCCESS',
+        severity: 'low',
+        userId: safeUser.id,
+        email: safeUser.email,
+        req,
+      });
       res.status(201).json({ user: safeUser });
     } catch (error) {
       console.error('Registration error:', error);
@@ -131,6 +193,14 @@ const registerAuthUserRoutes = (app, deps) => {
           reason: 'logout',
         });
       }
+
+      emitSecurityEvent({
+        eventType: 'AUTH_LOGOUT',
+        severity: 'low',
+        userId: req.user?.id || null,
+        email: req.user?.email || '',
+        req,
+      });
 
       clearAuthCookie(res);
       return res.json({ message: 'Logged out successfully' });
@@ -150,6 +220,10 @@ const registerAuthUserRoutes = (app, deps) => {
         return res.status(400).json({ error: 'Current and new password are required' });
       }
 
+      if (currentPassword.length > MAX_CURRENT_PASSWORD_LENGTH) {
+        return res.status(400).json({ error: 'Current password is incorrect' });
+      }
+
       if (!isValidPassword(newPassword)) {
         return res.status(400).json({
           error: 'Password must be 8-128 chars and include at least one uppercase letter, one lowercase letter, and one number',
@@ -162,10 +236,25 @@ const registerAuthUserRoutes = (app, deps) => {
       }
 
       if (!verifyPassword(currentPassword, user.password)) {
+        emitSecurityEvent({
+          eventType: 'AUTH_PASSWORD_CHANGE_FAILED',
+          severity: 'medium',
+          userId: user.id,
+          email: user.email,
+          req,
+        });
         return res.status(400).json({ error: 'Current password is incorrect' });
       }
 
       await database.updateUserPassword(id, hashPassword(newPassword));
+
+      emitSecurityEvent({
+        eventType: 'AUTH_PASSWORD_CHANGED',
+        severity: 'high',
+        userId: user.id,
+        email: user.email,
+        req,
+      });
 
       res.json({ message: 'Password updated successfully' });
     } catch (error) {
