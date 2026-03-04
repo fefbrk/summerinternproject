@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
@@ -7,16 +7,10 @@ const COOKIE_CONSENT_STORAGE_KEY = 'cookie_consent_v1';
 type ConsentChoice = 'necessary' | 'all';
 
 const CookieConsentBanner = () => {
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
+  const [isVisible, setIsVisible] = useState(() => {
     const storedChoice = localStorage.getItem(COOKIE_CONSENT_STORAGE_KEY);
-    if (storedChoice === 'necessary' || storedChoice === 'all') {
-      return;
-    }
-
-    setIsVisible(true);
-  }, []);
+    return storedChoice !== 'necessary' && storedChoice !== 'all';
+  });
 
   const handleConsent = (choice: ConsentChoice) => {
     localStorage.setItem(COOKIE_CONSENT_STORAGE_KEY, choice);

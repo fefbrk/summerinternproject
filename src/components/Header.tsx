@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -18,22 +18,7 @@ const Header = () => {
   const [activeMenu, setActiveMenu] = useState<ActiveMenu>(null);
   const cart = useCart();
   const { user, logout } = useAuth();
-  const [itemCount, setItemCount] = useState(0);
-  const [badgeBump, setBadgeBump] = useState(false);
-
-  // Sepet sayısını güncellemek için useEffect
-  useEffect(() => {
-    setItemCount(cart.cartItems.reduce((total, item) => total + item.quantity, 0));
-  }, [cart.cartItems]);
-
-  // Rozet için kısa bir büyüme animasyonu (count değişince)
-  useEffect(() => {
-    if (itemCount > 0) {
-      setBadgeBump(true);
-      const t = setTimeout(() => setBadgeBump(false), 250);
-      return () => clearTimeout(t);
-    }
-  }, [itemCount]);
+  const itemCount = cart.cartItems.reduce((total, item) => total + item.quantity, 0);
 
   const handleMenuToggle = (menu: ActiveMenu) => {
     setActiveMenu(prev => (prev === menu ? null : menu));
@@ -80,7 +65,8 @@ const Header = () => {
                 </Link>
                 {itemCount > 0 && (
                   <span
-                    className={`absolute -top-1 -right-1 bg-kibo-orange text-white text-xs rounded-full h-5 min-w-[20px] px-1 flex items-center justify-center z-10 ring-2 ring-white shadow-sm transition-colors transition-transform duration-200 group-hover:text-kibo-purple ${badgeBump ? 'scale-110' : 'scale-100'}`}
+                    key={`desktop-cart-count-${itemCount}`}
+                    className="absolute -top-1 -right-1 bg-kibo-orange text-white text-xs rounded-full h-5 min-w-[20px] px-1 flex items-center justify-center z-10 ring-2 ring-white shadow-sm transition-colors group-hover:text-kibo-purple motion-safe:animate-[bounce_0.25s_ease-in-out_1]"
                   >
                     {itemCount}
                   </span>
@@ -136,7 +122,8 @@ const Header = () => {
                 </Link>
                 {itemCount > 0 && (
                   <span
-                    className={`absolute top-0 right-0 bg-kibo-orange text-white text-[11px] rounded-full h-4 min-w-[18px] px-[5px] flex items-center justify-center z-10 ring-2 ring-white shadow-sm transition-colors transition-transform duration-200 group-hover:text-kibo-purple ${badgeBump ? 'scale-110' : 'scale-100'}`}
+                    key={`mobile-cart-count-${itemCount}`}
+                    className="absolute top-0 right-0 bg-kibo-orange text-white text-[11px] rounded-full h-4 min-w-[18px] px-[5px] flex items-center justify-center z-10 ring-2 ring-white shadow-sm transition-colors group-hover:text-kibo-purple motion-safe:animate-[bounce_0.25s_ease-in-out_1]"
                   >
                     {itemCount}
                   </span>
