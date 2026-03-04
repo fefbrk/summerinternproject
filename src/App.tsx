@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Suspense } from "react";
 import ScrollToTop from "./components/ScrollToTop";
+import CookieConsentBanner from "./components/CookieConsentBanner";
 import { CartProvider } from "./context/CartContext";
 import { AuthProvider } from "./context/AuthContext";
 import { UserDataProvider } from "./context/UserDataContext";
@@ -29,6 +30,7 @@ const App = () => (
             <Suspense fallback={<RouteFallback />}>
               <AppRoutes />
             </Suspense>
+            <CookieConsentBanner />
           </TooltipProvider>
         </CartProvider>
       </UserDataProvider>

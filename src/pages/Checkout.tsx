@@ -887,7 +887,7 @@ const Checkout = () => {
                   {/* Privacy Policy */}
                   <div className="text-sm text-gray-600 mb-6">
                     Your personal data will be used to process your order, support your experience throughout this website, and for other purposes described in our{' '}
-                    <a href="#" className="text-kibo-purple underline">privacy policy</a>.
+                    <a href="/privacy-policy" className="text-kibo-purple underline">privacy policy</a>.
                   </div>
                 </div>
               </form>

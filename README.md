@@ -75,10 +75,12 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - `shipping` durumuna geciste `carrier + tracking` zorunludur; `delivered` varsayilan olarak carrier webhook ile guncellenir.
 - Admin dashboard'da payment alanlari operasyonel olarak read-only tutulur; fulfillment adimlari tek update aksiyonuyla yonetilir.
 - Auth token cookie `httpOnly` olarak set edilir; logout ile token denylist'e alinip tekrar kullanimi engellenir (`revoked_tokens`).
+- Rotating refresh token akisi aktiftir; `/api/refresh` yeni access token + yeni refresh token uretir, eski refresh token revoke edilir.
 - Parola degisikligi sonrasinda onceki tokenlar sunucu tarafinda gecersiz sayilir.
 - Event/media URL alanlari server tarafinda protokol dogrulamasi ile filtrelenir (`http/https` veya guvenli relative URL).
 - Lokal prompt yardimci dosyalari (`agentsmdpromptu.txt`, `güvenlikodyazmapromptu.txt`, `optimizasyonpromptu.txt`) gitignore altindadir.
 - Content-Security-Policy header aktif; CARRIER_WEBHOOK_SECRET prod'da zorunlu.
+- PII encryption key (`PII_ENCRYPTION_KEY`) set edilirse hassas alanlar DB'de sifreli saklanir; production'da key zorunludur.
 - Carrier webhook dogrulamasi `x-carrier-webhook-timestamp` + `x-carrier-webhook-signature` (HMAC-SHA256) ile yapilir.
 - JSON/form request body size limitleri ayarlanmistir (`API_JSON_BODY_LIMIT`, `API_FORM_BODY_LIMIT`); malformed/oversized payload'lar 400/413 ile reddedilir.
 - Carrier webhook endpoint'i rate-limit ile korunur (`CARRIER_WEBHOOK_WINDOW_MS`, `CARRIER_WEBHOOK_MAX_ATTEMPTS`, `CARRIER_WEBHOOK_RATE_LIMIT_MAX_ENTRIES`).
@@ -92,7 +94,10 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 
 - `AUTH_TOKEN_SECRET`: Üretimde güçlü bir gizli anahtar zorunlu.
 - `AUTH_TOKEN_TTL_MS`: Token süresi (ms), varsayılan 24 saat (üretimde 24 saati asmamali).
+- `AUTH_REFRESH_TOKEN_SECRET`: Refresh token için ayrı secret (opsiyonel, tanımlanmazsa `AUTH_TOKEN_SECRET` kullanilir).
+- `AUTH_REFRESH_TOKEN_TTL_MS`: Refresh token süresi (ms), varsayılan 7 gün.
 - `CORS_ORIGINS`: İzin verilen origin listesi (virgülle ayrılmış).
+- `PII_ENCRYPTION_KEY`: 32-byte PII encryption key (utf8/base64/hex); production'da zorunlu.
 - `API_JSON_BODY_LIMIT`, `API_FORM_BODY_LIMIT`: API body parser limitleri.
 - `REGISTRATION_WINDOW_MS`, `REGISTRATION_MAX_ATTEMPTS`, `REGISTRATION_RATE_LIMIT_MAX_ENTRIES`: Register rate-limit ayarları.
 - `LOGIN_LOCKOUT_WINDOW_MS`, `LOGIN_LOCKOUT_MAX_ATTEMPTS`, `LOGIN_LOCKOUT_RATE_LIMIT_MAX_ENTRIES`: Hesap lockout ayarlari.

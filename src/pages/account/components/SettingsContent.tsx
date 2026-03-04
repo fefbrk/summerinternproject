@@ -3,12 +3,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
-import { User, Shield, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { User, Shield, Eye, EyeOff, Trash2, Download } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useUserData } from '@/context/UserDataContext';
 import { useNavigate } from 'react-router-dom';
-import apiService from '@/services/apiService';
+import apiService, { PrivacyRequest } from '@/services/apiService';
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   return error instanceof Error ? error.message : fallback;
@@ -27,6 +28,11 @@ const SettingsContent = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [isExportingPrivacyData, setIsExportingPrivacyData] = useState(false);
+  const [isRequestingPrivacyDeletion, setIsRequestingPrivacyDeletion] = useState(false);
+  const [isLoadingPrivacyRequests, setIsLoadingPrivacyRequests] = useState(false);
+  const [privacyDeletionReason, setPrivacyDeletionReason] = useState('');
+  const [privacyRequests, setPrivacyRequests] = useState<PrivacyRequest[]>([]);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -39,11 +45,107 @@ const SettingsContent = () => {
   React.useEffect(() => {
     setFormData(prev => ({
       ...prev,
-      fullName: profileInfo?.fullName || user?.name || '',
+      fullName: profileInfo
+        ? `${profileInfo.firstName} ${profileInfo.lastName}`.trim()
+        : user?.name || '',
       email: profileInfo?.email || user?.email || '',
     }));
   }, [profileInfo, user]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const fetchPrivacyRequests = async () => {
+      if (!user) {
+        if (isMounted) {
+          setPrivacyRequests([]);
+        }
+        return;
+      }
+
+      setIsLoadingPrivacyRequests(true);
+      try {
+        const requests = await apiService.getPrivacyRequests();
+        if (isMounted) {
+          setPrivacyRequests(requests);
+        }
+      } catch (_error) {
+        if (isMounted) {
+          setPrivacyRequests([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingPrivacyRequests(false);
+        }
+      }
+    };
+
+    void fetchPrivacyRequests();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  const downloadJsonFile = (filename: string, payload: unknown) => {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const objectUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(objectUrl);
+  };
+
+  const handleExportPrivacyData = async () => {
+    if (!user) {
+      toast.error('User not found');
+      return;
+    }
+
+    setIsExportingPrivacyData(true);
+
+    try {
+      const exportPayload = await apiService.exportPrivacyData();
+      const exportDate = new Date().toISOString().slice(0, 10);
+      downloadJsonFile(`kinderlab-privacy-export-${exportDate}.json`, exportPayload);
+      toast.success('Privacy export downloaded successfully');
+
+      const refreshedRequests = await apiService.getPrivacyRequests();
+      setPrivacyRequests(refreshedRequests);
+    } catch (error) {
+      const errorMessage = getErrorMessage(error, 'Failed to export privacy data');
+      toast.error(errorMessage);
+    } finally {
+      setIsExportingPrivacyData(false);
+    }
+  };
+
+  const handleRequestPrivacyDeletion = async () => {
+    if (!user) {
+      toast.error('User not found');
+      return;
+    }
+
+    setIsRequestingPrivacyDeletion(true);
+
+    try {
+      const response = await apiService.requestPrivacyDeletion(privacyDeletionReason);
+      toast.info(`Deletion request submitted. Request ID: ${response.id}`);
+      setPrivacyDeletionReason('');
+
+      const refreshedRequests = await apiService.getPrivacyRequests();
+      setPrivacyRequests(refreshedRequests);
+    } catch (error) {
+      const errorMessage = getErrorMessage(error, 'Failed to submit deletion request');
+      toast.error(errorMessage);
+    } finally {
+      setIsRequestingPrivacyDeletion(false);
+    }
+  };
 
 
 
@@ -60,8 +162,12 @@ const SettingsContent = () => {
 
 
     // Save profile information
+    const nameParts = formData.fullName.trim().split(/\s+/).filter(Boolean);
+    const firstName = nameParts.shift() || '';
+    const lastName = nameParts.join(' ');
     const profileData = {
-      fullName: formData.fullName,
+      firstName,
+      lastName,
       email: formData.email,
       phone: '',
       companyName: ''
@@ -259,6 +365,70 @@ const SettingsContent = () => {
           <Button onClick={handlePasswordChange} disabled={isChangingPassword} className="px-6 py-3 rounded-lg border border-kibo-purple text-kibo-purple bg-transparent hover:bg-kibo-orange hover:text-kibo-purple active:bg-kibo-orange active:text-kibo-purple transition-colors cursor-pointer">
             {isChangingPassword ? 'Changing Password...' : 'Change Password'}
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Privacy Controls */}
+      <Card className="bg-purple-200">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Privacy Controls
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-gray-700">
+            You can export your account data as JSON or submit a GDPR deletion request for manual processing.
+          </p>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={handleExportPrivacyData}
+              disabled={isExportingPrivacyData}
+              className="px-6 py-3 rounded-lg border border-kibo-purple text-kibo-purple bg-transparent hover:bg-kibo-orange hover:text-kibo-purple active:bg-kibo-orange active:text-kibo-purple transition-colors cursor-pointer"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {isExportingPrivacyData ? 'Exporting...' : 'Export My Data'}
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="privacyDeletionReason">Deletion Request Reason (Optional)</Label>
+            <Textarea
+              id="privacyDeletionReason"
+              value={privacyDeletionReason}
+              onChange={(e) => setPrivacyDeletionReason(e.target.value)}
+              placeholder="Share context for your request"
+              className="bg-orange-50"
+              maxLength={500}
+            />
+          </div>
+
+          <Button
+            onClick={handleRequestPrivacyDeletion}
+            disabled={isRequestingPrivacyDeletion}
+            variant="outline"
+            className="px-6 py-3 rounded-lg border border-red-500 text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+          >
+            {isRequestingPrivacyDeletion ? 'Submitting Request...' : 'Request Data Deletion'}
+          </Button>
+
+          <div className="rounded-lg border border-kibo-purple/20 bg-white/70 p-3 text-sm text-gray-700">
+            <p className="font-medium text-kibo-purple mb-2">Recent Privacy Requests</p>
+            {isLoadingPrivacyRequests ? (
+              <p>Loading privacy requests...</p>
+            ) : privacyRequests.length === 0 ? (
+              <p>No privacy requests submitted yet.</p>
+            ) : (
+              <ul className="space-y-1">
+                {privacyRequests.slice(0, 3).map((request) => (
+                  <li key={request.id}>
+                    {request.requestType} - {request.status}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </CardContent>
       </Card>
 

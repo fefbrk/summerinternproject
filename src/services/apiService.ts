@@ -248,6 +248,35 @@ export interface UserPaymentMethodPayload {
   isDefault?: boolean;
 }
 
+export interface PrivacyRequest {
+  id: string;
+  userId: string;
+  requestType: 'deletion' | 'export';
+  status: 'requested' | 'processing' | 'completed' | 'rejected';
+  reason?: string | null;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PrivacyExportPayload {
+  exportedAt: string;
+  user: User & {
+    role?: string;
+    updatedAt?: string;
+  };
+  addresses: UserAddress[];
+  paymentMethods: UserPaymentMethod[];
+  orders: Order[];
+  registrations: CourseRegistration[];
+  privacyRequests: PrivacyRequest[];
+}
+
+export interface PrivacyDeletionRequestResponse {
+  id: string;
+  status: PrivacyRequest['status'];
+}
+
 export interface AuthResponse {
   user: User;
 }
@@ -394,6 +423,25 @@ class ApiService {
 
   async getCurrentUser(): Promise<User> {
     return this.request('/me');
+  }
+
+  async exportPrivacyData(): Promise<PrivacyExportPayload> {
+    return this.request('/account/privacy/export');
+  }
+
+  async requestPrivacyDeletion(reason?: string): Promise<PrivacyDeletionRequestResponse> {
+    const payload = reason && reason.trim().length > 0
+      ? { reason: reason.trim() }
+      : {};
+
+    return this.request('/account/privacy/deletion-request', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async getPrivacyRequests(): Promise<PrivacyRequest[]> {
+    return this.request('/account/privacy/requests');
   }
 
   async getAllUsers(options?: PaginationOptions): Promise<User[]> {

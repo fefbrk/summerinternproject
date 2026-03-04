@@ -16,6 +16,7 @@ const {
   verifyRefreshToken,
   hashToken,
 } = require('./security/token');
+const { isPiiEncryptionEnabled } = require('./security/piiCrypto');
 const createAuthMiddleware = require('./middleware/authMiddleware');
 const createCsrfMiddleware = require('./middleware/csrfMiddleware');
 const createBootstrapService = require('./services/bootstrapService');
@@ -89,6 +90,9 @@ const AUTH_TOKEN_SECRET = typeof process.env.AUTH_TOKEN_SECRET === 'string'
   : '';
 const AUTH_REFRESH_TOKEN_SECRET = typeof process.env.AUTH_REFRESH_TOKEN_SECRET === 'string'
   ? process.env.AUTH_REFRESH_TOKEN_SECRET.trim()
+  : '';
+const PII_ENCRYPTION_KEY = typeof process.env.PII_ENCRYPTION_KEY === 'string'
+  ? process.env.PII_ENCRYPTION_KEY.trim()
   : '';
 const AUTH_TOKEN_TTL_MS = Number.isFinite(Number(process.env.AUTH_TOKEN_TTL_MS)) && Number(process.env.AUTH_TOKEN_TTL_MS) > 0
   ? Number(process.env.AUTH_TOKEN_TTL_MS)
@@ -228,6 +232,14 @@ if (IS_PRODUCTION && process.env.DEFAULT_ADMIN_PASSWORD && !PASSWORD_PATTERN.tes
 
 if (IS_PRODUCTION && !CARRIER_WEBHOOK_SECRET) {
   throw new Error('CARRIER_WEBHOOK_SECRET must be set in production.');
+}
+
+if (IS_PRODUCTION && !isPiiEncryptionEnabled()) {
+  throw new Error('PII_ENCRYPTION_KEY must be set to a valid 32-byte value in production.');
+}
+
+if (!IS_PRODUCTION && PII_ENCRYPTION_KEY && !isPiiEncryptionEnabled()) {
+  console.warn('PII_ENCRYPTION_KEY is invalid. Use a valid 32-byte value (utf8/base64/hex).');
 }
 
 if (CARRIER_WEBHOOK_SECRET && CARRIER_WEBHOOK_SECRET.length < MIN_WEBHOOK_SECRET_LENGTH) {

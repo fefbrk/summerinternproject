@@ -130,7 +130,7 @@ Frontend API base:
 
 Temel endpoint gruplari (`server/routes/*`):
 
-- Auth: `/api/login`, `/api/register`, `/api/me`
+- Auth: `/api/login`, `/api/register`, `/api/me`, `/api/refresh`, `/api/logout`
 - Users: `/api/users`, `/api/users/:id/password`
 - Orders: `/api/orders`, `/api/orders/my`, `/api/orders/:id/status`, `/api/orders/:id/payment-status`
 - Carrier webhook: `POST /webhooks/carrier/orders/:id/status` (`x-carrier-webhook-timestamp` + `x-carrier-webhook-signature` HMAC)
@@ -161,7 +161,10 @@ VITE_API_URL=http://localhost:3001
 ```env
 AUTH_TOKEN_SECRET=<long-random-secret>
 AUTH_TOKEN_TTL_MS=86400000
+AUTH_REFRESH_TOKEN_SECRET=<long-random-refresh-secret>
+AUTH_REFRESH_TOKEN_TTL_MS=604800000
 CORS_ORIGINS=http://localhost:8080,http://localhost:5173
+PII_ENCRYPTION_KEY=<32-byte-key-utf8-base64-or-hex>
 API_JSON_BODY_LIMIT=256kb
 API_FORM_BODY_LIMIT=256kb
 REGISTRATION_WINDOW_MS=900000
@@ -194,6 +197,9 @@ Production notlari:
 - `AUTH_TOKEN_SECRET` zorunlu
 - `AUTH_TOKEN_SECRET` guclu/uzun olmali (kisa secretlar production'da reject edilir)
 - `AUTH_TOKEN_TTL_MS` production'da 24 saati asmamali
+- `AUTH_REFRESH_TOKEN_SECRET` opsiyonel; tanimlanmazsa access token secret kullanilir (ayri secret onerilir)
+- `AUTH_REFRESH_TOKEN_TTL_MS` production'da operasyonel risklere gore sinirlanmali (onerilen <=30 gun)
+- `PII_ENCRYPTION_KEY` production'da zorunlu ve 32-byte gecerli deger olmali
 - `SECURITY_ALERT_*` esik degerleri operasyon gereksinimine gore ayarlanabilir
 - `DEFAULT_ADMIN_EMAIL` gecerli e-posta olmali
 - `DEFAULT_ADMIN_PASSWORD` zorunlu

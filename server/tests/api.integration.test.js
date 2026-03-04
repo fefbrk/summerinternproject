@@ -435,6 +435,133 @@ test('password change revokes previously issued token access', async () => {
   assert.equal(loginWithNewPassword.status, 200);
 });
 
+test('refresh token endpoint rotates tokens and blocks token reuse', async () => {
+  const email = `refresh_flow_${Date.now()}@example.com`;
+  const password = 'RefreshFlow123A';
+
+  const registerResponse = await requestJson('/api/register', {
+    method: 'POST',
+    body: {
+      name: 'Refresh Flow User',
+      email,
+      password,
+    },
+  });
+
+  assert.equal(registerResponse.status, 201);
+  const firstRefreshToken = extractCookieValue(registerResponse.setCookieHeaders, 'refresh_token');
+  assert.ok(firstRefreshToken.length > 0);
+
+  const firstRefreshResponse = await requestJson('/api/refresh', {
+    method: 'POST',
+    body: {
+      refreshToken: firstRefreshToken,
+    },
+  });
+
+  assert.equal(firstRefreshResponse.status, 200);
+  assert.ok(firstRefreshResponse.authToken);
+  const secondRefreshToken = extractCookieValue(firstRefreshResponse.setCookieHeaders, 'refresh_token');
+  assert.ok(secondRefreshToken.length > 0);
+  assert.notEqual(secondRefreshToken, firstRefreshToken);
+
+  const reusedRefreshResponse = await requestJson('/api/refresh', {
+    method: 'POST',
+    body: {
+      refreshToken: firstRefreshToken,
+    },
+  });
+
+  assert.equal(reusedRefreshResponse.status, 401);
+
+  const rotatedRefreshResponse = await requestJson('/api/refresh', {
+    method: 'POST',
+    body: {
+      refreshToken: secondRefreshToken,
+    },
+  });
+
+  assert.equal(rotatedRefreshResponse.status, 200);
+});
+
+test('tampered access tokens are rejected', async () => {
+  const adminLogin = await requestJson('/api/login', {
+    method: 'POST',
+    body: {
+      email: process.env.DEFAULT_ADMIN_EMAIL,
+      password: process.env.DEFAULT_ADMIN_PASSWORD,
+    },
+  });
+
+  assert.equal(adminLogin.status, 200);
+  assert.ok(adminLogin.authToken);
+
+  const baseToken = adminLogin.authToken;
+  const tamperedToken = `${baseToken.slice(0, -1)}${baseToken.endsWith('a') ? 'b' : 'a'}`;
+
+  const tamperedTokenResponse = await requestJson('/api/me', {
+    token: tamperedToken,
+  });
+
+  assert.equal(tamperedTokenResponse.status, 401);
+});
+
+test('privacy export and deletion request endpoints work end-to-end', async () => {
+  const email = `privacy_flow_${Date.now()}@example.com`;
+  const password = 'PrivacyFlow123A';
+
+  const registerResponse = await requestJson('/api/register', {
+    method: 'POST',
+    body: {
+      name: 'Privacy Flow User',
+      email,
+      password,
+    },
+  });
+
+  assert.equal(registerResponse.status, 201);
+  const userToken = registerResponse.authToken;
+
+  const exportWithoutAuth = await requestJson('/api/account/privacy/export');
+  assert.equal(exportWithoutAuth.status, 401);
+
+  const exportResponse = await requestJson('/api/account/privacy/export', {
+    token: userToken,
+  });
+
+  assert.equal(exportResponse.status, 200);
+  assert.equal(exportResponse.data.user.id, registerResponse.data.user.id);
+  assert.ok(Array.isArray(exportResponse.data.orders));
+  assert.ok(Array.isArray(exportResponse.data.privacyRequests));
+
+  const deletionResponse = await requestJson('/api/account/privacy/deletion-request', {
+    method: 'POST',
+    token: userToken,
+    body: {
+      reason: 'Please process GDPR deletion request for test account',
+    },
+  });
+
+  assert.equal(deletionResponse.status, 202);
+  assert.equal(deletionResponse.data.status, 'requested');
+  assert.ok(typeof deletionResponse.data.id === 'string');
+
+  const requestsResponse = await requestJson('/api/account/privacy/requests', {
+    token: userToken,
+  });
+
+  assert.equal(requestsResponse.status, 200);
+  assert.ok(Array.isArray(requestsResponse.data));
+  assert.equal(
+    requestsResponse.data.some((request) => request.id === deletionResponse.data.id),
+    true
+  );
+  assert.equal(
+    requestsResponse.data.some((request) => request.requestType === 'export'),
+    true
+  );
+});
+
 test('content and status endpoints return full entities', async () => {
   const adminLogin = await requestJson('/api/login', {
     method: 'POST',
