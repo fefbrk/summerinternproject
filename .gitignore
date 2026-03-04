@@ -25,6 +25,8 @@ dist-ssr
 
 # Database
 # server/database/kinderlab.db is intentionally tracked in this repository.
+server/database/kinderlab.db-wal
+server/database/kinderlab.db-shm
 
 # Environment files
 .env
