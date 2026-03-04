@@ -275,21 +275,100 @@ class Database {
         try {
             const schemaPath = path.join(__dirname, 'schema.sql');
             const schema = fs.readFileSync(schemaPath, 'utf8');
+            const { schemaBody, indexStatements } = this.splitSchemaIndexes(schema);
 
-            return new Promise((resolve, reject) => {
-                this.db.exec(schema, (err) => {
+            await new Promise((resolve, reject) => {
+                this.db.exec(schemaBody, (err) => {
                     if (err) {
                         console.error('Şema çalıştırma hatası:', err);
                         reject(err);
-                    } else {
-                        console.log('Veritabanı şeması başarıyla çalıştırıldı');
-                        this.runMigrations().then(resolve).catch(reject);
+                        return;
                     }
+
+                    console.log('Veritabanı şeması başarıyla çalıştırıldı');
+                    resolve();
                 });
             });
+
+            await this.runMigrations();
+            await this.ensureSchemaIndexes(indexStatements);
         } catch (error) {
             console.error('Şema dosyası okuma hatası:', error);
             throw error;
+        }
+    }
+
+    splitSchemaIndexes(schema) {
+        const schemaLines = [];
+        const indexStatements = [];
+
+        const lines = String(schema || '').split(/\r?\n/);
+        for (const line of lines) {
+            const trimmedLine = line.trim();
+
+            if (/^CREATE INDEX IF NOT EXISTS\s+/i.test(trimmedLine)) {
+                const statement = trimmedLine.endsWith(';') ? trimmedLine : `${trimmedLine};`;
+                indexStatements.push(statement);
+                continue;
+            }
+
+            schemaLines.push(line);
+        }
+
+        return {
+            schemaBody: schemaLines.join('\n'),
+            indexStatements,
+        };
+    }
+
+    parseIndexStatementMetadata(statement) {
+        const normalizedStatement = String(statement || '').trim().replace(/\s+/g, ' ');
+        const match = normalizedStatement.match(/^CREATE INDEX IF NOT EXISTS\s+[A-Za-z0-9_]+\s+ON\s+([A-Za-z0-9_]+)\s*\(([^)]+)\)\s*;?$/i);
+
+        if (!match) {
+            return null;
+        }
+
+        const tableName = match[1];
+        const columnNames = match[2]
+            .split(',')
+            .map((column) => column.replace(/["`\[\]]/g, '').trim())
+            .filter(Boolean);
+
+        return {
+            tableName,
+            columnNames,
+        };
+    }
+
+    async ensureSchemaIndexes(indexStatements) {
+        const statements = Array.isArray(indexStatements) ? indexStatements : [];
+
+        for (const statement of statements) {
+            const metadata = this.parseIndexStatementMetadata(statement);
+            if (!metadata) {
+                continue;
+            }
+
+            const tableExists = await this.get(
+                `SELECT name FROM sqlite_master
+                 WHERE type='table' AND name=?`,
+                [metadata.tableName]
+            );
+
+            if (!tableExists) {
+                continue;
+            }
+
+            const columnInfo = await this.all(`PRAGMA table_info(${metadata.tableName})`);
+            const existingColumns = new Set(columnInfo.map((column) => column.name));
+            const hasAllColumns = metadata.columnNames.every((columnName) => existingColumns.has(columnName));
+
+            if (!hasAllColumns) {
+                continue;
+            }
+
+            await this.run(statement);
         }
     }
 
