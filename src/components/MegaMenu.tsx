@@ -1,5 +1,4 @@
 import * as React from "react";
-import { useEffect, useState } from "react";
 import { KeyRound, PlayCircle, School, Home, HelpCircle, Lightbulb, BookOpen, Briefcase, DollarSign, TestTube, Package, Wrench, Puzzle, FileText, Star } from "lucide-react";
 import { ActiveMenu } from "./Header";
 import { Link } from "react-router-dom";
@@ -73,21 +72,6 @@ const AdPlaceholder = ({ className }: { className?: string }) => (
 );
 
 const MegaMenu: React.FC<MegaMenuProps> = ({ activeMenu, closeMenu }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  
-  useEffect(() => {
-    if (activeMenu) {
-      // Small delay to ensure the DOM is ready before starting the animation
-      const timer = setTimeout(() => {
-        setIsVisible(true);
-      }, 10);
-      
-      return () => clearTimeout(timer);
-    } else {
-      setIsVisible(false);
-    }
-  }, [activeMenu]);
-
   if (!activeMenu) return null;
 
   const menuContent = {
@@ -102,7 +86,7 @@ const MegaMenu: React.FC<MegaMenuProps> = ({ activeMenu, closeMenu }) => {
   return (
     <>
       <div className="fixed inset-0 z-30" onClick={closeMenu}></div>
-      <div className={`absolute top-full left-0 right-0 z-40 transition-all duration-300 ease-out ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+      <div className="absolute top-full left-0 right-0 z-40 animate-in fade-in-0 duration-300">
         <div className="w-full bg-orange-50 shadow-lg overflow-hidden">
         <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-x-10 px-4 py-3">
 
