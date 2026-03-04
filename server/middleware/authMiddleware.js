@@ -4,14 +4,18 @@ const createAuthMiddleware = ({
   isSelfOrAdmin,
   loginWindowMs,
   loginMaxAttempts,
+  registrationWindowMs = 15 * 60 * 1000,
+  registrationMaxAttempts = 20,
   demoEndpointsEnabled,
   trustProxy = false,
   loginRateLimitMaxEntries = 10000,
+  registrationRateLimitMaxEntries = 10000,
   contactWindowMs = 10 * 60 * 1000,
   contactMaxAttempts = 20,
   contactRateLimitMaxEntries = 20000,
 }) => {
   const loginAttempts = new Map();
+  const registrationAttempts = new Map();
   const contactAttempts = new Map();
 
   const extractBearerToken = (req) => {
@@ -122,6 +126,30 @@ const createAuthMiddleware = ({
 
     record.count += 1;
     contactAttempts.set(clientIp, record);
+    return next();
+  };
+
+  const checkRegistrationRateLimit = (req, res, next) => {
+    const clientIp = getClientIp(req);
+    const now = Date.now();
+    pruneRateLimitMap(registrationAttempts, now, registrationRateLimitMaxEntries);
+
+    const record = registrationAttempts.get(clientIp);
+    if (!record || now > record.resetAt) {
+      if (registrationAttempts.size >= registrationRateLimitMaxEntries) {
+        return res.status(429).json({ error: 'Too many registration attempts. Please try again later.' });
+      }
+
+      registrationAttempts.set(clientIp, { count: 1, resetAt: now + registrationWindowMs });
+      return next();
+    }
+
+    if (record.count >= registrationMaxAttempts) {
+      return res.status(429).json({ error: 'Too many registration attempts. Please try again later.' });
+    }
+
+    record.count += 1;
+    registrationAttempts.set(clientIp, record);
     return next();
   };
 
@@ -237,6 +265,7 @@ const createAuthMiddleware = ({
     authenticateApiRequest,
     checkLoginRateLimit,
     recordLoginAttempt,
+    checkRegistrationRateLimit,
     checkContactRateLimit,
   };
 };

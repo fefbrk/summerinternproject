@@ -15,6 +15,7 @@ const registerAuthUserRoutes = (app, deps) => {
     isValidPassword,
     checkLoginRateLimit,
     recordLoginAttempt,
+    checkRegistrationRateLimit,
   } = deps;
 
   app.post('/api/login', checkLoginRateLimit, async (req, res) => {
@@ -65,7 +66,7 @@ const registerAuthUserRoutes = (app, deps) => {
     }
   });
 
-  app.post('/api/register', async (req, res) => {
+  app.post('/api/register', checkRegistrationRateLimit, async (req, res) => {
     try {
       const email = sanitizeEmail(req.body?.email);
       const name = sanitizePlainText(req.body?.name, 120);

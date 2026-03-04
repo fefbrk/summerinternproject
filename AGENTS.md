@@ -161,6 +161,9 @@ VITE_API_URL=http://localhost:3001
 AUTH_TOKEN_SECRET=<long-random-secret>
 AUTH_TOKEN_TTL_MS=604800000
 CORS_ORIGINS=http://localhost:8080,http://localhost:5173
+REGISTRATION_WINDOW_MS=900000
+REGISTRATION_MAX_ATTEMPTS=20
+REGISTRATION_RATE_LIMIT_MAX_ENTRIES=10000
 TRUST_PROXY=false
 DEFAULT_ADMIN_EMAIL=admin@example.com
 DEFAULT_ADMIN_PASSWORD=<strong-password>
@@ -174,6 +177,7 @@ SQLITE_DB_PATH=./database/kinderlab.db
 Production notlari:
 
 - `AUTH_TOKEN_SECRET` zorunlu
+- `AUTH_TOKEN_SECRET` guclu/uzun olmali (kisa secretlar production'da reject edilir)
 - `DEFAULT_ADMIN_EMAIL` gecerli e-posta olmali
 - `DEFAULT_ADMIN_PASSWORD` zorunlu
 - `ENABLE_DEMO_ENDPOINTS=false` kalmali

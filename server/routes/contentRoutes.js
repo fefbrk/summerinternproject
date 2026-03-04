@@ -11,6 +11,7 @@ const registerContentRoutes = (app, deps) => {
     sanitizePlainText,
     sanitizeRichText,
     sanitizeImagesPayload,
+    sanitizeUrl,
     sanitizeResourceId,
     blogStatuses,
     eventStatuses,
@@ -71,7 +72,7 @@ const registerContentRoutes = (app, deps) => {
   const sanitizeMediaCoverageForResponse = (coverage) => ({
     ...sanitizeContentBase(coverage),
     sourceName: sanitizePlainText(coverage.sourceName || '', 200),
-    sourceUrl: sanitizePlainText(coverage.sourceUrl || '', 500),
+    sourceUrl: sanitizeUrl(coverage.sourceUrl || '', 500, { allowRelative: true }),
   });
 
   const sanitizeEventForResponse = (event) => ({
@@ -85,7 +86,12 @@ const registerContentRoutes = (app, deps) => {
     venueState: sanitizePlainText(event.venueState, 120),
     venueZipCode: sanitizePlainText(event.venueZipCode, 32),
     venueCountry: sanitizePlainText(event.venueCountry, 120),
-    organizerName: sanitizePlainText(event.organizerName, 120)
+    venueWebsite: sanitizeUrl(event.venueWebsite || '', 500, { allowRelative: true }),
+    googleMapsLink: sanitizeUrl(event.googleMapsLink || '', 500, { allowRelative: true }),
+    organizerName: sanitizePlainText(event.organizerName, 120),
+    organizerWebsite: sanitizeUrl(event.organizerWebsite || '', 500, { allowRelative: true }),
+    eventWebsite: sanitizeUrl(event.eventWebsite || '', 500, { allowRelative: true }),
+    imageUrl: sanitizeUrl(event.imageUrl || '', 500, { allowRelative: true }),
   });
 
   // Blog Posts Routes
@@ -482,11 +488,16 @@ const registerContentRoutes = (app, deps) => {
       const content = sanitizeRichText(req.body?.content);
       const excerpt = sanitizePlainText(req.body?.excerpt, 600);
       const sourceName = sanitizePlainText(req.body?.sourceName, 200);
-      const sourceUrl = sanitizePlainText(req.body?.sourceUrl, 500);
+      const sourceUrlRaw = sanitizePlainText(req.body?.sourceUrl, 500);
+      const sourceUrl = sanitizeUrl(sourceUrlRaw, 500, { allowRelative: true });
       const author = sanitizePlainText(req.body?.author, 120);
       const publishDate = sanitizePlainText(req.body?.publishDate, 64) || new Date().toISOString();
       const status = sanitizePlainText(req.body?.status, 40) || 'draft';
       const images = sanitizeImagesPayload(req.body?.images);
+
+      if (sourceUrlRaw && !sourceUrl) {
+        return res.status(400).json({ error: 'Invalid source URL' });
+      }
 
       if (!title || !content || !excerpt || !author || !blogStatuses.has(status)) {
         return res.status(400).json({ error: 'Invalid media coverage payload' });
@@ -531,11 +542,16 @@ const registerContentRoutes = (app, deps) => {
       const content = sanitizeRichText(req.body?.content);
       const excerpt = sanitizePlainText(req.body?.excerpt, 600);
       const sourceName = sanitizePlainText(req.body?.sourceName, 200);
-      const sourceUrl = sanitizePlainText(req.body?.sourceUrl, 500);
+      const sourceUrlRaw = sanitizePlainText(req.body?.sourceUrl, 500);
+      const sourceUrl = sanitizeUrl(sourceUrlRaw, 500, { allowRelative: true });
       const author = sanitizePlainText(req.body?.author, 120);
       const publishDate = sanitizePlainText(req.body?.publishDate, 64);
       const status = sanitizePlainText(req.body?.status, 40);
       const images = sanitizeImagesPayload(req.body?.images);
+
+      if (sourceUrlRaw && !sourceUrl) {
+        return res.status(400).json({ error: 'Invalid source URL' });
+      }
 
       const existingPost = await database.getMediaCoverageById(id);
       if (!existingPost) {
@@ -669,14 +685,39 @@ const registerContentRoutes = (app, deps) => {
       const venueState = sanitizePlainText(req.body?.venueState, 120);
       const venueZipCode = sanitizePlainText(req.body?.venueZipCode, 32);
       const venueCountry = sanitizePlainText(req.body?.venueCountry, 120);
-      const venueWebsite = sanitizePlainText(req.body?.venueWebsite, 500);
-      const googleMapsLink = sanitizePlainText(req.body?.googleMapsLink, 500);
+      const venueWebsiteRaw = sanitizePlainText(req.body?.venueWebsite, 500);
+      const venueWebsite = sanitizeUrl(venueWebsiteRaw, 500, { allowRelative: true });
+      const googleMapsLinkRaw = sanitizePlainText(req.body?.googleMapsLink, 500);
+      const googleMapsLink = sanitizeUrl(googleMapsLinkRaw, 500, { allowRelative: true });
       const organizerName = sanitizePlainText(req.body?.organizerName, 120);
-      const organizerWebsite = sanitizePlainText(req.body?.organizerWebsite, 500);
-      const eventWebsite = sanitizePlainText(req.body?.eventWebsite, 500);
+      const organizerWebsiteRaw = sanitizePlainText(req.body?.organizerWebsite, 500);
+      const organizerWebsite = sanitizeUrl(organizerWebsiteRaw, 500, { allowRelative: true });
+      const eventWebsiteRaw = sanitizePlainText(req.body?.eventWebsite, 500);
+      const eventWebsite = sanitizeUrl(eventWebsiteRaw, 500, { allowRelative: true });
       const status = sanitizePlainText(req.body?.status, 40);
       const category = sanitizePlainText(req.body?.category, 120);
-      const imageUrl = sanitizePlainText(req.body?.imageUrl, 500);
+      const imageUrlRaw = sanitizePlainText(req.body?.imageUrl, 500);
+      const imageUrl = sanitizeUrl(imageUrlRaw, 500, { allowRelative: true });
+
+      if (venueWebsiteRaw && !venueWebsite) {
+        return res.status(400).json({ error: 'Invalid venue website URL' });
+      }
+
+      if (googleMapsLinkRaw && !googleMapsLink) {
+        return res.status(400).json({ error: 'Invalid Google Maps URL' });
+      }
+
+      if (organizerWebsiteRaw && !organizerWebsite) {
+        return res.status(400).json({ error: 'Invalid organizer website URL' });
+      }
+
+      if (eventWebsiteRaw && !eventWebsite) {
+        return res.status(400).json({ error: 'Invalid event website URL' });
+      }
+
+      if (imageUrlRaw && !imageUrl) {
+        return res.status(400).json({ error: 'Invalid image URL' });
+      }
 
       if (!title || !description || !excerpt || !startDate || !endDate || !venueName || !venueAddress || !venueCity || !venueState || !venueZipCode || !venueCountry || !organizerName || !eventWebsite || !eventStatuses.has(status)) {
         return res.status(400).json({ error: 'Invalid event payload' });
@@ -729,14 +770,39 @@ const registerContentRoutes = (app, deps) => {
       const venueState = sanitizePlainText(req.body?.venueState, 120);
       const venueZipCode = sanitizePlainText(req.body?.venueZipCode, 32);
       const venueCountry = sanitizePlainText(req.body?.venueCountry, 120);
-      const venueWebsite = sanitizePlainText(req.body?.venueWebsite, 500);
-      const googleMapsLink = sanitizePlainText(req.body?.googleMapsLink, 500);
+      const venueWebsiteRaw = sanitizePlainText(req.body?.venueWebsite, 500);
+      const venueWebsite = sanitizeUrl(venueWebsiteRaw, 500, { allowRelative: true });
+      const googleMapsLinkRaw = sanitizePlainText(req.body?.googleMapsLink, 500);
+      const googleMapsLink = sanitizeUrl(googleMapsLinkRaw, 500, { allowRelative: true });
       const organizerName = sanitizePlainText(req.body?.organizerName, 120);
-      const organizerWebsite = sanitizePlainText(req.body?.organizerWebsite, 500);
-      const eventWebsite = sanitizePlainText(req.body?.eventWebsite, 500);
+      const organizerWebsiteRaw = sanitizePlainText(req.body?.organizerWebsite, 500);
+      const organizerWebsite = sanitizeUrl(organizerWebsiteRaw, 500, { allowRelative: true });
+      const eventWebsiteRaw = sanitizePlainText(req.body?.eventWebsite, 500);
+      const eventWebsite = sanitizeUrl(eventWebsiteRaw, 500, { allowRelative: true });
       const status = sanitizePlainText(req.body?.status, 40);
       const category = sanitizePlainText(req.body?.category, 120);
-      const imageUrl = sanitizePlainText(req.body?.imageUrl, 500);
+      const imageUrlRaw = sanitizePlainText(req.body?.imageUrl, 500);
+      const imageUrl = sanitizeUrl(imageUrlRaw, 500, { allowRelative: true });
+
+      if (venueWebsiteRaw && !venueWebsite) {
+        return res.status(400).json({ error: 'Invalid venue website URL' });
+      }
+
+      if (googleMapsLinkRaw && !googleMapsLink) {
+        return res.status(400).json({ error: 'Invalid Google Maps URL' });
+      }
+
+      if (organizerWebsiteRaw && !organizerWebsite) {
+        return res.status(400).json({ error: 'Invalid organizer website URL' });
+      }
+
+      if (eventWebsiteRaw && !eventWebsite) {
+        return res.status(400).json({ error: 'Invalid event website URL' });
+      }
+
+      if (imageUrlRaw && !imageUrl) {
+        return res.status(400).json({ error: 'Invalid image URL' });
+      }
 
       const existingEvent = await database.getEventById(id);
       if (!existingEvent) {

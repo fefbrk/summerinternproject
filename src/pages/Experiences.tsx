@@ -1,7 +1,8 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { sanitizeRichContent } from '@/lib/sanitizeHtml';
 
 // Import Buzz-Buzz activity images (Experience 1)
 import experience1Image1 from '../assets/resources/activities/1/Buzz-Buzz-Image-2-300x300.jpeg';
@@ -1620,7 +1621,7 @@ const Experiences = () => {
                                     return (
                                         <div
                                             className="prose prose-lg max-w-none text-gray-700 leading-relaxed"
-                                            dangerouslySetInnerHTML={{ __html: currentPage }}
+                                            dangerouslySetInnerHTML={{ __html: sanitizeRichContent(currentPage) }}
                                         />
                                     );
                                 })()}

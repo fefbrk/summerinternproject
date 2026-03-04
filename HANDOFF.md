@@ -11,7 +11,7 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
   - sanitize,
   - upload validation,
   - prod env guard,
-  - login/contact rate-limit.
+  - login/register/contact rate-limit.
 - Backend moduler yapida:
   - `server/routes/authUserRoutes.js`
   - `server/routes/commerceRoutes.js`
@@ -45,6 +45,7 @@ Yeni session kurali: once `AGENT.md`, `AGENTS.md`, `HANDOFF.md`, `README.md` sir
   - `delivered` varsayilan olarak sadece carrier webhook ile guncellenir (`POST /webhooks/carrier/orders/:id/status`),
   - `ENABLE_MANUAL_FULFILLMENT_OVERRIDE=true` + `SUPER_ADMIN_EMAILS` + `overrideReason` ile acil durum manuel override desteği var,
   - Tüm fulfillment gecisleri `fulfillment_events` tablosuna loglanir.
+- Content URL alanlari server tarafinda `http/https` + guvenli relative URL filtrelemesi ile dogrulaniyor.
 - Test altyapisi guncel:
   - Backend: `server/tests/api.integration.test.js`, `server/tests/database.transaction.test.js`
   - Frontend smoke: `src/test/smoke/auth-pages.smoke.test.tsx`

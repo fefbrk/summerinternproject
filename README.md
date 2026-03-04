@@ -63,12 +63,14 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - API endpoint'leri token tabanlı kimlik doğrulama ile korunur.
 - Admin işlemleri sunucu tarafında rol kontrolü ile sınırlandırılır.
 - Parolalar `scrypt` ile hashlenerek saklanır (plaintext saklanmaz).
+- Login/register/contact endpointlerinde rate-limit uygulanır.
 - Demo/sıfırlama endpoint'leri sadece `ENABLE_DEMO_ENDPOINTS=true` olduğunda açılır.
 - HTML içerikleri istemci ve sunucuda sanitize edilir (XSS koruması).
 - `server/database/kinderlab.db` bu repoda bilincli olarak takip edilir; production secret/veri tutulmaz.
 - Public CMS endpoint'leri sadece `published` içerik döndürür; admin list endpoint'leri ayrıdır.
 - `shipping` durumuna geciste `carrier + tracking` zorunludur; `delivered` varsayilan olarak carrier webhook ile guncellenir.
 - Admin dashboard'da payment alanlari operasyonel olarak read-only tutulur; fulfillment adimlari tek update aksiyonuyla yonetilir.
+- Event/media URL alanlari server tarafinda protokol dogrulamasi ile filtrelenir (`http/https` veya guvenli relative URL).
 - Lokal prompt yardimci dosyalari (`agentsmdpromptu.txt`, `güvenlikodyazmapromptu.txt`, `optimizasyonpromptu.txt`) gitignore altindadir.
 - Content-Security-Policy header aktif; CARRIER_WEBHOOK_SECRET prod'da zorunlu.
 - CMS ID uretimi UUID v4 ile yapilir; SQLite WAL mode aktif.
@@ -80,6 +82,7 @@ Eğitim robotları için geliştirilmiş modern full-stack web platformu. E-tica
 - `AUTH_TOKEN_SECRET`: Üretimde güçlü bir gizli anahtar zorunlu.
 - `AUTH_TOKEN_TTL_MS`: Token süresi (ms), varsayılan 7 gün.
 - `CORS_ORIGINS`: İzin verilen origin listesi (virgülle ayrılmış).
+- `REGISTRATION_WINDOW_MS`, `REGISTRATION_MAX_ATTEMPTS`, `REGISTRATION_RATE_LIMIT_MAX_ENTRIES`: Register rate-limit ayarları.
 - `TRUST_PROXY`: Sadece reverse-proxy arkasında `true` olmalı.
 - `DEFAULT_ADMIN_EMAIL`: İlk admin hesabı e-posta adresi.
 - `DEFAULT_ADMIN_PASSWORD`: İlk admin hesabı şifresi (üretimde zorunlu).

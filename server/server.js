@@ -40,6 +40,15 @@ const REGISTRATION_STATUSES = new Set(['registered', 'active', 'completed']);
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 10;
 const LOGIN_RATE_LIMIT_MAX_ENTRIES = 10000;
+const REGISTRATION_WINDOW_MS = Number.isFinite(Number(process.env.REGISTRATION_WINDOW_MS)) && Number(process.env.REGISTRATION_WINDOW_MS) > 0
+  ? Number(process.env.REGISTRATION_WINDOW_MS)
+  : 15 * 60 * 1000;
+const REGISTRATION_MAX_ATTEMPTS = Number.isFinite(Number(process.env.REGISTRATION_MAX_ATTEMPTS)) && Number(process.env.REGISTRATION_MAX_ATTEMPTS) > 0
+  ? Number(process.env.REGISTRATION_MAX_ATTEMPTS)
+  : 20;
+const REGISTRATION_RATE_LIMIT_MAX_ENTRIES = Number.isFinite(Number(process.env.REGISTRATION_RATE_LIMIT_MAX_ENTRIES)) && Number(process.env.REGISTRATION_RATE_LIMIT_MAX_ENTRIES) > 0
+  ? Number(process.env.REGISTRATION_RATE_LIMIT_MAX_ENTRIES)
+  : 10000;
 const CONTACT_WINDOW_MS = 10 * 60 * 1000;
 const CONTACT_MAX_ATTEMPTS = 20;
 const CONTACT_RATE_LIMIT_MAX_ENTRIES = 20000;
@@ -47,8 +56,13 @@ const MANUAL_FULFILLMENT_OVERRIDE_ENABLED = process.env.ENABLE_MANUAL_FULFILLMEN
 const CARRIER_WEBHOOK_SECRET = typeof process.env.CARRIER_WEBHOOK_SECRET === 'string'
   ? process.env.CARRIER_WEBHOOK_SECRET.trim()
   : '';
+const AUTH_TOKEN_SECRET = typeof process.env.AUTH_TOKEN_SECRET === 'string'
+  ? process.env.AUTH_TOKEN_SECRET.trim()
+  : '';
 const LEGACY_DEFAULT_ADMIN_EMAIL = 'admin@klr.com';
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const MIN_TOKEN_SECRET_LENGTH = 32;
+const MIN_WEBHOOK_SECRET_LENGTH = 24;
 const configuredAdminEmail = typeof process.env.DEFAULT_ADMIN_EMAIL === 'string'
   ? process.env.DEFAULT_ADMIN_EMAIL.trim().toLowerCase()
   : '';
@@ -56,12 +70,20 @@ const configuredAdminEmail = typeof process.env.DEFAULT_ADMIN_EMAIL === 'string'
 let generatedAdminEmail = null;
 let generatedAdminPassword = null;
 
-if (!process.env.AUTH_TOKEN_SECRET) {
+if (!AUTH_TOKEN_SECRET) {
   if (IS_PRODUCTION) {
     throw new Error('AUTH_TOKEN_SECRET must be set in production.');
   }
 
   console.warn('AUTH_TOKEN_SECRET is not set. Set a strong secret in production.');
+}
+
+if (AUTH_TOKEN_SECRET && AUTH_TOKEN_SECRET.length < MIN_TOKEN_SECRET_LENGTH) {
+  if (IS_PRODUCTION) {
+    throw new Error(`AUTH_TOKEN_SECRET must be at least ${MIN_TOKEN_SECRET_LENGTH} characters in production.`);
+  }
+
+  console.warn(`AUTH_TOKEN_SECRET is shorter than ${MIN_TOKEN_SECRET_LENGTH} characters. Use a longer secret for non-production too.`);
 }
 
 if (IS_PRODUCTION && !configuredAdminEmail) {
@@ -76,8 +98,24 @@ if (IS_PRODUCTION && !process.env.DEFAULT_ADMIN_PASSWORD) {
   throw new Error('DEFAULT_ADMIN_PASSWORD must be set in production.');
 }
 
+if (IS_PRODUCTION && process.env.DEFAULT_ADMIN_PASSWORD && !PASSWORD_PATTERN.test(process.env.DEFAULT_ADMIN_PASSWORD)) {
+  throw new Error('DEFAULT_ADMIN_PASSWORD must meet password complexity requirements in production.');
+}
+
 if (IS_PRODUCTION && !CARRIER_WEBHOOK_SECRET) {
   throw new Error('CARRIER_WEBHOOK_SECRET must be set in production.');
+}
+
+if (CARRIER_WEBHOOK_SECRET && CARRIER_WEBHOOK_SECRET.length < MIN_WEBHOOK_SECRET_LENGTH) {
+  if (IS_PRODUCTION) {
+    throw new Error(`CARRIER_WEBHOOK_SECRET must be at least ${MIN_WEBHOOK_SECRET_LENGTH} characters in production.`);
+  }
+
+  console.warn(`CARRIER_WEBHOOK_SECRET is shorter than ${MIN_WEBHOOK_SECRET_LENGTH} characters.`);
+}
+
+if (IS_PRODUCTION && DEMO_ENDPOINTS_ENABLED) {
+  throw new Error('ENABLE_DEMO_ENDPOINTS must remain false in production.');
 }
 
 if (MANUAL_FULFILLMENT_OVERRIDE_ENABLED) {
@@ -124,6 +162,37 @@ const sanitizeEmail = (value) => {
   return sanitizePlainText(value, 254).toLowerCase();
 };
 
+const sanitizeUrl = (value, maxLength = 500, options = {}) => {
+  const {
+    allowRelative = true,
+    allowedProtocols = ['http:', 'https:'],
+  } = options;
+
+  const normalized = sanitizePlainText(value, maxLength);
+  if (!normalized) {
+    return '';
+  }
+
+  if (allowRelative && normalized.startsWith('/')) {
+    if (normalized.startsWith('//') || normalized.includes('\\')) {
+      return '';
+    }
+
+    return normalized;
+  }
+
+  try {
+    const parsed = new URL(normalized);
+    if (!allowedProtocols.includes(parsed.protocol)) {
+      return '';
+    }
+
+    return parsed.toString();
+  } catch (_error) {
+    return '';
+  }
+};
+
 const sanitizeRichText = (value) => {
   return sanitizeHtml(typeof value === 'string' ? value : '', {
     allowedTags: [
@@ -155,12 +224,15 @@ const sanitizeImagesPayload = (images) => {
 
   return images
     .filter((image) => image && typeof image === 'object')
-    .map((image) => ({
-      src: sanitizePlainText(image.src, 500),
-      alt: sanitizePlainText(image.alt, 200),
-      title: sanitizePlainText(image.title || '', 200),
-      description: sanitizePlainText(image.description || '', 500)
-    }))
+    .map((image) => {
+      const src = sanitizeUrl(image.src, 500, { allowRelative: true });
+      return {
+        src,
+        alt: sanitizePlainText(image.alt, 200),
+        title: sanitizePlainText(image.title || '', 200),
+        description: sanitizePlainText(image.description || '', 500)
+      };
+    })
     .filter((image) => image.src.length > 0);
 };
 
@@ -330,6 +402,7 @@ const {
   authenticateApiRequest,
   checkLoginRateLimit,
   recordLoginAttempt,
+  checkRegistrationRateLimit,
   checkContactRateLimit,
 } = createAuthMiddleware({
   verifyAuthToken,
@@ -338,6 +411,9 @@ const {
   loginWindowMs: LOGIN_WINDOW_MS,
   loginMaxAttempts: LOGIN_MAX_ATTEMPTS,
   loginRateLimitMaxEntries: LOGIN_RATE_LIMIT_MAX_ENTRIES,
+  registrationWindowMs: REGISTRATION_WINDOW_MS,
+  registrationMaxAttempts: REGISTRATION_MAX_ATTEMPTS,
+  registrationRateLimitMaxEntries: REGISTRATION_RATE_LIMIT_MAX_ENTRIES,
   contactWindowMs: CONTACT_WINDOW_MS,
   contactMaxAttempts: CONTACT_MAX_ATTEMPTS,
   contactRateLimitMaxEntries: CONTACT_RATE_LIMIT_MAX_ENTRIES,
@@ -361,6 +437,7 @@ registerAuthUserRoutes(app, {
   isValidPassword,
   checkLoginRateLimit,
   recordLoginAttempt,
+  checkRegistrationRateLimit,
 });
 
 registerCommerceRoutes(app, {
@@ -399,6 +476,7 @@ registerContentRoutes(app, {
   sanitizePlainText,
   sanitizeRichText,
   sanitizeImagesPayload,
+  sanitizeUrl,
   sanitizeResourceId,
   blogStatuses: BLOG_STATUSES,
   eventStatuses: EVENT_STATUSES,

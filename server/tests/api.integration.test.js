@@ -299,6 +299,31 @@ test('content and status endpoints return full entities', async () => {
   assert.ok(createdEvent.data && typeof createdEvent.data.id === 'string');
   assert.equal(createdEvent.data.status, 'upcoming');
 
+  const invalidEventUrlPayload = await requestJson('/api/events', {
+    method: 'POST',
+    token: adminToken,
+    body: {
+      title: 'Integration Event Invalid URL',
+      description: '<p>Invalid URL check</p>',
+      excerpt: 'Invalid event URL excerpt',
+      startDate: '2026-02-10T10:00:00.000Z',
+      endDate: '2026-02-10T18:00:00.000Z',
+      venueName: 'Integration Venue',
+      venueAddress: 'Integration Street 1',
+      venueCity: 'Istanbul',
+      venueState: 'Istanbul',
+      venueZipCode: '34000',
+      venueCountry: 'Turkey',
+      organizerName: 'Integration Team',
+      eventWebsite: 'javascript:alert(1)',
+      status: 'upcoming',
+      category: 'conference',
+    },
+  });
+
+  assert.equal(invalidEventUrlPayload.status, 400);
+  assert.equal(invalidEventUrlPayload.data.error, 'Invalid event website URL');
+
   const updatedEventStatus = await requestJson(`/api/events/${createdEvent.data.id}/status`, {
     method: 'PUT',
     token: adminToken,
@@ -327,6 +352,23 @@ test('content and status endpoints return full entities', async () => {
   assert.equal(createdMediaCoverage.status, 201);
   assert.ok(createdMediaCoverage.data && typeof createdMediaCoverage.data.id === 'string');
   assert.equal(createdMediaCoverage.data.status, 'draft');
+
+  const invalidMediaSourceUrl = await requestJson('/api/media-coverage', {
+    method: 'POST',
+    token: adminToken,
+    body: {
+      title: 'Integration Media Invalid URL',
+      content: '<p>Media coverage body</p>',
+      excerpt: 'Media coverage excerpt',
+      sourceUrl: 'javascript:alert(1)',
+      author: 'Integration Editor',
+      status: 'draft',
+      images: [],
+    },
+  });
+
+  assert.equal(invalidMediaSourceUrl.status, 400);
+  assert.equal(invalidMediaSourceUrl.data.error, 'Invalid source URL');
 
   const updatedMediaStatus = await requestJson(`/api/media-coverage/${createdMediaCoverage.data.id}/status`, {
     method: 'PUT',
@@ -692,4 +734,29 @@ test('public contact endpoint is rate-limited', async () => {
 
   assert.ok(lastResponse);
   assert.equal(lastResponse.status, 429);
+});
+
+test('register endpoint is rate-limited', async () => {
+  let hitRateLimit = false;
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const response = await requestJson('/api/register', {
+      method: 'POST',
+      body: {
+        name: `Register Rate Limit ${attempt}`,
+        email: `register_rate_${Date.now()}_${attempt}@example.com`,
+        password: 'RegisterPass123A',
+      },
+    });
+
+    if (response.status === 429) {
+      hitRateLimit = true;
+      assert.equal(response.data.error, 'Too many registration attempts. Please try again later.');
+      break;
+    }
+
+    assert.equal(response.status, 201);
+  }
+
+  assert.equal(hitRateLimit, true);
 });
