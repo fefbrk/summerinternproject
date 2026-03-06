@@ -185,7 +185,7 @@ const OrderEditModal: React.FC<OrderEditModalProps> = ({
             <textarea
               value={
                 order.shippingAddress
-                  ? `${order.shippingAddress.address || ''}\n${order.shippingAddress.city || ''}, ${order.shippingAddress.province || ''} ${order.shippingAddress.zipCode || ''}`
+                  ? `${order.shippingAddress.address || ''}\n${order.shippingAddress.city || ''}, ${order.shippingAddress.province || ''} ${order.shippingAddress.postalCode || ''}`
                   : 'No address information'
               }
               readOnly
@@ -242,6 +242,10 @@ const OrderEditModal: React.FC<OrderEditModalProps> = ({
               <>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div className="p-2 border border-gray-200 rounded bg-white">
+                    <div className="text-gray-500">Payment Mode</div>
+                    <div className="font-medium text-gray-900">{order.paymentMode === 'purchase_order' ? 'Purchase Order' : 'Pending'}</div>
+                  </div>
+                  <div className="p-2 border border-gray-200 rounded bg-white">
                     <div className="text-gray-500">Payment Provider</div>
                     <div className="font-medium text-gray-900">{paymentSnapshot.paymentProvider || '-'}</div>
                   </div>
@@ -254,6 +258,10 @@ const OrderEditModal: React.FC<OrderEditModalProps> = ({
                     <div className="font-medium text-gray-900">
                       {paymentSnapshot.paidAt ? new Date(paymentSnapshot.paidAt).toLocaleString() : '-'}
                     </div>
+                  </div>
+                  <div className="p-2 border border-gray-200 rounded bg-white">
+                    <div className="text-gray-500">PO Number</div>
+                    <div className="font-medium text-gray-900">{order.purchaseOrderNumber || '-'}</div>
                   </div>
                   <div className="p-2 border border-gray-200 rounded bg-white">
                     <div className="text-gray-500">Payment Amount</div>

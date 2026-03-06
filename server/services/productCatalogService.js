@@ -1,8 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const FRONTEND_PRODUCTS_FILE_PATH = path.resolve(__dirname, '../../src/data/products.ts');
-const PRODUCT_ENTRY_REGEX = /\{\s*id:\s*["']([^"']+)["']\s*,\s*category:\s*['"][^'"]+['"]\s*,\s*name:\s*'([^']+)'\s*,\s*price:\s*([0-9]+(?:\.[0-9]+)?)/g;
+const SHARED_PRODUCT_CATALOG_PATH = path.resolve(__dirname, '../../src/data/productCatalog.json');
 
 const LEGACY_PRODUCT_ID_ALIASES = {
   'kibo-10': '1',
@@ -17,15 +16,16 @@ const LEGACY_PRODUCT_ID_ALIASES = {
 
 const createProductCatalogService = () => {
   const loadCatalog = () => {
-    const source = fs.readFileSync(FRONTEND_PRODUCTS_FILE_PATH, 'utf8');
+    const source = fs.readFileSync(SHARED_PRODUCT_CATALOG_PATH, 'utf8');
+    const entries = JSON.parse(source);
     const productsById = new Map();
 
-    let match;
-    while ((match = PRODUCT_ENTRY_REGEX.exec(source)) !== null) {
-      const [, id, name, rawPrice] = match;
-      const productId = String(id || '').trim();
-      const productName = String(name || '').trim();
-      const price = Number(rawPrice);
+    for (const entry of Array.isArray(entries) ? entries : []) {
+      const productId = String(entry?.id || '').trim();
+      const productName = String(entry?.name || '').trim();
+      const price = Number(entry?.price);
+      const slug = String(entry?.slug || '').trim();
+      const detailPath = String(entry?.detailPath || '').trim();
 
       if (!productId || !productName || !Number.isFinite(price) || price < 0) {
         continue;
@@ -35,11 +35,13 @@ const createProductCatalogService = () => {
         id: productId,
         name: productName,
         price,
+        slug,
+        detailPath,
       });
     }
 
     if (productsById.size === 0) {
-      throw new Error('Product catalog could not be loaded from src/data/products.ts');
+      throw new Error('Product catalog could not be loaded from src/data/productCatalog.json');
     }
 
     for (const [legacyId, canonicalId] of Object.entries(LEGACY_PRODUCT_ID_ALIASES)) {

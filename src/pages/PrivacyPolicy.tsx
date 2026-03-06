@@ -76,14 +76,14 @@ const PrivacyPolicy = () => {
                   
                   <p className="mb-4">
                     When you purchase from us, we'll ask you to provide information including your name, billing address, shipping address, email address, phone 
-                    number, credit card/payment details and optional account information like username and password. We'll use this information for purposes, such 
+                    number, optional purchase-order references, and optional account information like username and password. We'll use this information for purposes, such 
                     as, to:
                   </p>
                   
                   <ul className="list-disc pl-6 space-y-2 mb-6">
                     <li>Send you information about your account and order</li>
                     <li>Respond to your requests, including refunds and complaints</li>
-                    <li>Process payments and prevent fraud</li>
+                    <li>Track pending payment state until a payment provider is connected</li>
                     <li>Set up your account for our store</li>
                     <li>Comply with any legal obligations we have, such as calculating taxes</li>
                     <li>Improve our store offerings</li>
@@ -107,15 +107,15 @@ const PrivacyPolicy = () => {
                 <div className="border-t pt-6">
                   <h2 className="text-2xl font-semibold text-kibo-purple mb-4">Payments</h2>
                   
-                  <p className="mb-4">We accept payments through PayPal and Stripe.</p>
+                  <p className="mb-4">We do not process card payments directly in the current pre-PSP phase of this project.</p>
                   
                   <p className="mb-4">
-                    When processing payments, some of your data will be passed to these processors, including information required to process or support the 
-                    payment, such as the purchase total and billing information.
+                    Orders can be created in a <strong>payment pending</strong> state or flagged with an offline purchase-order reference. No credit card number,
+                    CVV, PayPal credential, or payment-provider token is collected or stored until a production payment provider is selected and integrated.
                   </p>
                   
                   <p className="mb-4">
-                    Please see the <a href="https://www.paypal.com/us/legalhub/paypal/privacy-full" className="text-kibo-orange hover:underline" target="_blank" rel="noopener noreferrer">PayPal Privacy Policy</a> and <a href="https://stripe.com/privacy" className="text-kibo-orange hover:underline" target="_blank" rel="noopener noreferrer">Stripe Privacy Policy</a> for more details.
+                    Once a payment provider is selected, this policy will be updated to document the processor, the shared data fields, and the relevant privacy terms.
                   </p>
                 </div>
 
@@ -166,8 +166,7 @@ const PrivacyPolicy = () => {
                   <h2 className="text-2xl font-semibold text-kibo-purple mb-4">Who we share your data with</h2>
                   
                   <p className="mb-4">
-                    We will not share your data with any third party service outside of the payment companies listed below, our payment system and our Customer 
-                    Relationship Manager (CRM) system.
+                    We will not share your data with third-party payment processors during the current pre-PSP phase. If a processor is added later, this policy will be updated before go-live.
                   </p>
                 </div>
 

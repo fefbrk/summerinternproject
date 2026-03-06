@@ -203,8 +203,36 @@ class Database {
 
         const parsedItems = order.items ? this.safeJsonParse(order.items, []) : [];
         const parsedPaymentAmount = Number(order.paymentAmount);
+        const normalizeOrderAddress = (address) => {
+            if (!address || typeof address !== 'object') {
+                return null;
+            }
+
+            return {
+                recipientName: typeof address.recipientName === 'string' && address.recipientName.trim().length > 0
+                    ? address.recipientName
+                    : (typeof address.name === 'string' ? address.name : ''),
+                phone: typeof address.phone === 'string' ? address.phone : '',
+                email: typeof address.email === 'string' ? address.email : '',
+                address: typeof address.address === 'string' ? address.address : '',
+                apartment: typeof address.apartment === 'string' ? address.apartment : '',
+                district: typeof address.district === 'string' ? address.district : '',
+                city: typeof address.city === 'string' ? address.city : '',
+                postalCode: typeof address.postalCode === 'string' && address.postalCode.trim().length > 0
+                    ? address.postalCode
+                    : (typeof address.zipCode === 'string' ? address.zipCode : ''),
+                province: typeof address.province === 'string' ? address.province : '',
+                country: typeof address.country === 'string' ? address.country : '',
+            };
+        };
+        const decryptedShippingAddress = this.maybeDecryptJson(order.shippingAddress, {});
+        const decryptedBillingAddress = this.maybeDecryptJson(order.billingAddress, null);
         return {
             ...order,
+            paymentMode: typeof order.paymentMode === 'string' ? order.paymentMode : 'pending',
+            purchaseOrderNumber: typeof order.purchaseOrderNumber === 'string' && order.purchaseOrderNumber.trim().length > 0
+                ? order.purchaseOrderNumber
+                : null,
             paymentStatus: typeof order.paymentStatus === 'string' ? order.paymentStatus : 'pending',
             paymentProvider: typeof order.paymentProvider === 'string' ? order.paymentProvider : null,
             paymentReference: typeof order.paymentReference === 'string' ? order.paymentReference : null,
@@ -218,7 +246,8 @@ class Database {
             fulfillmentUpdatedAt: typeof order.fulfillmentUpdatedAt === 'string' ? order.fulfillmentUpdatedAt : null,
             customerName: this.decryptPiiValue(order.customerName),
             customerEmail: this.maybeDecryptEmail(order.customerEmail),
-            shippingAddress: this.maybeDecryptJson(order.shippingAddress, {}),
+            shippingAddress: normalizeOrderAddress(decryptedShippingAddress) || normalizeOrderAddress({}),
+            billingAddress: normalizeOrderAddress(decryptedBillingAddress),
             items: this.normalizeOrderItems(parsedItems)
         };
     }
@@ -397,12 +426,15 @@ class Database {
             await this.ensureAuditTables();
             // Privacy request tablosunu olustur
             await this.ensurePrivacyTables();
+            await this.ensureUserProfileTables();
             // Users tablosuna updated_at kolonu ekle
             await this.addUpdatedAtColumnToUsers();
             // Users tablosuna role/email_hash kolonlari ekle
             await this.addRoleAndEmailHashColumnsToUsers();
             // Orders tablosuna order_notes kolonu ekle
             await this.addOrderNotesColumnToOrders();
+            await this.addCheckoutColumnsToOrders();
+            await this.addContactColumnsToUserAddresses();
             // Mevcut PII alanlarini sartlara gore sifrele
             await this.migrateExistingPiiData();
             console.log('Veritabanı migrasyonları başarıyla çalıştırıldı');
@@ -1083,6 +1115,108 @@ class Database {
         }
     }
 
+    async ensureUserProfileTables() {
+        try {
+            await this.run(`
+                CREATE TABLE IF NOT EXISTS user_profiles (
+                    user_id TEXT PRIMARY KEY,
+                    phone TEXT NOT NULL DEFAULT '',
+                    company_name TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+                )
+            `);
+
+            await this.run('CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id)');
+        } catch (error) {
+            console.error('User profile tablo migrasyonu hatas??:', error);
+            throw error;
+        }
+    }
+
+    async addCheckoutColumnsToOrders() {
+        try {
+            const tableExists = await this.get(`
+                SELECT name FROM sqlite_master WHERE type='table' AND name='orders'
+            `);
+
+            if (!tableExists) {
+                return;
+            }
+
+            const columnInfo = await this.all('PRAGMA table_info(orders)');
+            const hasBillingAddress = columnInfo.some((column) => column.name === 'billing_address');
+            const hasPaymentMode = columnInfo.some((column) => column.name === 'payment_mode');
+            const hasPurchaseOrderNumber = columnInfo.some((column) => column.name === 'purchase_order_number');
+
+            if (!hasBillingAddress) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN billing_address TEXT
+                `);
+            }
+
+            if (!hasPaymentMode) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN payment_mode TEXT NOT NULL DEFAULT 'pending'
+                `);
+            }
+
+            if (!hasPurchaseOrderNumber) {
+                await this.run(`
+                    ALTER TABLE orders
+                    ADD COLUMN purchase_order_number TEXT
+                `);
+            }
+        } catch (error) {
+            console.error('Orders checkout kolon migrasyonu hatas??:', error);
+            throw error;
+        }
+    }
+
+    async addContactColumnsToUserAddresses() {
+        try {
+            const tableExists = await this.get(`
+                SELECT name FROM sqlite_master WHERE type='table' AND name='user_addresses'
+            `);
+
+            if (!tableExists) {
+                return;
+            }
+
+            const columnInfo = await this.all('PRAGMA table_info(user_addresses)');
+            const hasRecipientName = columnInfo.some((column) => column.name === 'recipient_name');
+            const hasPhone = columnInfo.some((column) => column.name === 'phone');
+            const hasEmail = columnInfo.some((column) => column.name === 'email');
+
+            if (!hasRecipientName) {
+                await this.run(`
+                    ALTER TABLE user_addresses
+                    ADD COLUMN recipient_name TEXT NOT NULL DEFAULT ''
+                `);
+            }
+
+            if (!hasPhone) {
+                await this.run(`
+                    ALTER TABLE user_addresses
+                    ADD COLUMN phone TEXT NOT NULL DEFAULT ''
+                `);
+            }
+
+            if (!hasEmail) {
+                await this.run(`
+                    ALTER TABLE user_addresses
+                    ADD COLUMN email TEXT NOT NULL DEFAULT ''
+                `);
+            }
+        } catch (error) {
+            console.error('User address contact kolon migrasyonu hatas??:', error);
+            throw error;
+        }
+    }
+
     // SQL sorgusu çalıştır (INSERT, UPDATE, DELETE)
     run(sql, params = []) {
         return new Promise((resolve, reject) => {
@@ -1591,6 +1725,58 @@ class Database {
         ]);
     }
 
+    async updateUserProfileFields(userId, profileData) {
+        const normalizedEmail = this.toNormalizedEmail(profileData.email);
+        const encryptedEmail = this.maybeEncryptEmail(normalizedEmail);
+        const sql = 'UPDATE users SET email = ?, email_hash = ?, name = ? WHERE id = ?';
+        return this.run(sql, [
+            encryptedEmail,
+            this.hashLookupValue(normalizedEmail),
+            profileData.name,
+            userId,
+        ]);
+    }
+
+    async getUserProfile(userId) {
+        const sql = `
+            SELECT user_id as userId, phone, company_name as companyName,
+                   created_at as createdAt, updated_at as updatedAt
+            FROM user_profiles
+            WHERE user_id = ?
+        `;
+        const row = await this.get(sql, [userId]);
+        if (!row) {
+            return null;
+        }
+
+        return {
+            ...row,
+            phone: this.decryptPiiValue(row.phone),
+            companyName: this.decryptPiiValue(row.companyName),
+        };
+    }
+
+    async upsertUserProfile(userId, profile) {
+        const now = new Date().toISOString();
+        const existingProfile = await this.getUserProfile(userId);
+        const phone = this.encryptPiiValue(String(profile.phone || ''));
+        const companyName = this.encryptPiiValue(String(profile.companyName || ''));
+
+        if (existingProfile) {
+            await this.run(
+                'UPDATE user_profiles SET phone = ?, company_name = ?, updated_at = ? WHERE user_id = ?',
+                [phone, companyName, now, userId]
+            );
+        } else {
+            await this.run(
+                'INSERT INTO user_profiles (user_id, phone, company_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+                [userId, phone, companyName, now, now]
+            );
+        }
+
+        return this.getUserProfile(userId);
+    }
+
     async deleteUser(userId) {
         const sql = 'DELETE FROM users WHERE id = ?';
         return this.run(sql, [userId]);
@@ -1603,6 +1789,7 @@ class Database {
         const orderByClause = orderBy || 'o.created_at DESC';
         return `
             SELECT o.id, o.user_id as userId, o.total_amount as totalAmount, o.status,
+                   o.payment_mode as paymentMode, o.purchase_order_number as purchaseOrderNumber,
                    o.payment_status as paymentStatus, o.payment_provider as paymentProvider,
                    o.payment_reference as paymentReference, o.payment_amount as paymentAmount,
                    o.payment_currency as paymentCurrency, o.payment_failed_reason as paymentFailedReason,
@@ -1612,7 +1799,8 @@ class Database {
                    o.fulfillment_source as fulfillmentSource,
                    o.fulfillment_updated_at as fulfillmentUpdatedAt,
                    o.customer_name as customerName, o.customer_email as customerEmail,
-                   o.shipping_address as shippingAddress, o.order_notes as orderNotes, o.created_at as createdAt,
+                   o.shipping_address as shippingAddress, o.billing_address as billingAddress,
+                   o.order_notes as orderNotes, o.created_at as createdAt,
                      json_group_array(
                          json_object('id', oi.product_id, 'name', oi.product_name, 'productId', oi.product_id, 'productName', oi.product_name,
                                      'quantity', oi.quantity, 'price', oi.price, 'image', oi.image)
@@ -1649,12 +1837,12 @@ class Database {
         await this.runInTransaction(async () => {
             const sql = `
                 INSERT INTO orders (
-                    id, user_id, total_amount, status, customer_name, customer_email, shipping_address, order_notes, created_at,
-                    payment_status, payment_provider, payment_reference, payment_amount, payment_currency,
+                    id, user_id, total_amount, status, customer_name, customer_email, shipping_address, billing_address, order_notes, created_at,
+                    payment_mode, purchase_order_number, payment_status, payment_provider, payment_reference, payment_amount, payment_currency,
                     payment_failed_reason, paid_at,
                     shipment_provider, shipment_tracking_number, fulfillment_source, fulfillment_updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
             await this.run(sql, [
                 order.id,
@@ -1664,8 +1852,11 @@ class Database {
                 this.encryptPiiValue(String(order.customerName || '')),
                 this.maybeEncryptEmail(order.customerEmail),
                 this.maybeEncryptJson(JSON.stringify(order.shippingAddress || {})),
+                order.billingAddress ? this.maybeEncryptJson(JSON.stringify(order.billingAddress)) : null,
                 order.orderNotes || '',
                 order.createdAt,
+                order.paymentMode || 'pending',
+                order.purchaseOrderNumber || null,
                 order.paymentStatus || 'pending',
                 order.paymentProvider || null,
                 order.paymentReference || null,
@@ -2737,6 +2928,7 @@ class Database {
     async getUserAddresses(userId) {
         const sql = `
             SELECT id, user_id as userId, title, type, is_default as isDefault,
+                   recipient_name as recipientName, phone, email,
                    address, apartment, district, city, postal_code as postalCode,
                    province, country, created_at as createdAt, updated_at as updatedAt
             FROM user_addresses
@@ -2746,6 +2938,9 @@ class Database {
         const rows = await this.all(sql, [userId]);
         return rows.map((row) => ({
             ...row,
+            recipientName: this.decryptPiiValue(row.recipientName),
+            phone: this.decryptPiiValue(row.phone),
+            email: this.maybeDecryptEmail(row.email),
             address: this.decryptPiiValue(row.address),
             apartment: this.decryptPiiValue(row.apartment),
             district: this.decryptPiiValue(row.district),
@@ -2759,6 +2954,7 @@ class Database {
     async getUserAddressById(id) {
         const sql = `
             SELECT id, user_id as userId, title, type, is_default as isDefault,
+                   recipient_name as recipientName, phone, email,
                    address, apartment, district, city, postal_code as postalCode,
                    province, country, created_at as createdAt, updated_at as updatedAt
             FROM user_addresses
@@ -2771,6 +2967,9 @@ class Database {
 
         return {
             ...row,
+            recipientName: this.decryptPiiValue(row.recipientName),
+            phone: this.decryptPiiValue(row.phone),
+            email: this.maybeDecryptEmail(row.email),
             address: this.decryptPiiValue(row.address),
             apartment: this.decryptPiiValue(row.apartment),
             district: this.decryptPiiValue(row.district),
@@ -2789,9 +2988,9 @@ class Database {
 
             const sql = `
                 INSERT INTO user_addresses (
-                    id, user_id, title, type, is_default, address, apartment, 
-                    district, city, postal_code, province, country, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    id, user_id, title, type, is_default, recipient_name, phone, email,
+                    address, apartment, district, city, postal_code, province, country, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
             return this.run(sql, [
                 address.id,
@@ -2799,6 +2998,9 @@ class Database {
                 address.title,
                 address.type,
                 address.isDefault,
+                this.encryptPiiValue(address.recipientName || ''),
+                this.encryptPiiValue(address.phone || ''),
+                this.maybeEncryptEmail(address.email || ''),
                 this.encryptPiiValue(address.address),
                 this.encryptPiiValue(address.apartment || ''),
                 this.encryptPiiValue(address.district),
@@ -2823,7 +3025,7 @@ class Database {
 
             const sql = `
                 UPDATE user_addresses SET 
-                    title = ?, type = ?, is_default = ?, address = ?, apartment = ?, 
+                    title = ?, type = ?, is_default = ?, recipient_name = ?, phone = ?, email = ?, address = ?, apartment = ?, 
                     district = ?, city = ?, postal_code = ?, province = ?, country = ?, updated_at = ?
                 WHERE id = ?
             `;
@@ -2831,6 +3033,9 @@ class Database {
                 address.title,
                 address.type,
                 address.isDefault,
+                this.encryptPiiValue(address.recipientName || ''),
+                this.encryptPiiValue(address.phone || ''),
+                this.maybeEncryptEmail(address.email || ''),
                 this.encryptPiiValue(address.address),
                 this.encryptPiiValue(address.apartment || ''),
                 this.encryptPiiValue(address.district),

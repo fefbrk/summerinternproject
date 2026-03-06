@@ -4,15 +4,19 @@ const {
   paymentMethodCreateSchema,
   paymentMethodUpdateSchema,
   privacyDeletionRequestSchema,
+  profileUpdateSchema,
   validateRequestBody,
 } = require('../utils/validationSchemas');
 
-const getCardType = (cardNumber) => {
-  const firstDigit = cardNumber.charAt(0);
-  if (firstDigit === '4') return 'visa';
-  if (firstDigit === '5') return 'mastercard';
-  if (firstDigit === '3') return 'amex';
-  return 'unknown';
+const PAYMENT_METHODS_DISABLED_ERROR = 'Payment method management is disabled until a payment provider is connected';
+
+const splitFullName = (fullName) => {
+  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+  const firstName = parts.shift() || '';
+  return {
+    firstName,
+    lastName: parts.join(' '),
+  };
 };
 
 const registerAccountRoutes = (app, deps) => {
@@ -23,6 +27,8 @@ const registerAccountRoutes = (app, deps) => {
     isSelfOrAdmin,
     logSecurityEvent = async () => {},
   } = deps;
+
+  const sanitizeEmail = (value) => sanitizePlainText(value, 254).toLowerCase();
 
   const emitSecurityEvent = (payload) => {
     if (typeof logSecurityEvent !== 'function') {
@@ -36,6 +42,107 @@ const registerAccountRoutes = (app, deps) => {
     }
   };
 
+  app.get('/api/account/profile', async (req, res) => {
+    try {
+      const currentUser = await database.getUserById(req.user.id);
+      if (!currentUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const profile = typeof database.getUserProfile === 'function'
+        ? await database.getUserProfile(req.user.id)
+        : null;
+      const { firstName, lastName } = splitFullName(currentUser.name);
+
+      return res.json({
+        fullName: currentUser.name,
+        firstName,
+        lastName,
+        email: currentUser.email,
+        phone: profile?.phone || '',
+        companyName: profile?.companyName || '',
+      });
+    } catch (error) {
+      console.error('Error fetching account profile:', error);
+      return res.status(500).json({ error: 'Failed to fetch account profile' });
+    }
+  });
+
+  app.put('/api/account/profile', async (req, res) => {
+    try {
+      const parsedBody = validateRequestBody(profileUpdateSchema, req.body || {});
+      if (!parsedBody.success) {
+        return res.status(400).json({ error: parsedBody.errorMessage || 'Invalid profile payload' });
+      }
+
+      const fullName = sanitizePlainText(parsedBody.data.fullName, 120);
+      const email = sanitizeEmail(parsedBody.data.email);
+      const phone = sanitizePlainText(parsedBody.data.phone || '', 40);
+      const companyName = sanitizePlainText(parsedBody.data.companyName || '', 120);
+
+      const currentUser = await database.getUserById(req.user.id);
+      if (!currentUser) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      if (email !== currentUser.email) {
+        const existingUser = await database.getUserByEmail(email);
+        if (existingUser && existingUser.id !== currentUser.id) {
+          return res.status(400).json({ error: 'Email is already in use' });
+        }
+      }
+
+      if (typeof database.updateUserProfileFields === 'function') {
+        await database.updateUserProfileFields(currentUser.id, {
+          email,
+          name: fullName,
+        });
+      } else {
+        await database.updateUser(currentUser.id, {
+          email,
+          name: fullName,
+          password: currentUser.password,
+          isAdmin: currentUser.isAdmin,
+          role: currentUser.role,
+          createdAt: currentUser.createdAt,
+        });
+      }
+
+      if (typeof database.upsertUserProfile === 'function') {
+        await database.upsertUserProfile(currentUser.id, {
+          phone,
+          companyName,
+        });
+      }
+
+      emitSecurityEvent({
+        eventType: 'ACCOUNT_PROFILE_UPDATED',
+        severity: 'medium',
+        userId: currentUser.id,
+        email,
+        req,
+      });
+
+      const updatedUser = await database.getUserById(currentUser.id);
+      const updatedProfile = typeof database.getUserProfile === 'function'
+        ? await database.getUserProfile(currentUser.id)
+        : null;
+      const { firstName, lastName } = splitFullName(updatedUser?.name || fullName);
+
+      return res.json({
+        fullName: updatedUser?.name || fullName,
+        firstName,
+        lastName,
+        email: updatedUser?.email || email,
+        phone: updatedProfile?.phone || phone,
+        companyName: updatedProfile?.companyName || companyName,
+      });
+    } catch (error) {
+      console.error('Error updating account profile:', error);
+      return res.status(500).json({ error: 'Failed to update account profile' });
+    }
+  });
+
   app.get('/api/addresses/:userId', async (req, res) => {
     try {
       const userId = sanitizePlainText(req.params.userId, 64);
@@ -45,10 +152,10 @@ const registerAccountRoutes = (app, deps) => {
       }
 
       const addresses = await database.getUserAddresses(userId);
-      res.json(addresses);
+      return res.json(addresses);
     } catch (error) {
       console.error('Error fetching addresses:', error);
-      res.status(500).json({ error: 'Failed to fetch addresses' });
+      return res.status(500).json({ error: 'Failed to fetch addresses' });
     }
   });
 
@@ -60,54 +167,40 @@ const registerAccountRoutes = (app, deps) => {
       }
 
       const userId = sanitizePlainText(parsedBody.data.userId, 64);
-      const title = sanitizePlainText(parsedBody.data.title, 120);
-      const type = sanitizePlainText(parsedBody.data.type, 40);
-      const address = sanitizePlainText(parsedBody.data.address, 300);
-      const apartment = sanitizePlainText(parsedBody.data.apartment, 120);
-      const district = sanitizePlainText(parsedBody.data.district, 120);
-      const city = sanitizePlainText(parsedBody.data.city, 120);
-      const postalCode = sanitizePlainText(parsedBody.data.postalCode, 32);
-      const province = sanitizePlainText(parsedBody.data.province, 120);
-      const country = sanitizePlainText(parsedBody.data.country, 120) || 'Turkey';
-      const hasIsDefault = typeof parsedBody.data.isDefault === 'boolean';
-      const isDefault = hasIsDefault ? Boolean(parsedBody.data.isDefault) : undefined;
-
       if (!isSelfOrAdmin(req.user, userId)) {
         return res.status(403).json({ error: 'Not authorized to create address for this user' });
-      }
-
-      if (!userId || !title || !address || !district || !city || !postalCode || !['delivery', 'billing'].includes(type)) {
-        return res.status(400).json({ error: 'Invalid address payload' });
       }
 
       const newAddress = {
         id: uuidv4(),
         userId,
-        title,
-        type,
-        isDefault: isDefault ? 1 : 0,
-        address,
-        apartment,
-        district,
-        city,
-        postalCode,
-        province,
-        country,
+        title: sanitizePlainText(parsedBody.data.title, 120),
+        type: sanitizePlainText(parsedBody.data.type, 40),
+        isDefault: parsedBody.data.isDefault ? 1 : 0,
+        recipientName: sanitizePlainText(parsedBody.data.recipientName, 120),
+        phone: sanitizePlainText(parsedBody.data.phone, 40),
+        email: sanitizeEmail(parsedBody.data.email || ''),
+        address: sanitizePlainText(parsedBody.data.address, 300),
+        apartment: sanitizePlainText(parsedBody.data.apartment || '', 120),
+        district: sanitizePlainText(parsedBody.data.district, 120),
+        city: sanitizePlainText(parsedBody.data.city, 120),
+        postalCode: sanitizePlainText(parsedBody.data.postalCode, 32),
+        province: sanitizePlainText(parsedBody.data.province || '', 120),
+        country: sanitizePlainText(parsedBody.data.country || 'Turkey', 120),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
       await database.createUserAddress(newAddress);
-
       const createdAddress = await database.getUserAddressById(newAddress.id);
       if (!createdAddress) {
         return res.status(500).json({ error: 'Address created but could not be loaded' });
       }
 
-      res.status(201).json(createdAddress);
+      return res.status(201).json(createdAddress);
     } catch (error) {
       console.error('Error creating address:', error);
-      res.status(500).json({ error: 'Failed to create address' });
+      return res.status(500).json({ error: 'Failed to create address' });
     }
   });
 
@@ -128,51 +221,34 @@ const registerAccountRoutes = (app, deps) => {
         return res.status(400).json({ error: parsedBody.errorMessage || 'Invalid address payload' });
       }
 
-      const title = sanitizePlainText(parsedBody.data.title, 120);
-      const type = sanitizePlainText(parsedBody.data.type, 40);
-      const address = sanitizePlainText(parsedBody.data.address, 300);
-      const apartment = sanitizePlainText(parsedBody.data.apartment, 120);
-      const district = sanitizePlainText(parsedBody.data.district, 120);
-      const city = sanitizePlainText(parsedBody.data.city, 120);
-      const postalCode = sanitizePlainText(parsedBody.data.postalCode, 32);
-      const province = sanitizePlainText(parsedBody.data.province, 120);
-      const country = sanitizePlainText(parsedBody.data.country, 120) || 'Turkey';
-      const hasIsDefault = typeof parsedBody.data.isDefault === 'boolean';
-      const isDefault = hasIsDefault ? Boolean(parsedBody.data.isDefault) : undefined;
-
-      if (!title || !address || !district || !city || !postalCode || !['delivery', 'billing'].includes(type)) {
-        return res.status(400).json({ error: 'Invalid address payload' });
-      }
-
-      const finalIsDefault = isDefault === undefined
-        ? Number(existingAddress.isDefault)
-        : (isDefault ? 1 : 0);
-
-      const updatedAddress = {
-        title,
-        type,
-        isDefault: finalIsDefault,
-        address,
-        apartment,
-        district,
-        city,
-        postalCode,
-        province,
-        country,
+      await database.updateUserAddress(id, {
+        title: sanitizePlainText(parsedBody.data.title, 120),
+        type: sanitizePlainText(parsedBody.data.type, 40),
+        isDefault: parsedBody.data.isDefault === undefined
+          ? Number(existingAddress.isDefault)
+          : (parsedBody.data.isDefault ? 1 : 0),
+        recipientName: sanitizePlainText(parsedBody.data.recipientName, 120),
+        phone: sanitizePlainText(parsedBody.data.phone, 40),
+        email: sanitizeEmail(parsedBody.data.email || ''),
+        address: sanitizePlainText(parsedBody.data.address, 300),
+        apartment: sanitizePlainText(parsedBody.data.apartment || '', 120),
+        district: sanitizePlainText(parsedBody.data.district, 120),
+        city: sanitizePlainText(parsedBody.data.city, 120),
+        postalCode: sanitizePlainText(parsedBody.data.postalCode, 32),
+        province: sanitizePlainText(parsedBody.data.province || '', 120),
+        country: sanitizePlainText(parsedBody.data.country || 'Turkey', 120),
         updatedAt: new Date().toISOString(),
-      };
-
-      await database.updateUserAddress(id, updatedAddress);
+      });
 
       const refreshedAddress = await database.getUserAddressById(id);
       if (!refreshedAddress) {
         return res.status(404).json({ error: 'Address not found after update' });
       }
 
-      res.json(refreshedAddress);
+      return res.json(refreshedAddress);
     } catch (error) {
       console.error('Error updating address:', error);
-      res.status(500).json({ error: 'Failed to update address' });
+      return res.status(500).json({ error: 'Failed to update address' });
     }
   });
 
@@ -189,155 +265,37 @@ const registerAccountRoutes = (app, deps) => {
       }
 
       await database.deleteUserAddress(id);
-      res.json({ message: 'Address deleted successfully' });
+      return res.json({ message: 'Address deleted successfully' });
     } catch (error) {
       console.error('Error deleting address:', error);
-      res.status(500).json({ error: 'Failed to delete address' });
+      return res.status(500).json({ error: 'Failed to delete address' });
     }
   });
 
-  app.get('/api/payment-methods/:userId', async (req, res) => {
-    try {
-      const userId = sanitizePlainText(req.params.userId, 64);
-
-      if (!isSelfOrAdmin(req.user, userId)) {
-        return res.status(403).json({ error: 'Not authorized to view these payment methods' });
-      }
-
-      const paymentMethods = await database.getUserPaymentMethods(userId);
-      res.json(paymentMethods);
-    } catch (error) {
-      console.error('Error fetching payment methods:', error);
-      res.status(500).json({ error: 'Failed to fetch payment methods' });
-    }
+  app.get('/api/payment-methods/:userId', async (_req, res) => {
+    return res.status(503).json({ error: PAYMENT_METHODS_DISABLED_ERROR });
   });
 
   app.post('/api/payment-methods', async (req, res) => {
-    try {
-      const parsedBody = validateRequestBody(paymentMethodCreateSchema, req.body || {});
-      if (!parsedBody.success) {
-        return res.status(400).json({ error: parsedBody.errorMessage || 'Invalid payment method payload' });
-      }
-
-      const userId = sanitizePlainText(parsedBody.data.userId, 64);
-      const cardTitle = sanitizePlainText(parsedBody.data.cardTitle, 120);
-      const cardNumber = sanitizePlainText(parsedBody.data.cardNumber, 32).replace(/\s+/g, '');
-      const expiryMonth = sanitizePlainText(parsedBody.data.expiryMonth, 2);
-      const expiryYear = sanitizePlainText(parsedBody.data.expiryYear, 4);
-      const holderName = sanitizePlainText(parsedBody.data.holderName, 120);
-      const hasIsDefault = typeof parsedBody.data.isDefault === 'boolean';
-      const isDefault = hasIsDefault ? Boolean(parsedBody.data.isDefault) : undefined;
-
-      if (!isSelfOrAdmin(req.user, userId)) {
-        return res.status(403).json({ error: 'Not authorized to create payment method for this user' });
-      }
-
-      if (!userId || !cardTitle || !/^\d{12,19}$/.test(cardNumber) || !/^\d{1,2}$/.test(expiryMonth) || !/^\d{2,4}$/.test(expiryYear) || !holderName) {
-        return res.status(400).json({ error: 'Invalid payment method payload' });
-      }
-
-      const newPaymentMethod = {
-        id: uuidv4(),
-        userId,
-        cardTitle,
-        cardLastFour: cardNumber.slice(-4),
-        cardType: getCardType(cardNumber),
-        expiryMonth,
-        expiryYear,
-        holderName,
-        isDefault: isDefault ? 1 : 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      await database.createUserPaymentMethod(newPaymentMethod);
-
-      const createdPaymentMethod = await database.getUserPaymentMethodById(newPaymentMethod.id);
-      if (!createdPaymentMethod) {
-        return res.status(500).json({ error: 'Payment method created but could not be loaded' });
-      }
-
-      res.status(201).json(createdPaymentMethod);
-    } catch (error) {
-      console.error('Error creating payment method:', error);
-      res.status(500).json({ error: 'Failed to create payment method' });
+    const parsedBody = validateRequestBody(paymentMethodCreateSchema, req.body || {});
+    if (!parsedBody.success) {
+      return res.status(400).json({ error: parsedBody.errorMessage || PAYMENT_METHODS_DISABLED_ERROR });
     }
+
+    return res.status(503).json({ error: PAYMENT_METHODS_DISABLED_ERROR });
   });
 
   app.put('/api/payment-methods/:id', async (req, res) => {
-    try {
-      const id = sanitizePlainText(req.params.id, 64);
-      const existingPaymentMethod = await database.getUserPaymentMethodById(id);
-      if (!existingPaymentMethod) {
-        return res.status(404).json({ error: 'Payment method not found' });
-      }
-
-      if (!isSelfOrAdmin(req.user, existingPaymentMethod.userId)) {
-        return res.status(403).json({ error: 'Not authorized to update this payment method' });
-      }
-
-      const parsedBody = validateRequestBody(paymentMethodUpdateSchema, req.body || {});
-      if (!parsedBody.success) {
-        return res.status(400).json({ error: parsedBody.errorMessage || 'Invalid payment method payload' });
-      }
-
-      const cardTitle = sanitizePlainText(parsedBody.data.cardTitle, 120);
-      const cardNumber = sanitizePlainText(parsedBody.data.cardNumber, 32).replace(/\s+/g, '');
-      const expiryMonth = sanitizePlainText(parsedBody.data.expiryMonth, 2);
-      const expiryYear = sanitizePlainText(parsedBody.data.expiryYear, 4);
-      const holderName = sanitizePlainText(parsedBody.data.holderName, 120);
-      const hasIsDefault = typeof parsedBody.data.isDefault === 'boolean';
-      const isDefault = hasIsDefault ? Boolean(parsedBody.data.isDefault) : undefined;
-
-      const updatedPaymentMethod = {
-        cardTitle: cardTitle || undefined,
-        cardLastFour: cardNumber ? cardNumber.slice(-4) : undefined,
-        cardType: cardNumber ? getCardType(cardNumber) : undefined,
-        expiryMonth: expiryMonth || undefined,
-        expiryYear: expiryYear || undefined,
-        holderName: holderName || undefined,
-        isDefault: isDefault === undefined ? undefined : (isDefault ? 1 : 0),
-        updatedAt: new Date().toISOString(),
-      };
-
-      Object.keys(updatedPaymentMethod).forEach((key) => {
-        if (updatedPaymentMethod[key] === undefined) {
-          delete updatedPaymentMethod[key];
-        }
-      });
-
-      await database.updateUserPaymentMethod(id, updatedPaymentMethod);
-
-      const refreshedPaymentMethod = await database.getUserPaymentMethodById(id);
-      if (!refreshedPaymentMethod) {
-        return res.status(404).json({ error: 'Payment method not found after update' });
-      }
-
-      res.json(refreshedPaymentMethod);
-    } catch (error) {
-      console.error('Error updating payment method:', error);
-      res.status(500).json({ error: 'Failed to update payment method' });
+    const parsedBody = validateRequestBody(paymentMethodUpdateSchema, req.body || {});
+    if (!parsedBody.success) {
+      return res.status(400).json({ error: parsedBody.errorMessage || PAYMENT_METHODS_DISABLED_ERROR });
     }
+
+    return res.status(503).json({ error: PAYMENT_METHODS_DISABLED_ERROR });
   });
 
-  app.delete('/api/payment-methods/:id', async (req, res) => {
-    try {
-      const id = sanitizePlainText(req.params.id, 64);
-      const existingPaymentMethod = await database.getUserPaymentMethodById(id);
-      if (!existingPaymentMethod) {
-        return res.status(404).json({ error: 'Payment method not found' });
-      }
-
-      if (!isSelfOrAdmin(req.user, existingPaymentMethod.userId)) {
-        return res.status(403).json({ error: 'Not authorized to delete this payment method' });
-      }
-
-      await database.deleteUserPaymentMethod(id);
-      res.json({ message: 'Payment method deleted successfully' });
-    } catch (error) {
-      console.error('Error deleting payment method:', error);
-      res.status(500).json({ error: 'Failed to delete payment method' });
-    }
+  app.delete('/api/payment-methods/:id', async (_req, res) => {
+    return res.status(503).json({ error: PAYMENT_METHODS_DISABLED_ERROR });
   });
 
   app.get('/api/account/privacy/export', async (req, res) => {
@@ -347,11 +305,13 @@ const registerAccountRoutes = (app, deps) => {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      const [orders, registrations, addresses, paymentMethods, requests] = await Promise.all([
+      const profile = typeof database.getUserProfile === 'function'
+        ? await database.getUserProfile(req.user.id)
+        : null;
+      const [orders, registrations, addresses, requests] = await Promise.all([
         database.getOrdersByUserId(req.user.id),
         database.getRegistrationsByUserId(req.user.id),
         database.getUserAddresses(req.user.id),
-        database.getUserPaymentMethods(req.user.id),
         typeof database.getPrivacyRequestsByUserId === 'function'
           ? database.getPrivacyRequestsByUserId(req.user.id)
           : Promise.resolve([]),
@@ -368,8 +328,12 @@ const registerAccountRoutes = (app, deps) => {
           createdAt: currentUser.createdAt,
           updatedAt: currentUser.updatedAt,
         },
+        profile: {
+          phone: profile?.phone || '',
+          companyName: profile?.companyName || '',
+        },
         addresses,
-        paymentMethods,
+        paymentMethods: [],
         orders,
         registrations,
         privacyRequests: requests,

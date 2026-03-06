@@ -6,12 +6,16 @@ const CSRF_ENDPOINT = '/csrf-token';
 const CSRF_HEADER_NAME = 'X-CSRF-Token';
 
 // Backend'den gelen kullanıcı verisi (şifre içermez)
+export type UserRole = 'super_admin' | 'admin' | 'content_manager' | 'support' | 'user';
+
 export interface User {
   id: string;
   email: string;
   name: string;
   isAdmin: boolean;
+  role: UserRole;
   createdAt: string;
+  updatedAt?: string;
 }
 
 // Backend'e gönderilen kullanıcı verisi (şifre içerir)
@@ -34,6 +38,8 @@ export interface Order {
   shipmentTrackingNumber?: string | null;
   fulfillmentSource?: 'manual' | 'carrier' | 'manual-override';
   fulfillmentUpdatedAt?: string | null;
+  paymentMode: 'pending' | 'purchase_order';
+  purchaseOrderNumber?: string | null;
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
   paymentProvider?: string | null;
   paymentReference?: string | null;
@@ -41,7 +47,8 @@ export interface Order {
   paymentCurrency: string;
   paymentFailedReason?: string | null;
   paidAt?: string | null;
-  shippingAddress: ShippingAddress;
+  shippingAddress: OrderAddress;
+  billingAddress?: OrderAddress | null;
   customerName: string;
   customerEmail: string;
   orderNotes?: string;
@@ -56,15 +63,31 @@ export interface OrderItem {
   image?: string;
 }
 
-export interface ShippingAddress {
-  name: string;
-  phone?: string;
+export interface OrderAddress {
+  recipientName: string;
+  phone: string;
   email?: string;
   address: string;
+  apartment?: string;
+  district: string;
   city: string;
+  postalCode: string;
   province?: string;
-  zipCode?: string;
   country?: string;
+}
+
+export interface CreateOrderPayload {
+  items: OrderItem[];
+  totalAmount: number;
+  customer: {
+    name: string;
+    email: string;
+  };
+  shipping: OrderAddress;
+  billing?: OrderAddress | null;
+  orderNotes?: string;
+  paymentMode: Order['paymentMode'];
+  purchaseOrderNumber?: string;
 }
 
 export interface PaymentAttempt {
@@ -203,6 +226,9 @@ export interface UserAddress {
   id: string;
   title: string;
   type: UserAddressType;
+  recipientName: string;
+  phone: string;
+  email?: string;
   address: string;
   apartment?: string;
   district: string;
@@ -217,6 +243,9 @@ export interface UserAddressPayload {
   userId?: string;
   title: string;
   type: UserAddressType;
+  recipientName: string;
+  phone: string;
+  email?: string;
   address: string;
   apartment?: string;
   district: string;
@@ -275,6 +304,15 @@ export interface PrivacyExportPayload {
 export interface PrivacyDeletionRequestResponse {
   id: string;
   status: PrivacyRequest['status'];
+}
+
+export interface UserProfile {
+  fullName: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  companyName: string;
 }
 
 export interface AuthResponse {
@@ -388,7 +426,11 @@ class ApiService {
         }
 
         const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
-        throw new Error(errorMessage);
+        const requestError = new Error(errorMessage) as Error & { status?: number; code?: string; response?: { status: number } };
+        requestError.status = response.status;
+        requestError.code = typeof errorData.code === 'string' ? errorData.code : undefined;
+        requestError.response = { status: response.status };
+        throw requestError;
       }
       return await response.json() as T;
     } catch (error) {
@@ -398,10 +440,10 @@ class ApiService {
   }
 
   // Kullanıcı işlemleri
-  async login(email: string, password: string): Promise<AuthResponse> {
+  async login(email: string, password: string, captchaToken?: string): Promise<AuthResponse> {
     return this.request('/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, ...(captchaToken ? { captchaToken } : {}) }),
     });
   }
 
@@ -423,6 +465,17 @@ class ApiService {
 
   async getCurrentUser(): Promise<User> {
     return this.request('/me');
+  }
+
+  async getAccountProfile(): Promise<UserProfile> {
+    return this.request('/account/profile');
+  }
+
+  async updateAccountProfile(profile: Pick<UserProfile, 'fullName' | 'email' | 'phone' | 'companyName'>): Promise<UserProfile> {
+    return this.request('/account/profile', {
+      method: 'PUT',
+      body: JSON.stringify(profile),
+    });
   }
 
   async exportPrivacyData(): Promise<PrivacyExportPayload> {
@@ -471,26 +524,7 @@ class ApiService {
     return this.request(`/orders/my${this.buildQueryString(options)}`);
   }
 
-  async createOrder(
-    orderData: Omit<
-      Order,
-      'id' |
-      'status' |
-      'createdAt' |
-      'userId' |
-      'shipmentProvider' |
-      'shipmentTrackingNumber' |
-      'fulfillmentSource' |
-      'fulfillmentUpdatedAt' |
-      'paymentStatus' |
-      'paymentProvider' |
-      'paymentReference' |
-      'paymentAmount' |
-      'paymentCurrency' |
-      'paymentFailedReason' |
-      'paidAt'
-    > & { userId?: string }
-  ): Promise<Order> {
+  async createOrder(orderData: CreateOrderPayload): Promise<Order> {
     return this.request('/orders', {
       method: 'POST',
       body: JSON.stringify(orderData),

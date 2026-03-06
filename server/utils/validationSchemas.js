@@ -2,6 +2,7 @@ const { z } = require('zod');
 
 const nonEmptyString = (maxLength) => z.string().trim().min(1).max(maxLength);
 const optionalTrimmedString = (maxLength) => z.string().trim().max(maxLength).optional().or(z.literal(''));
+const optionalEmailString = () => z.string().trim().email().max(254).optional().or(z.literal(''));
 
 const loginSchema = z.object({
   email: z.string().trim().email().max(254),
@@ -37,22 +38,31 @@ const orderItemSchema = z.object({
   image: z.string().trim().max(500).optional(),
 }).passthrough();
 
+const orderAddressSchema = z.object({
+  recipientName: nonEmptyString(120),
+  phone: nonEmptyString(40),
+  email: optionalEmailString(),
+  address: nonEmptyString(300),
+  apartment: optionalTrimmedString(120),
+  district: nonEmptyString(120),
+  city: nonEmptyString(120),
+  postalCode: nonEmptyString(32),
+  province: optionalTrimmedString(120),
+  country: nonEmptyString(120),
+});
+
 const orderCreateSchema = z.object({
   items: z.array(orderItemSchema).min(1).max(100),
   totalAmount: z.number().positive().max(1000000),
-  shippingAddress: z.object({
+  customer: z.object({
     name: nonEmptyString(120),
-    phone: nonEmptyString(40),
-    email: z.string().trim().email().max(254).optional().or(z.literal('')),
-    address: nonEmptyString(300),
-    city: nonEmptyString(120),
-    province: optionalTrimmedString(120),
-    zipCode: nonEmptyString(32),
-    country: nonEmptyString(120),
+    email: z.string().trim().email().max(254),
   }),
-  customerName: nonEmptyString(120),
-  customerEmail: z.string().trim().email().max(254),
+  shipping: orderAddressSchema,
+  billing: orderAddressSchema.optional().nullable(),
   orderNotes: z.string().trim().max(1000).optional(),
+  paymentMode: z.enum(['pending', 'purchase_order']),
+  purchaseOrderNumber: optionalTrimmedString(120),
 });
 
 const registrationCreateSchema = z.object({
@@ -83,6 +93,9 @@ const addressCreateSchema = z.object({
   userId: nonEmptyString(64),
   title: nonEmptyString(120),
   type: z.enum(['delivery', 'billing']),
+  recipientName: nonEmptyString(120),
+  phone: nonEmptyString(40),
+  email: optionalEmailString(),
   address: nonEmptyString(300),
   apartment: optionalTrimmedString(120),
   district: nonEmptyString(120),
@@ -114,6 +127,13 @@ const paymentMethodUpdateSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
+const profileUpdateSchema = z.object({
+  fullName: nonEmptyString(120),
+  email: z.string().trim().email().max(254),
+  phone: optionalTrimmedString(40),
+  companyName: optionalTrimmedString(120),
+});
+
 const privacyDeletionRequestSchema = z.object({
   reason: z.string().trim().max(500).optional(),
 });
@@ -134,7 +154,7 @@ const validateRequestBody = (schema, payload) => {
   return {
     success: false,
     data: null,
-    errorMessage: `${issuePath}: ${message}`,
+    errorMessage: issuePath + ': ' + message,
   };
 };
 
@@ -148,6 +168,7 @@ module.exports = {
   paymentMethodCreateSchema,
   paymentMethodUpdateSchema,
   privacyDeletionRequestSchema,
+  profileUpdateSchema,
   registerSchema,
   registrationCreateSchema,
   userCreateSchema,

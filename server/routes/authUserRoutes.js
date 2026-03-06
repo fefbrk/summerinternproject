@@ -639,8 +639,23 @@ const registerAuthUserRoutes = (app, deps) => {
       const id = sanitizePlainText(req.params.id, 64);
 
       const user = await database.getUserById(id);
-      if (user && user.isAdmin) {
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      if (user.isAdmin) {
         return res.status(403).json({ error: 'Admin user cannot be deleted' });
+      }
+
+      const [orders, registrations] = await Promise.all([
+        typeof database.getOrdersByUserId === 'function' ? database.getOrdersByUserId(id) : Promise.resolve([]),
+        typeof database.getRegistrationsByUserId === 'function' ? database.getRegistrationsByUserId(id) : Promise.resolve([]),
+      ]);
+
+      if ((orders?.length || 0) > 0 || (registrations?.length || 0) > 0) {
+        return res.status(409).json({
+          error: 'User has related business records and cannot be deleted directly. Use the privacy request workflow instead.',
+        });
       }
 
       const result = await database.deleteUser(id);

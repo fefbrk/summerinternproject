@@ -39,13 +39,21 @@ const sampleOrder: Order = {
   paymentCurrency: 'USD',
   paymentFailedReason: null,
   paidAt: null,
+  paymentMode: 'pending',
+  purchaseOrderNumber: null,
   shippingAddress: {
-    name: 'Jane Doe',
+    recipientName: 'Jane Doe',
+    phone: '+1-555-100-2000',
+    email: 'jane@example.com',
     address: 'Main Street 1',
+    apartment: '',
+    district: 'Downtown',
     city: 'Boston',
     province: 'MA',
-    zipCode: '02108',
+    postalCode: '02108',
+    country: 'United States',
   },
+  billingAddress: null,
   customerName: 'Jane Doe',
   customerEmail: 'jane@example.com',
   createdAt: '2026-03-03T10:00:00.000Z',
@@ -167,6 +175,7 @@ describe('admin dashboard critical component flows', () => {
         onOrderPaymentFilterChange={onOrderPaymentFilterChange}
         onManageOrder={onManageOrder}
         onDeleteOrder={onDeleteOrder}
+        canManageOrders={true}
       />
     );
 

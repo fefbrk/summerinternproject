@@ -40,6 +40,7 @@ let server;
 let baseUrl;
 const TEST_ORIGIN = 'http://localhost:5173';
 let csrfState = null;
+const PAYMENT_METHODS_DISABLED_ERROR = 'Payment method management is disabled until a payment provider is connected';
 
 const createCarrierWebhookHeaders = (payload, timestamp = Date.now()) => {
   const timestampValue = String(timestamp);
@@ -260,6 +261,26 @@ test('critical auth and authorization flow works end-to-end', async () => {
   assert.equal(firstUserMe.status, 200);
   assert.equal(firstUserMe.data.id, firstUserId);
 
+  const profileResponse = await requestJson('/api/account/profile', { token: firstUserToken });
+  assert.equal(profileResponse.status, 200);
+  assert.equal(profileResponse.data.email, firstUserEmail);
+
+  const updatedProfileResponse = await requestJson('/api/account/profile', {
+    method: 'PUT',
+    token: firstUserToken,
+    body: {
+      fullName: 'Integration User One Updated',
+      email: firstUserEmail,
+      phone: '+90-555-111-1111',
+      companyName: 'KinderLab Test Org',
+    },
+  });
+
+  assert.equal(updatedProfileResponse.status, 200);
+  assert.equal(updatedProfileResponse.data.fullName, 'Integration User One Updated');
+  assert.equal(updatedProfileResponse.data.phone, '+90-555-111-1111');
+  assert.equal(updatedProfileResponse.data.companyName, 'KinderLab Test Org');
+
   const usersAsNormalUser = await requestJson('/api/users', { token: firstUserToken });
   assert.equal(usersAsNormalUser.status, 403);
 
@@ -270,6 +291,9 @@ test('critical auth and authorization flow works end-to-end', async () => {
       userId: firstUserId,
       title: 'Home',
       type: 'delivery',
+      recipientName: 'Integration User One',
+      phone: '+90-555-100-2000',
+      email: 'integration.user.one@example.com',
       address: 'Example Street 42',
       apartment: '3A',
       district: 'Kadikoy',
@@ -292,6 +316,9 @@ test('critical auth and authorization flow works end-to-end', async () => {
     body: {
       title: 'Home Updated',
       type: 'delivery',
+      recipientName: 'Integration User One',
+      phone: '+90-555-100-2000',
+      email: 'integration.user.one@example.com',
       address: 'Example Street 43',
       apartment: '3A',
       district: 'Kadikoy',
@@ -310,7 +337,7 @@ test('critical auth and authorization flow works end-to-end', async () => {
   assert.ok(Array.isArray(ownAddresses.data));
   assert.equal(ownAddresses.data.length, 1);
 
-  const createPaymentMethod = await requestJson('/api/payment-methods', {
+  const paymentMethodsDisabled = await requestJson('/api/payment-methods', {
     method: 'POST',
     token: firstUserToken,
     body: {
@@ -324,21 +351,8 @@ test('critical auth and authorization flow works end-to-end', async () => {
     },
   });
 
-  assert.equal(createPaymentMethod.status, 201);
-  assert.ok(createPaymentMethod.data && typeof createPaymentMethod.data.id === 'string');
-  assert.equal(createPaymentMethod.data.userId, firstUserId);
-  assert.equal(createPaymentMethod.data.isDefault, 1);
-
-  const updatePaymentWithoutDefaultPayload = await requestJson(`/api/payment-methods/${createPaymentMethod.data.id}`, {
-    method: 'PUT',
-    token: firstUserToken,
-    body: {
-      cardTitle: 'Main Card Updated',
-    },
-  });
-
-  assert.equal(updatePaymentWithoutDefaultPayload.status, 200);
-  assert.equal(updatePaymentWithoutDefaultPayload.data.isDefault, 1);
+  assert.equal(paymentMethodsDisabled.status, 503);
+  assert.equal(paymentMethodsDisabled.data.error, PAYMENT_METHODS_DISABLED_ERROR);
 
   const secondUserRegister = await requestJson('/api/register', {
     method: 'POST',
@@ -357,10 +371,11 @@ test('critical auth and authorization flow works end-to-end', async () => {
   });
   assert.equal(firstUserAddressesAsOtherUser.status, 403);
 
-  const firstUserPaymentMethodsAsOtherUser = await requestJson(`/api/payment-methods/${firstUserId}`, {
+  const paymentMethodsGetDisabled = await requestJson(`/api/payment-methods/${firstUserId}`, {
     token: secondUserToken,
   });
-  assert.equal(firstUserPaymentMethodsAsOtherUser.status, 403);
+  assert.equal(paymentMethodsGetDisabled.status, 503);
+  assert.equal(paymentMethodsGetDisabled.data.error, PAYMENT_METHODS_DISABLED_ERROR);
 
   const usersAsAdmin = await requestJson('/api/users', { token: adminToken });
   assert.equal(usersAsAdmin.status, 200);
@@ -759,18 +774,35 @@ test('order creation enforces backend catalog prices and totals', async () => {
       { id: '2', name: 'Tampered Name', quantity: 1, price: 1, image: '/img-1.png' },
       { id: '209', name: 'Tampered Marker', quantity: 1, price: 1, image: '/img-2.png' },
     ],
-    shippingAddress: {
+    customer: {
       name: 'Order Integrity User',
+      email: 'order_integrity@example.com',
+    },
+    shipping: {
+      recipientName: 'Order Integrity User',
       phone: '+1-555-100-2000',
       email: 'order_integrity@example.com',
       address: 'Integrity Street 1',
+      apartment: '',
+      district: 'Kadikoy',
       city: 'Istanbul',
+      postalCode: '34000',
       province: 'Istanbul',
-      zipCode: '34000',
       country: 'Turkey',
     },
-    customerName: 'Order Integrity User',
-    customerEmail: 'order_integrity@example.com',
+    billing: {
+      recipientName: 'Order Integrity Billing',
+      phone: '+1-555-100-2001',
+      email: 'billing_integrity@example.com',
+      address: 'Billing Street 2',
+      apartment: '4B',
+      district: 'Besiktas',
+      city: 'Istanbul',
+      postalCode: '34353',
+      province: 'Istanbul',
+      country: 'Turkey',
+    },
+    paymentMode: 'pending',
   };
 
   const tamperedTotalResponse = await requestJson('/api/orders', {
@@ -796,6 +828,7 @@ test('order creation enforces backend catalog prices and totals', async () => {
 
   assert.equal(validTotalResponse.status, 201);
   assert.equal(validTotalResponse.data.totalAmount, 544);
+  assert.equal(validTotalResponse.data.paymentMode, 'pending');
   assert.equal(validTotalResponse.data.paymentStatus, 'pending');
   assert.equal(validTotalResponse.data.paymentAmount, 544);
   assert.equal(validTotalResponse.data.paymentCurrency, 'USD');
@@ -803,6 +836,21 @@ test('order creation enforces backend catalog prices and totals', async () => {
   assert.equal(validTotalResponse.data.items[0].price, 495);
   assert.equal(validTotalResponse.data.items[1].name, 'Marker Extension Set');
   assert.equal(validTotalResponse.data.items[1].price, 49);
+
+  const purchaseOrderResponse = await requestJson('/api/orders', {
+    method: 'POST',
+    token: userToken,
+    body: {
+      ...orderPayload,
+      totalAmount: 544,
+      paymentMode: 'purchase_order',
+      purchaseOrderNumber: 'PO-2026-0001',
+    },
+  });
+
+  assert.equal(purchaseOrderResponse.status, 201);
+  assert.equal(purchaseOrderResponse.data.paymentMode, 'purchase_order');
+  assert.equal(purchaseOrderResponse.data.purchaseOrderNumber, 'PO-2026-0001');
 
   const adminLogin = await requestJson('/api/login', {
     method: 'POST',

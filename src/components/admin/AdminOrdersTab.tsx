@@ -18,6 +18,7 @@ interface AdminOrdersTabProps {
   onOrderPaymentFilterChange: (value: 'all' | Order['paymentStatus']) => void;
   onManageOrder: (order: Order) => void;
   onDeleteOrder: (order: Order) => void;
+  canManageOrders: boolean;
 }
 
 const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
@@ -31,6 +32,7 @@ const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
   onOrderPaymentFilterChange,
   onManageOrder,
   onDeleteOrder,
+  canManageOrders,
 }) => {
   return (
     <Card>
@@ -97,13 +99,13 @@ const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                   Date {orderSortField === 'createdAt' && (orderSortDirection === 'asc' ? '↑' : '↓')}
                 </th>
                 <th className="border p-2 text-left">Items</th>
-                <th className="border p-2 text-left">Actions</th>
+                {canManageOrders && <th className="border p-2 text-left">Actions</th>}
               </tr>
             </thead>
             <tbody>
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="border p-4 text-center text-gray-500">No orders found for selected filters</td>
+                  <td colSpan={canManageOrders ? 12 : 11} className="border p-4 text-center text-gray-500">No orders found for selected filters</td>
                 </tr>
               ) : (
                 orders.map((order) => (
@@ -142,22 +144,24 @@ const AdminOrdersTab: React.FC<AdminOrdersTabProps> = ({
                         )}
                       </div>
                     </td>
-                    <td className="border p-2">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => onManageOrder(order)}
-                          className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
-                        >
-                          Manage
-                        </button>
-                        <button
-                          onClick={() => onDeleteOrder(order)}
-                          className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                    {canManageOrders && (
+                      <td className="border p-2">
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => onManageOrder(order)}
+                            className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
+                          >
+                            Manage
+                          </button>
+                          <button
+                            onClick={() => onDeleteOrder(order)}
+                            className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

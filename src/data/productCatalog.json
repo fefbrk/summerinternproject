@@ -1,0 +1,722 @@
+[
+  {
+    "id": "1",
+    "category": "kibo-kits",
+    "slug": "kibo-10-kit",
+    "detailPath": "/products/kibo-10-kit",
+    "name": "KIBO 10 Kit",
+    "price": 325,
+    "description": "The KIBO 10 Kit is the perfect starting point for young children to learn the basics of coding and robotics through hands-on play."
+  },
+  {
+    "id": "2",
+    "category": "kibo-kits",
+    "slug": "kibo-15-kit",
+    "detailPath": "/products/kibo-15-kit",
+    "name": "KIBO 15 Kit",
+    "price": 495,
+    "description": "The KIBO 15 Kit expands on the starter set with more programming blocks and capabilities, allowing for more complex creations."
+  },
+  {
+    "id": "3",
+    "category": "kibo-kits",
+    "slug": "kibo-18-kit",
+    "detailPath": "/products/kibo-18-kit",
+    "name": "KIBO 18 Kit",
+    "price": 665,
+    "description": "The KIBO 18 Kit includes a wide variety of sensors and modules, offering a rich and comprehensive STEAM learning experience."
+  },
+  {
+    "id": "4",
+    "category": "kibo-kits",
+    "slug": "kibo-21-kit",
+    "detailPath": "/products/kibo-21-kit",
+    "name": "KIBO 21 Kit",
+    "price": 820,
+    "description": "The ultimate KIBO experience! The KIBO 21 Kit contains every programming block, sensor, and module available, unlocking limitless possibilities for invention."
+  },
+  {
+    "id": "801",
+    "category": "home-edition",
+    "slug": "kibo-10-home-edition",
+    "detailPath": "/products/kibo-10-home-edition",
+    "name": "KIBO 10 Home Edition",
+    "price": 270,
+    "description": "Description for KIBO 10 Home Edition"
+  },
+  {
+    "id": "802",
+    "category": "home-edition",
+    "slug": "kibo-15-home-edition",
+    "detailPath": "/products/kibo-15-home-edition",
+    "name": "KIBO 15 Home Edition",
+    "price": 400,
+    "description": "Description for KIBO 15 Home Edition"
+  },
+  {
+    "id": "101",
+    "category": "kibo-classroom-packages",
+    "slug": "activity-center-kibo-21-steam-explorer",
+    "detailPath": "/products/activity-center-kibo-21-steam-explorer",
+    "name": "Activity Center KIBO 21 STEAM Explorer Package",
+    "price": 3120,
+    "description": "Description for Activity Center KIBO 21 STEAM Explorer Package"
+  },
+  {
+    "id": "102",
+    "category": "kibo-classroom-packages",
+    "slug": "small-classroom-kibo-21-steam-explorer",
+    "detailPath": "/products/small-classroom-kibo-21-steam-explorer",
+    "name": "Small Classroom KIBO 21 STEAM Explorer Package",
+    "price": 6245,
+    "description": "Description for Small Classroom KIBO 21 STEAM Explorer Package"
+  },
+  {
+    "id": "103",
+    "category": "kibo-classroom-packages",
+    "slug": "full-classroom-kibo-21-steam-explorer",
+    "detailPath": "/products/full-classroom-kibo-21-steam-explorer",
+    "name": "Full Classroom KIBO 21 STEAM Explorer Package",
+    "price": 12495,
+    "description": "Description for Full Classroom KIBO 21 STEAM Explorer Package"
+  },
+  {
+    "id": "104",
+    "category": "kibo-classroom-packages",
+    "slug": "activity-center-kibo-21",
+    "detailPath": "/products/activity-center-kibo-21",
+    "name": "Activity Center KIBO 21 Package",
+    "price": 2390,
+    "description": "Description for Activity Center KIBO 21 Package"
+  },
+  {
+    "id": "105",
+    "category": "kibo-classroom-packages",
+    "slug": "small-classroom-kibo-21",
+    "detailPath": "/products/small-classroom-kibo-21",
+    "name": "Small Classroom KIBO 21 Package",
+    "price": 4850,
+    "description": "Description for Small Classroom KIBO 21 Package"
+  },
+  {
+    "id": "106",
+    "category": "kibo-classroom-packages",
+    "slug": "full-classroom-kibo-21",
+    "detailPath": "/products/full-classroom-kibo-21",
+    "name": "Full Classroom KIBO 21 Package",
+    "price": 9200,
+    "description": "Description for Full Classroom KIBO 21 Package"
+  },
+  {
+    "id": "107",
+    "category": "kibo-classroom-packages",
+    "slug": "activity-center-kibo-18",
+    "detailPath": "/products/activity-center-kibo-18",
+    "name": "Activity Center KIBO 18 Package",
+    "price": 1975,
+    "description": "Description for Activity Center KIBO 18 Package"
+  },
+  {
+    "id": "108",
+    "category": "kibo-classroom-packages",
+    "slug": "small-classroom-kibo-18",
+    "detailPath": "/products/small-classroom-kibo-18",
+    "name": "Small Classroom KIBO 18 Package",
+    "price": 4100,
+    "description": "Description for Small Classroom KIBO 18 Package"
+  },
+  {
+    "id": "109",
+    "category": "kibo-classroom-packages",
+    "slug": "full-classroom-kibo-18",
+    "detailPath": "/products/full-classroom-kibo-18",
+    "name": "Full Classroom KIBO 18 Package",
+    "price": 6750,
+    "description": "Description for Full Classroom KIBO 18 Package"
+  },
+  {
+    "id": "201",
+    "category": "extensions",
+    "slug": "advanced-coding-extension-set",
+    "detailPath": "/products/advanced-coding-extension-set",
+    "name": "Advanced Coding Extension Set",
+    "price": 120,
+    "description": "Description for Advanced Coding Extension Set"
+  },
+  {
+    "id": "202",
+    "category": "extensions",
+    "slug": "building-brick-extension-set-basic",
+    "detailPath": "/products/building-brick-extension-set-basic",
+    "name": "Building Brick Extension Set (Basic)",
+    "price": 41,
+    "description": "Description for Building Brick Extension Set (Basic)"
+  },
+  {
+    "id": "203",
+    "category": "extensions",
+    "slug": "building-brick-extension-set-deluxe",
+    "detailPath": "/products/building-brick-extension-set-deluxe",
+    "name": "Building Brick Extension Set (Deluxe)",
+    "price": 51,
+    "description": "Description for Building Brick Extension Set (Deluxe)"
+  },
+  {
+    "id": "204",
+    "category": "extensions",
+    "slug": "bundle-of-fun-extension-package",
+    "detailPath": "/products/bundle-of-fun-extension-package",
+    "name": "Bundle Of Fun Extension Package",
+    "price": 345,
+    "description": "Description for Bundle Of Fun Extension Package"
+  },
+  {
+    "id": "205",
+    "category": "extensions",
+    "slug": "expression-module",
+    "detailPath": "/products/expression-module",
+    "name": "Expression Module",
+    "price": 35,
+    "description": "Description for Expression Module"
+  },
+  {
+    "id": "206",
+    "category": "extensions",
+    "slug": "free-throw-extension-set",
+    "detailPath": "/products/free-throw-extension-set",
+    "name": "Free Throw Extension Set",
+    "price": 131,
+    "description": "Description for Free Throw Extension Set"
+  },
+  {
+    "id": "207",
+    "category": "extensions",
+    "slug": "kibo-18-to-kibo-21-upgrade-package",
+    "detailPath": "/products/kibo-18-to-kibo-21-upgrade-package",
+    "name": "KIBO 18 To KIBO 21 Upgrade Package",
+    "price": 200,
+    "description": "Description for KIBO 18 To KIBO 21 Upgrade Package"
+  },
+  {
+    "id": "208",
+    "category": "extensions",
+    "slug": "kibo-costumes",
+    "detailPath": "/products/kibo-costumes",
+    "name": "KIBO Costumes",
+    "price": 10,
+    "description": "Description for KIBO Costumes"
+  },
+  {
+    "id": "209",
+    "category": "extensions",
+    "slug": "marker-extension-set",
+    "detailPath": "/products/marker-extension-set",
+    "name": "Marker Extension Set",
+    "price": 49,
+    "description": "Description for Marker Extension Set"
+  },
+  {
+    "id": "210",
+    "category": "extensions",
+    "slug": "marker-extension-set-extras",
+    "detailPath": "/products/marker-extension-set-extras",
+    "name": "Marker Extension Set - Extras",
+    "price": 34,
+    "description": "Description for Marker Extension Set - Extras"
+  },
+  {
+    "id": "211",
+    "category": "extensions",
+    "slug": "sound-record-playback-module",
+    "detailPath": "/products/sound-record-playback-module",
+    "name": "Sound Record/Playback Module",
+    "price": 180,
+    "description": "Description for Sound Record/Playback Module"
+  },
+  {
+    "id": "301",
+    "category": "parts-replacements",
+    "slug": "beep-block",
+    "detailPath": "/products/beep-block",
+    "name": "BEEP Block",
+    "price": 8,
+    "description": "A simple block to make KIBO beep."
+  },
+  {
+    "id": "302",
+    "category": "parts-replacements",
+    "slug": "begin-and-end-blocks",
+    "detailPath": "/products/begin-and-end-blocks",
+    "name": "BEGIN And END Blocks",
+    "price": 16,
+    "description": "The essential start and end points for any KIBO program."
+  },
+  {
+    "id": "303",
+    "category": "parts-replacements",
+    "slug": "block-sticker-upgrade",
+    "detailPath": "/products/block-sticker-upgrade",
+    "name": "Block Sticker Upgrade",
+    "price": 2,
+    "description": "Upgrade your block stickers."
+  },
+  {
+    "id": "304",
+    "category": "parts-replacements",
+    "slug": "block-sticker-upgrade-for-kibo-18",
+    "detailPath": "/products/block-sticker-upgrade-for-kibo-18",
+    "name": "Block Sticker Upgrade For KIBO 18",
+    "price": 37,
+    "description": "A set of replacement stickers for the KIBO 18 kit."
+  },
+  {
+    "id": "305",
+    "category": "parts-replacements",
+    "slug": "block-sticker-upgrade-for-kibo-21",
+    "detailPath": "/products/block-sticker-upgrade-for-kibo-21",
+    "name": "Block Sticker Upgrade For KIBO 21",
+    "price": 41,
+    "description": "A set of replacement stickers for the KIBO 21 kit."
+  },
+  {
+    "id": "306",
+    "category": "parts-replacements",
+    "slug": "clap-sound-sensor-ear",
+    "detailPath": "/products/clap-sound-sensor-ear",
+    "name": "Clap/Sound Sensor: Ear",
+    "price": 46,
+    "description": "Allows KIBO to hear and react to sounds."
+  },
+  {
+    "id": "307",
+    "category": "parts-replacements",
+    "slug": "conditional-blocks",
+    "detailPath": "/products/conditional-blocks",
+    "name": "Conditional Blocks",
+    "price": 51,
+    "description": "A set of blocks for creating conditional logic."
+  },
+  {
+    "id": "308",
+    "category": "parts-replacements",
+    "slug": "distance-sensor-telescope",
+    "detailPath": "/products/distance-sensor-telescope",
+    "name": "Distance Sensor: Telescope",
+    "price": 46,
+    "description": "Allows KIBO to see and react to objects in front of it."
+  },
+  {
+    "id": "309",
+    "category": "parts-replacements",
+    "slug": "firmware-update-cable",
+    "detailPath": "/products/firmware-update-cable",
+    "name": "Firmware Update Cable",
+    "price": 11,
+    "description": "A cable for updating KIBO's firmware."
+  },
+  {
+    "id": "310",
+    "category": "parts-replacements",
+    "slug": "forward-block",
+    "detailPath": "/products/forward-block",
+    "name": "FORWARD Block",
+    "price": 8,
+    "description": "A simple block to make KIBO move forward."
+  },
+  {
+    "id": "311",
+    "category": "parts-replacements",
+    "slug": "if-and-end-if-blocks",
+    "detailPath": "/products/if-and-end-if-blocks",
+    "name": "IF And END-IF Blocks",
+    "price": 20,
+    "description": "A set of blocks for creating IF statements."
+  },
+  {
+    "id": "312",
+    "category": "parts-replacements",
+    "slug": "light-on-blocks",
+    "detailPath": "/products/light-on-blocks",
+    "name": "LIGHT ON Blocks",
+    "price": 25,
+    "description": "A set of blocks for turning KIBO's light on."
+  },
+  {
+    "id": "313",
+    "category": "parts-replacements",
+    "slug": "light-output-sensor-lightbulb",
+    "detailPath": "/products/light-output-sensor-lightbulb",
+    "name": "Light Output Sensor: Lightbulb",
+    "price": 46,
+    "description": "A lightbulb for KIBO."
+  },
+  {
+    "id": "314",
+    "category": "parts-replacements",
+    "slug": "light-sensor-eye",
+    "detailPath": "/products/light-sensor-eye",
+    "name": "Light Sensor: Eye",
+    "price": 46,
+    "description": "Allows KIBO to see and react to light."
+  },
+  {
+    "id": "315",
+    "category": "parts-replacements",
+    "slug": "motion-blocks",
+    "detailPath": "/products/motion-blocks",
+    "name": "Motion Blocks",
+    "price": 36,
+    "description": "A set of blocks for controlling KIBO's motion."
+  },
+  {
+    "id": "316",
+    "category": "parts-replacements",
+    "slug": "motor-module",
+    "detailPath": "/products/motor-module",
+    "name": "Motor Module",
+    "price": 50,
+    "description": "A replacement motor module for KIBO."
+  },
+  {
+    "id": "317",
+    "category": "parts-replacements",
+    "slug": "parameters-for-if-then-blocks",
+    "detailPath": "/products/parameters-for-if-then-blocks",
+    "name": "Parameters For IF/THEN Blocks",
+    "price": 18,
+    "description": "A set of parameter cards for IF/THEN blocks."
+  },
+  {
+    "id": "318",
+    "category": "parts-replacements",
+    "slug": "parameters-for-repeat-blocks",
+    "detailPath": "/products/parameters-for-repeat-blocks",
+    "name": "Parameters For REPEAT Blocks",
+    "price": 34,
+    "description": "A set of parameter cards for REPEAT blocks."
+  },
+  {
+    "id": "319",
+    "category": "parts-replacements",
+    "slug": "parameters-for-repeat-blocks-numbers-only",
+    "detailPath": "/products/parameters-for-repeat-blocks-numbers-only",
+    "name": "Parameters For REPEAT Blocks (Numbers Only)",
+    "price": 18,
+    "description": "A set of parameter cards for REPEAT blocks with numbers only."
+  },
+  {
+    "id": "320",
+    "category": "parts-replacements",
+    "slug": "sing-block",
+    "detailPath": "/products/sing-block",
+    "name": "SING Block",
+    "price": 8,
+    "description": "A block that makes KIBO sing."
+  },
+  {
+    "id": "321",
+    "category": "parts-replacements",
+    "slug": "spin-block",
+    "detailPath": "/products/spin-block",
+    "name": "SPIN Block",
+    "price": 8,
+    "description": "A block that makes KIBO spin."
+  },
+  {
+    "id": "322",
+    "category": "parts-replacements",
+    "slug": "stage-art-platform",
+    "detailPath": "/products/stage-art-platform",
+    "name": "Stage Art Platform",
+    "price": 38,
+    "description": "A platform for creating art with KIBO."
+  },
+  {
+    "id": "323",
+    "category": "parts-replacements",
+    "slug": "stage-pedestal",
+    "detailPath": "/products/stage-pedestal",
+    "name": "Stage Pedestal",
+    "price": 14,
+    "description": "A pedestal for the stage art platform."
+  },
+  {
+    "id": "324",
+    "category": "parts-replacements",
+    "slug": "stage-support",
+    "detailPath": "/products/stage-support",
+    "name": "Stage Support",
+    "price": 10,
+    "description": "A support for the stage art platform."
+  },
+  {
+    "id": "325",
+    "category": "parts-replacements",
+    "slug": "turntable-art-platform",
+    "detailPath": "/products/turntable-art-platform",
+    "name": "Turntable Art Platform",
+    "price": 85,
+    "description": "A turntable for creating art with KIBO."
+  },
+  {
+    "id": "326",
+    "category": "parts-replacements",
+    "slug": "wait-for-clap-block",
+    "detailPath": "/products/wait-for-clap-block",
+    "name": "WAIT FOR CLAP Block",
+    "price": 8,
+    "description": "A block that makes KIBO wait for a clap."
+  },
+  {
+    "id": "327",
+    "category": "parts-replacements",
+    "slug": "wheel",
+    "detailPath": "/products/wheel",
+    "name": "Wheel",
+    "price": 18,
+    "description": "A replacement wheel for KIBO."
+  },
+  {
+    "id": "401",
+    "category": "learning-materials",
+    "slug": "growing-with-kibo",
+    "detailPath": "/products/growing-with-kibo",
+    "name": "Growing With KIBO - A Robotics Curriculum For Pre-K To 2nd Grade",
+    "price": 84,
+    "description": "Description for Growing With KIBO"
+  },
+  {
+    "id": "402",
+    "category": "learning-materials",
+    "slug": "exploring-with-kibo",
+    "detailPath": "/products/exploring-with-kibo",
+    "name": "Exploring With KIBO - A Robotics Curriculum For Grades 3 - 5",
+    "price": 84,
+    "description": "Description for Exploring With KIBO"
+  },
+  {
+    "id": "403",
+    "category": "learning-materials",
+    "slug": "kibo-coding-cards",
+    "detailPath": "/products/kibo-coding-cards",
+    "name": "KIBO Coding Cards",
+    "price": 25,
+    "description": "Description for KIBO Coding Cards"
+  },
+  {
+    "id": "404",
+    "category": "learning-materials",
+    "slug": "activity-center-guidebook",
+    "detailPath": "/products/activity-center-guidebook",
+    "name": "Activity Center Guidebook",
+    "price": 41,
+    "description": "Description for Activity Center Guidebook"
+  },
+  {
+    "id": "405",
+    "category": "learning-materials",
+    "slug": "creating-with-kibo-guide",
+    "detailPath": "/products/creating-with-kibo-guide",
+    "name": "Creating With KIBO Curriculum Guide",
+    "price": 48,
+    "description": "Description for Creating With KIBO Curriculum Guide"
+  },
+  {
+    "id": "406",
+    "category": "learning-materials",
+    "slug": "kibo-activity-cards",
+    "detailPath": "/products/kibo-activity-cards",
+    "name": "KIBO Activity Cards",
+    "price": 36,
+    "description": "Description for KIBO Activity Cards"
+  },
+  {
+    "id": "407",
+    "category": "learning-materials",
+    "slug": "kibo-says-game",
+    "detailPath": "/products/kibo-says-game",
+    "name": "KIBO Says - Class Programming Game",
+    "price": 60,
+    "description": "Description for KIBO Says - Class Programming Game"
+  },
+  {
+    "id": "408",
+    "category": "learning-materials",
+    "slug": "ask-and-imagine-guide",
+    "detailPath": "/products/ask-and-imagine-guide",
+    "name": "Ask And Imagine (Advanced Coding Curriculum Guide)",
+    "price": 35,
+    "description": "Description for Ask And Imagine (Advanced Coding Curriculum Guide)"
+  },
+  {
+    "id": "409",
+    "category": "learning-materials",
+    "slug": "assessment-workbook",
+    "detailPath": "/products/assessment-workbook",
+    "name": "Assessment Workbook",
+    "price": 18,
+    "description": "Description for Assessment Workbook"
+  },
+  {
+    "id": "410",
+    "category": "learning-materials",
+    "slug": "blended-learning-bundle",
+    "detailPath": "/products/blended-learning-bundle",
+    "name": "Blended Learning Curriculum Bundle",
+    "price": 700,
+    "description": "Description for Blended Learning Curriculum Bundle"
+  },
+  {
+    "id": "411",
+    "category": "learning-materials",
+    "slug": "build-it-better-guide",
+    "detailPath": "/products/build-it-better-guide",
+    "name": "Build It Better! (Building Block Curriculum Guide)",
+    "price": 35,
+    "description": "Description for Build It Better! (Building Block Curriculum Guide)"
+  },
+  {
+    "id": "412",
+    "category": "learning-materials",
+    "slug": "engineering-design-journals",
+    "detailPath": "/products/engineering-design-journals",
+    "name": "Engineering Design Journals",
+    "price": 14,
+    "description": "Description for Engineering Design Journals"
+  },
+  {
+    "id": "413",
+    "category": "learning-materials",
+    "slug": "express-yourself-guide",
+    "detailPath": "/products/express-yourself-guide",
+    "name": "Express Yourself! (Expression Module Curriculum Guide)",
+    "price": 35,
+    "description": "Description for Express Yourself! (Expression Module Curriculum Guide)"
+  },
+  {
+    "id": "414",
+    "category": "learning-materials",
+    "slug": "make-learning-visible-guide",
+    "detailPath": "/products/make-learning-visible-guide",
+    "name": "Make Learning Visible! (Marker Curriculum Guide)",
+    "price": 35,
+    "description": "Description for Make Learning Visible! (Marker Curriculum Guide)"
+  },
+  {
+    "id": "415",
+    "category": "learning-materials",
+    "slug": "module-curriculum-guides-bundle",
+    "detailPath": "/products/module-curriculum-guides-bundle",
+    "name": "Module Curriculum Guides Bundle",
+    "price": 105,
+    "description": "Description for Module Curriculum Guides Bundle"
+  },
+  {
+    "id": "416",
+    "category": "learning-materials",
+    "slug": "showtime-with-kibo-guide",
+    "detailPath": "/products/showtime-with-kibo-guide",
+    "name": "Showtime With KIBO! (Sound Module Curriculum Guide)",
+    "price": 35,
+    "description": "Description for Showtime With KIBO! (Sound Module Curriculum Guide)"
+  },
+  {
+    "id": "417",
+    "category": "learning-materials",
+    "slug": "teaching-materials-package",
+    "detailPath": "/products/teaching-materials-package",
+    "name": "Teaching Materials Package",
+    "price": 205,
+    "description": "Description for Teaching Materials Package"
+  },
+  {
+    "id": "418",
+    "category": "learning-materials",
+    "slug": "two-posters",
+    "detailPath": "/products/two-posters",
+    "name": "Two Posters - KIBO And Engineering Design Process",
+    "price": 30,
+    "description": "Description for Two Posters - KIBO And Engineering Design Process"
+  },
+  {
+    "id": "419",
+    "category": "learning-materials",
+    "slug": "kibo-home-robotics-guide",
+    "detailPath": "/products/kibo-home-robotics-guide",
+    "name": "KIBO Home Robotics Guide",
+    "price": 800,
+    "description": "A comprehensive guide designed specifically for homes and homeschools to introduce coding, robotics and engineering to children. This booklet explains the scope and sequence of the course curriculum along with tips specifically for homes and homeschools. Perfect for parents and caregivers who want to bring KIBO robotics into their home-based learning environment."
+  },
+  {
+    "id": "501",
+    "category": "training",
+    "slug": "training-one-hour-web-conference",
+    "detailPath": "/products/training-one-hour-web-conference",
+    "name": "Training - One-Hour Web Conference",
+    "price": 125,
+    "description": "A one-hour web conference to get you started with KIBO."
+  },
+  {
+    "id": "601",
+    "category": "clearance",
+    "slug": "activity-cards-1st-edition-clearance",
+    "detailPath": "/products/activity-cards-1st-edition-clearance",
+    "name": "Activity Cards - 1st Edition (Clearance)",
+    "price": 11,
+    "description": "First edition of the KIBO Activity Cards."
+  },
+  {
+    "id": "602",
+    "category": "clearance",
+    "slug": "assessment-workbook-1st-edition-clearance",
+    "detailPath": "/products/assessment-workbook-1st-edition-clearance",
+    "name": "Assessment Workbook 1st Edition (Clearance)",
+    "price": 7,
+    "description": "First edition of the Assessment Workbook."
+  },
+  {
+    "id": "603",
+    "category": "clearance",
+    "slug": "build-it-better-clearance",
+    "detailPath": "/products/build-it-better-clearance",
+    "name": "Build It Better! (Building Block Curriculum Guide) (Clearance)",
+    "price": 14,
+    "description": "Clearance version of the Build It Better! curriculum guide."
+  },
+  {
+    "id": "604",
+    "category": "clearance",
+    "slug": "express-yourself-clearance",
+    "detailPath": "/products/express-yourself-clearance",
+    "name": "Express Yourself! (Expression Module Guide) (Clearance)",
+    "price": 14,
+    "description": "Clearance version of the Express Yourself! curriculum guide."
+  },
+  {
+    "id": "605",
+    "category": "clearance",
+    "slug": "make-learning-visible-clearance",
+    "detailPath": "/products/make-learning-visible-clearance",
+    "name": "Make Learning Visible! (Marker Curriculum Guide) (Clearance)",
+    "price": 14,
+    "description": "Clearance version of the Make Learning Visible! curriculum guide."
+  },
+  {
+    "id": "606",
+    "category": "clearance",
+    "slug": "showtime-with-kibo-clearance",
+    "detailPath": "/products/showtime-with-kibo-clearance",
+    "name": "Showtime With KIBO! (Sound Module Curriculum Guide) (Clearance)",
+    "price": 14,
+    "description": "Clearance version of the Showtime With KIBO! curriculum guide."
+  },
+  {
+    "id": "701",
+    "category": "service",
+    "slug": "kibo-repair-service",
+    "detailPath": "/products/kibo-repair-service",
+    "name": "KIBO Repair Service",
+    "price": 110,
+    "description": "Send in your KIBO for a check-up and repair by our expert technicians."
+  }
+]

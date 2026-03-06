@@ -95,12 +95,18 @@ const Orders = () => {
                         <h3 className="font-semibold text-lg text-purple-800">Order #{order.id.slice(-8)}</h3>
                         <p className="text-sm text-gray-600">{formatDate(order.createdAt)}</p>
                         <p className="text-sm text-gray-600">Customer: {order.customerName}</p>
+                        <p className="text-sm text-gray-600">Payment: {order.paymentMode === 'purchase_order' ? 'Purchase Order' : 'Pending'}</p>
                       </div>
                       <div className="flex items-center gap-4 mt-2 md:mt-0">
-                        <Badge className={statusInfo.color}>
-                          {statusInfo.label}
-                        </Badge>
-                        <span className="font-semibold text-xl text-orange-600">${order.totalAmount.toFixed(2)}</span>
+                        <div className="flex flex-col items-end gap-2">
+                          <Badge className={statusInfo.color}>
+                            {statusInfo.label}
+                          </Badge>
+                          <Badge className={order.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+                            {order.paymentStatus}
+                          </Badge>
+                          <span className="font-semibold text-xl text-orange-600">${order.totalAmount.toFixed(2)}</span>
+                        </div>
                       </div>
                     </div>
 
@@ -162,13 +168,15 @@ const Orders = () => {
                         <div className="text-sm space-y-3">
                            <div className="bg-orange-50 p-3 rounded border">
                              <p className="font-semibold text-gray-700 mb-2">Delivery Address:</p>
-                            <p><strong>Full Name:</strong> {order.shippingAddress.name}</p>
+                            <p><strong>Recipient:</strong> {order.shippingAddress.recipientName}</p>
                             <p><strong>Phone:</strong> {order.shippingAddress.phone}</p>
-                            <p><strong>Email:</strong> {order.shippingAddress.email}</p>
+                            <p><strong>Email:</strong> {order.shippingAddress.email || '-'}</p>
                             <p><strong>Address:</strong> {order.shippingAddress.address}</p>
+                            {order.shippingAddress.apartment && <p><strong>Apartment:</strong> {order.shippingAddress.apartment}</p>}
+                            <p><strong>District:</strong> {order.shippingAddress.district}</p>
                             <p><strong>City:</strong> {order.shippingAddress.city}</p>
                             <p><strong>State:</strong> {order.shippingAddress.province}</p>
-                            <p><strong>Postal Code:</strong> {order.shippingAddress.zipCode}</p>
+                            <p><strong>Postal Code:</strong> {order.shippingAddress.postalCode}</p>
                           </div>
                           
                           <div className="bg-orange-50 p-3 rounded border">
@@ -176,6 +184,9 @@ const Orders = () => {
                             <p><strong>Order ID:</strong> #{order.id}</p>
                             <p><strong>Order Date:</strong> {formatDate(order.createdAt)}</p>
                             <p><strong>Total Amount:</strong> ${order.totalAmount.toFixed(2)}</p>
+                            <p><strong>Payment Mode:</strong> {order.paymentMode === 'purchase_order' ? 'Purchase Order' : 'Pending Payment'}</p>
+                            <p><strong>Payment Status:</strong> {order.paymentStatus}</p>
+                            {order.purchaseOrderNumber && <p><strong>PO Number:</strong> {order.purchaseOrderNumber}</p>}
                             <p><strong>Number of Items:</strong> {order.items.length}</p>
                           </div>
                         </div>

@@ -45,6 +45,13 @@ const SimpleAdminDashboard = () => {
     error: (message: string) => uiToast({ title: 'Error', description: message }),
     info: (message: string) => uiToast({ title: 'Info', description: message }),
   };
+  const userRole = user?.role || 'user';
+  const canAccessUsers = userRole === 'super_admin' || userRole === 'admin';
+  const canAccessSupport = canAccessUsers || userRole === 'support';
+  const canAccessContent = canAccessUsers || userRole === 'content_manager';
+  const canManageOrders = canAccessUsers;
+  const canAccessAdminDashboard = canAccessSupport || canAccessContent;
+  const defaultAdminTab = canAccessSupport ? 'orders' : 'blog';
   const [isLoading, setIsLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -146,13 +153,13 @@ const SimpleAdminDashboard = () => {
         allMediaCoverages,
         allEvents,
       ] = await Promise.all([
-        apiService.getAllOrders({ limit: 1000 }),
-        apiService.getAllUsers({ limit: 1000 }),
-        apiService.getAllContacts({ limit: 1000 }),
-        apiService.getAllBlogPostsForAdmin({ limit: 1000 }),
-        apiService.getAllPressReleasesForAdmin({ limit: 1000 }),
-        apiService.getAllMediaCoveragesForAdmin({ limit: 1000 }),
-        apiService.getAllEventsForAdmin({ limit: 1000 }),
+        canAccessSupport ? apiService.getAllOrders({ limit: 1000 }) : Promise.resolve([]),
+        canAccessUsers ? apiService.getAllUsers({ limit: 1000 }) : Promise.resolve([]),
+        canAccessSupport ? apiService.getAllContacts({ limit: 1000 }) : Promise.resolve([]),
+        canAccessContent ? apiService.getAllBlogPostsForAdmin({ limit: 1000 }) : Promise.resolve([]),
+        canAccessContent ? apiService.getAllPressReleasesForAdmin({ limit: 1000 }) : Promise.resolve([]),
+        canAccessContent ? apiService.getAllMediaCoveragesForAdmin({ limit: 1000 }) : Promise.resolve([]),
+        canAccessContent ? apiService.getAllEventsForAdmin({ limit: 1000 }) : Promise.resolve([]),
       ]);
 
       setOrders(allOrders);
@@ -174,8 +181,8 @@ const SimpleAdminDashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [uiToast]);
-  
+  }, [uiToast, canAccessSupport, canAccessUsers, canAccessContent]);
+
   // Sort orders
   const sortOrders = (field: keyof Order) => {
     if (field === orderSortField) {
@@ -849,7 +856,7 @@ const SimpleAdminDashboard = () => {
     // Server bağlantısını kontrol et
     const checkServerConnection = async () => {
       try {
-        await apiService.getAllUsers({ limit: 1 });
+        await apiService.getCurrentUser();
         setServerStatus('connected');
       } catch (error) {
         setServerStatus('disconnected');
@@ -894,6 +901,17 @@ const SimpleAdminDashboard = () => {
   const ongoingEvents = events.filter(event => event.status === 'ongoing').length;
   const completedEvents = events.filter(event => event.status === 'completed').length;
   const cancelledEvents = events.filter(event => event.status === 'cancelled').length;
+  const visibleTabs = [
+    ...(canAccessSupport ? [{ value: 'orders', label: 'Orders' }] : []),
+    ...(canAccessUsers ? [{ value: 'users', label: 'Users' }] : []),
+    ...(canAccessSupport ? [{ value: 'contacts', label: 'Contacts' }] : []),
+    ...(canAccessContent ? [
+      { value: 'blog', label: 'Blog Posts' },
+      { value: 'press-releases', label: 'Press Releases' },
+      { value: 'media-coverage', label: 'Media Coverage' },
+      { value: 'events', label: 'Events' },
+    ] : []),
+  ];
 
   // Auth yüklenirken bekle
   if (isInitializing) {
@@ -908,7 +926,7 @@ const SimpleAdminDashboard = () => {
   }
 
   // Admin kontrolü
-  if (!user || !user.isAdmin) {
+  if (!user || !canAccessAdminDashboard) {
     return <Navigate to="/login" replace />;
   }
 
@@ -1165,20 +1183,17 @@ const SimpleAdminDashboard = () => {
         </div>
 
         {/* Main Content */}
-        <Tabs defaultValue="orders" className="w-full">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="orders">Orders</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="contacts">Contacts</TabsTrigger>
-            <TabsTrigger value="blog">Blog Posts</TabsTrigger>
-            <TabsTrigger value="press-releases">Press Releases</TabsTrigger>
-            <TabsTrigger value="media-coverage">Media Coverage</TabsTrigger>
-            <TabsTrigger value="events">Events</TabsTrigger>
+        <Tabs defaultValue={defaultAdminTab} className="w-full">
+          <TabsList className="grid w-full" style={{ gridTemplateColumns: 'repeat(' + Math.max(visibleTabs.length, 1) + ', minmax(0, 1fr))' }}>
+            {visibleTabs.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value}>{tab.label}</TabsTrigger>
+            ))}
           </TabsList>
 
           {/* Orders Tab */}
-          <TabsContent value="orders" className="mt-6">
+          {canAccessSupport && <TabsContent value="orders" className="mt-6">
             <AdminOrdersTab
+              canManageOrders={canManageOrders}
               orders={filteredSortedOrders}
               orderSortField={orderSortField}
               orderSortDirection={orderSortDirection}
@@ -1190,19 +1205,19 @@ const SimpleAdminDashboard = () => {
               onManageOrder={openOrderEditModal}
               onDeleteOrder={(order) => handleDeleteClick('order', order.id, `Order #${order.id}`)}
             />
-          </TabsContent>
+          </TabsContent>}
 
 
           {/* Users Tab */}
-          <TabsContent value="users" className="mt-6">
+          {canAccessUsers && <TabsContent value="users" className="mt-6">
             <AdminUsersTab
               users={users}
               onDeleteUser={(adminUser) => handleDeleteClick('user', adminUser.id, adminUser.name)}
             />
-          </TabsContent>
+          </TabsContent>}
 
           {/* Contacts Tab */}
-          <TabsContent value="contacts" className="mt-6">
+          {canAccessSupport && <TabsContent value="contacts" className="mt-6">
             <AdminContactsTab
               allContactsCount={contacts.length}
               contacts={filteredContacts}
@@ -1212,47 +1227,47 @@ const SimpleAdminDashboard = () => {
               onEditContact={openContactEditModal}
               onDeleteContact={(contact) => handleDeleteClick('contact', contact.id, contact.name)}
             />
-          </TabsContent>
+          </TabsContent>}
 
           {/* Blog Tab */}
-          <TabsContent value="blog" className="mt-6">
+          {canAccessContent && <TabsContent value="blog" className="mt-6">
             <AdminBlogTab
               blogPosts={blogPosts}
               onCreateBlogPost={() => openBlogModal()}
               onEditBlogPost={openBlogModal}
               onDeleteBlogPost={(post) => handleDeleteClick('blog', post.id, post.title)}
             />
-          </TabsContent>
+          </TabsContent>}
 
           {/* Press Releases Tab */}
-          <TabsContent value="press-releases" className="mt-6">
+          {canAccessContent && <TabsContent value="press-releases" className="mt-6">
             <AdminPressReleasesTab
               pressReleases={pressReleases}
               onCreatePressRelease={() => openPressReleaseModal()}
               onEditPressRelease={openPressReleaseModal}
               onDeletePressRelease={(release) => handleDeleteClick('press', release.id, release.title)}
             />
-          </TabsContent>
+          </TabsContent>}
 
           {/* Media Coverage Tab */}
-          <TabsContent value="media-coverage" className="mt-6">
+          {canAccessContent && <TabsContent value="media-coverage" className="mt-6">
             <AdminMediaCoverageTab
               mediaCoverages={mediaCoverages}
               onCreateMediaCoverage={() => openMediaCoverageModal()}
               onEditMediaCoverage={openMediaCoverageModal}
               onDeleteMediaCoverage={(coverage) => handleDeleteClick('media', coverage.id, coverage.title)}
             />
-          </TabsContent>
+          </TabsContent>}
 
           {/* Events Tab */}
-          <TabsContent value="events" className="mt-6">
+          {canAccessContent && <TabsContent value="events" className="mt-6">
             <AdminEventsTab
               events={events}
               onCreateEvent={() => openEventModal()}
               onEditEvent={openEventModal}
               onDeleteEvent={(event) => handleDeleteClick('event', event.id, event.title)}
             />
-          </TabsContent>
+          </TabsContent>}
         </Tabs>
 
 

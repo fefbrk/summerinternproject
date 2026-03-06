@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const { resolvePagination, paginateRows } = require('../utils/pagination');
 const { toCents, fromCents } = require('../utils/currency');
+const { orderCreateSchema, validateRequestBody } = require('../utils/validationSchemas');
 
 const registerCommerceRoutes = (app, deps) => {
   const {
@@ -235,45 +236,60 @@ const registerCommerceRoutes = (app, deps) => {
 
   app.post('/api/orders', async (req, res) => {
     try {
-      const items = Array.isArray(req.body?.items) ? req.body.items : [];
-      const totalAmount = Number(req.body?.totalAmount);
-      const shippingAddress = req.body?.shippingAddress;
-      const customerName = sanitizePlainText(req.body?.customerName, 120);
-      const customerEmail = sanitizeEmail(req.body?.customerEmail);
-      const orderNotes = sanitizePlainText(req.body?.orderNotes || '', 1000);
-
-      if (!items.length || !Number.isFinite(totalAmount) || totalAmount <= 0 || !shippingAddress || typeof shippingAddress !== 'object' || !customerName || !customerEmail || !isValidEmail(customerEmail)) {
-        return res.status(400).json({ error: 'Invalid order payload' });
+      const parsedBody = validateRequestBody(orderCreateSchema, req.body || {});
+      if (!parsedBody.success) {
+        return res.status(400).json({ error: parsedBody.errorMessage || 'Invalid order payload' });
       }
 
-      const normalizedShippingAddress = {
-        name: sanitizePlainText(shippingAddress.name, 120),
-        phone: sanitizePlainText(shippingAddress.phone, 40),
-        email: sanitizeEmail(shippingAddress.email),
-        address: sanitizePlainText(shippingAddress.address, 300),
-        city: sanitizePlainText(shippingAddress.city, 120),
-        province: sanitizePlainText(shippingAddress.province, 120),
-        zipCode: sanitizePlainText(shippingAddress.zipCode, 32),
-        country: sanitizePlainText(shippingAddress.country, 120),
-      };
+      const customerName = sanitizePlainText(parsedBody.data.customer.name, 120);
+      const customerEmail = sanitizeEmail(parsedBody.data.customer.email);
+      const orderNotes = sanitizePlainText(parsedBody.data.orderNotes || '', 1000);
+      const paymentMode = sanitizePlainText(parsedBody.data.paymentMode, 40) === 'purchase_order' ? 'purchase_order' : 'pending';
+      const purchaseOrderNumber = sanitizePlainText(parsedBody.data.purchaseOrderNumber || '', 120) || null;
 
-      if (!normalizedShippingAddress.name || !normalizedShippingAddress.phone || !normalizedShippingAddress.address || !normalizedShippingAddress.city || !normalizedShippingAddress.zipCode || !normalizedShippingAddress.country) {
+      if (!customerName || !customerEmail || !isValidEmail(customerEmail)) {
+        return res.status(400).json({ error: 'Invalid customer payload' });
+      }
+
+      const normalizeAddress = (address) => ({
+        recipientName: sanitizePlainText(address?.recipientName, 120),
+        phone: sanitizePlainText(address?.phone, 40),
+        email: sanitizeEmail(address?.email || ''),
+        address: sanitizePlainText(address?.address, 300),
+        apartment: sanitizePlainText(address?.apartment || '', 120),
+        district: sanitizePlainText(address?.district, 120),
+        city: sanitizePlainText(address?.city, 120),
+        postalCode: sanitizePlainText(address?.postalCode, 32),
+        province: sanitizePlainText(address?.province || '', 120),
+        country: sanitizePlainText(address?.country, 120),
+      });
+
+      const shippingAddress = normalizeAddress(parsedBody.data.shipping);
+      const billingAddress = parsedBody.data.billing ? normalizeAddress(parsedBody.data.billing) : null;
+      const requiredAddressFields = ['recipientName', 'phone', 'address', 'district', 'city', 'postalCode', 'country'];
+
+      if (requiredAddressFields.some((field) => !shippingAddress[field])) {
         return res.status(400).json({ error: 'Invalid shipping address payload' });
       }
 
-      if (normalizedShippingAddress.email && !isValidEmail(normalizedShippingAddress.email)) {
+      if (shippingAddress.email && !isValidEmail(shippingAddress.email)) {
         return res.status(400).json({ error: 'Invalid shipping address email' });
+      }
+
+      if (billingAddress) {
+        if (requiredAddressFields.some((field) => !billingAddress[field])) {
+          return res.status(400).json({ error: 'Invalid billing address payload' });
+        }
+
+        if (billingAddress.email && !isValidEmail(billingAddress.email)) {
+          return res.status(400).json({ error: 'Invalid billing address email' });
+        }
       }
 
       const normalizedItems = [];
       let hasInvalidOrderItem = false;
 
-      for (const rawItem of items) {
-        if (!rawItem || typeof rawItem !== 'object') {
-          hasInvalidOrderItem = true;
-          break;
-        }
-
+      for (const rawItem of parsedBody.data.items) {
         const productId = sanitizePlainText(String(rawItem.id || ''), 80);
         const quantity = Number(rawItem.quantity);
 
@@ -301,7 +317,7 @@ const registerCommerceRoutes = (app, deps) => {
         return res.status(400).json({ error: 'Order must include valid items' });
       }
 
-      const requestedTotalCents = toCents(totalAmount);
+      const requestedTotalCents = toCents(parsedBody.data.totalAmount);
       const calculatedTotalCents = calculateOrderTotalCents(normalizedItems);
 
       if (!Number.isFinite(requestedTotalCents) || !Number.isFinite(calculatedTotalCents) || calculatedTotalCents <= 0) {
@@ -318,6 +334,8 @@ const registerCommerceRoutes = (app, deps) => {
         items: normalizedItems,
         totalAmount: fromCents(calculatedTotalCents),
         status: 'received',
+        paymentMode,
+        purchaseOrderNumber,
         paymentStatus: 'pending',
         paymentProvider: null,
         paymentReference: null,
@@ -325,7 +343,8 @@ const registerCommerceRoutes = (app, deps) => {
         paymentCurrency: 'USD',
         paymentFailedReason: null,
         paidAt: null,
-        shippingAddress: normalizedShippingAddress,
+        shippingAddress,
+        billingAddress,
         customerName,
         customerEmail,
         orderNotes,
@@ -338,12 +357,14 @@ const registerCommerceRoutes = (app, deps) => {
         try {
           await paymentService.createPendingAttempt({
             orderId: order.id,
-            provider: 'unassigned',
+            provider: paymentMode === 'purchase_order' ? 'purchase_order' : 'unassigned',
             amount: order.paymentAmount,
             currency: order.paymentCurrency,
             metadata: {
               source: 'order-create',
               actorUserId: req.user.id,
+              paymentMode,
+              purchaseOrderNumber,
             },
           });
         } catch (paymentAttemptError) {

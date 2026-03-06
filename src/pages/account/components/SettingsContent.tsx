@@ -8,7 +8,6 @@ import { useToast } from '@/components/ui/use-toast';
 import { User, Shield, Eye, EyeOff, Trash2, Download } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useUserData } from '@/context/UserDataContext';
-import { useNavigate } from 'react-router-dom';
 import apiService, { PrivacyRequest } from '@/services/apiService';
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
@@ -16,9 +15,8 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
 };
 
 const SettingsContent = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { profileInfo, updateProfileInfo } = useUserData();
-  const navigate = useNavigate();
   const { toast: uiToast } = useToast();
   const toast = {
     success: (message: string) => uiToast({ title: 'Success', description: message }),
@@ -149,7 +147,7 @@ const SettingsContent = () => {
 
 
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Form validation
     if (!formData.fullName.trim()) {
       toast.error('Full name is required');
@@ -172,8 +170,11 @@ const SettingsContent = () => {
       phone: '',
       companyName: ''
     };
-    updateProfileInfo(profileData);
-    toast.success('Profile updated successfully!');
+    try {
+      await updateProfileInfo(profileData);
+    } catch (_error) {
+      // handled in context
+    }
   };
 
   const handlePasswordChange = async () => {
@@ -234,9 +235,8 @@ const SettingsContent = () => {
       return;
     }
 
-    // Admin kullanıcısını silmeyi engelle
     if (user.isAdmin) {
-      toast.error('Admin account cannot be deleted');
+      toast.error('Admin account cannot use self-service deletion');
       setShowDeleteConfirm(false);
       return;
     }
@@ -244,16 +244,17 @@ const SettingsContent = () => {
     setIsDeletingAccount(true);
 
     try {
-      // Backend API'yi kullanarak hesabı sil
-      await apiService.deleteUser(user.id);
-      toast.success('Account deleted successfully');
-
-      // Log out the user and redirect to home page
-      logout();
-      navigate('/');
+      const reason = privacyDeletionReason.trim().length > 0
+        ? privacyDeletionReason
+        : 'Self-service deletion request initiated from account settings';
+      const response = await apiService.requestPrivacyDeletion(reason);
+      toast.info('Deletion request submitted. Request ID: ' + response.id);
+      setPrivacyDeletionReason('');
+      const refreshedRequests = await apiService.getPrivacyRequests();
+      setPrivacyRequests(refreshedRequests);
+      setShowDeleteConfirm(false);
     } catch (error) {
-      // Backend'den gelen hata mesajını göster
-      const errorMessage = getErrorMessage(error, 'Failed to delete account');
+      const errorMessage = getErrorMessage(error, 'Failed to submit deletion request');
       toast.error(errorMessage);
       setShowDeleteConfirm(false);
     } finally {
@@ -441,9 +442,9 @@ const SettingsContent = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="p-4 bg-red-50 rounded-lg">
-            <h4 className="font-medium text-red-800 mb-2">Delete Account</h4>
+            <h4 className="font-medium text-red-800 mb-2">Request Account Deletion</h4>
             <p className="text-sm text-red-600 mb-3">
-              This action cannot be undone. All your data will be permanently deleted.
+              This submits a privacy deletion request for manual processing. Business records are preserved until the request is reviewed.
             </p>
             <div className="flex items-center gap-2">
               <Button
@@ -458,10 +459,10 @@ const SettingsContent = () => {
                 ) : showDeleteConfirm ? (
                   <>
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Confirm Delete Account
+                    Confirm Deletion Request
                   </>
                 ) : (
-                  "Delete My Account"
+                  "Request Account Deletion"
                 )}
               </Button>
               {showDeleteConfirm && (

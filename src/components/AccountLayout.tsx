@@ -25,7 +25,7 @@ const AccountLayout = ({ children, onMenuChange, activeMenu = 'orders' }: Accoun
     },
     {
       key: 'payment-methods',
-      label: 'Payment Methods',
+      label: 'Payment Setup',
       icon: CreditCard,
     },
     {

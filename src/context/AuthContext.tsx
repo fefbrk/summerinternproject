@@ -1,14 +1,15 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import apiService, { User } from '@/services/apiService';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string, captchaToken?: string) => Promise<boolean>;
   register: (email: string, password: string, name: string) => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
   isInitializing: boolean;
+  lastAuthErrorCode: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,88 +18,112 @@ const getErrorMessage = (error: unknown, fallback: string): string => {
   return error instanceof Error ? error.message : fallback;
 };
 
+const getErrorCode = (error: unknown): string | null => {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return null;
+  }
+
+  return typeof (error as { code?: unknown }).code === 'string'
+    ? (error as { code?: string }).code || null
+    : null;
+};
+
+const readCachedUser = (): User | null => {
+  try {
+    const raw = localStorage.getItem('auth_user');
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as User;
+    return parsed && typeof parsed.id === 'string' ? parsed : null;
+  } catch (_error) {
+    return null;
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => readCachedUser());
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [lastAuthErrorCode, setLastAuthErrorCode] = useState<string | null>(null);
 
   const setAuthState = (nextUser: User) => {
-    const processedUser = {
+    const processedUser: User = {
       ...nextUser,
       isAdmin: Boolean(nextUser.isAdmin),
+      role: nextUser.role,
     };
 
     setUser(processedUser);
     localStorage.setItem('auth_user', JSON.stringify(processedUser));
-    localStorage.removeItem('auth_token');
   };
 
   const clearAuthState = () => {
     setUser(null);
     localStorage.removeItem('auth_user');
-    localStorage.removeItem('auth_token');
   };
 
-  // Check for existing session on app load
   useEffect(() => {
+    let mounted = true;
+
     const initializeAuth = async () => {
       try {
-        const savedUser = localStorage.getItem('auth_user');
-
-        if (!savedUser) {
-          clearAuthState();
-          return;
-        }
-
-        const parsedUser = JSON.parse(savedUser);
         const currentUser = await apiService.getCurrentUser();
-        setAuthState(
-          {
-            ...currentUser,
-            isAdmin: Boolean(currentUser.isAdmin),
-            id: currentUser.id || parsedUser.id,
-          }
-        );
-      } catch (error) {
-        console.error('Error loading user from storage:', error);
-        clearAuthState();
+        if (mounted) {
+          setAuthState(currentUser);
+        }
+      } catch (_error) {
+        if (mounted) {
+          clearAuthState();
+        }
       } finally {
-        setIsInitializing(false);
+        if (mounted) {
+          setIsInitializing(false);
+        }
       }
     };
 
-    initializeAuth();
+    void initializeAuth();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string, captchaToken?: string): Promise<boolean> => {
     setIsLoading(true);
-    
+    setLastAuthErrorCode(null);
+
     try {
-      const authResponse = await apiService.login(email, password);
+      const authResponse = await apiService.login(email, password, captchaToken);
       setAuthState(authResponse.user);
       toast({ title: 'Login successful', description: 'You are now logged in.' });
-      setIsLoading(false);
       return true;
     } catch (error) {
+      const errorCode = getErrorCode(error);
+      setLastAuthErrorCode(errorCode);
       toast({ variant: 'destructive', title: 'Login failed', description: getErrorMessage(error, 'Login failed!') });
-      setIsLoading(false);
       return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const register = async (email: string, password: string, name: string): Promise<boolean> => {
     setIsLoading(true);
-    
+    setLastAuthErrorCode(null);
+
     try {
       const authResponse = await apiService.register(email, password, name);
       setAuthState(authResponse.user);
       toast({ title: 'Registration successful', description: 'Your account has been created.' });
-      setIsLoading(false);
       return true;
     } catch (error) {
       toast({ variant: 'destructive', title: 'Registration failed', description: getErrorMessage(error, 'Registration failed!') });
-      setIsLoading(false);
       return false;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -106,12 +131,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void apiService.logout().catch((error) => {
       console.error('Logout request failed:', error);
     });
+    setLastAuthErrorCode(null);
     clearAuthState();
     toast({ title: 'Logged out', description: 'You have been logged out.' });
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, isLoading, isInitializing }}>
+    <AuthContext.Provider
+      value={{ user, login, register, logout, isLoading, isInitializing, lastAuthErrorCode }}
+    >
       {children}
     </AuthContext.Provider>
   );

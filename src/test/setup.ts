@@ -19,4 +19,12 @@ window.scrollTo = vi.fn();
 
 beforeEach(() => {
   localStorage.clear();
+  global.fetch = vi.fn().mockResolvedValue(
+    new Response(JSON.stringify({ error: 'Authentication required' }), {
+      status: 401,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+  ) as typeof fetch;
 });
