@@ -77,6 +77,15 @@ const REGISTRATION_MAX_ATTEMPTS = Number.isFinite(Number(process.env.REGISTRATIO
 const REGISTRATION_RATE_LIMIT_MAX_ENTRIES = Number.isFinite(Number(process.env.REGISTRATION_RATE_LIMIT_MAX_ENTRIES)) && Number(process.env.REGISTRATION_RATE_LIMIT_MAX_ENTRIES) > 0
   ? Number(process.env.REGISTRATION_RATE_LIMIT_MAX_ENTRIES)
   : 10000;
+const REFRESH_WINDOW_MS = Number.isFinite(Number(process.env.REFRESH_WINDOW_MS)) && Number(process.env.REFRESH_WINDOW_MS) > 0
+  ? Number(process.env.REFRESH_WINDOW_MS)
+  : 10 * 60 * 1000;
+const REFRESH_MAX_ATTEMPTS = Number.isFinite(Number(process.env.REFRESH_MAX_ATTEMPTS)) && Number(process.env.REFRESH_MAX_ATTEMPTS) > 0
+  ? Number(process.env.REFRESH_MAX_ATTEMPTS)
+  : 30;
+const REFRESH_RATE_LIMIT_MAX_ENTRIES = Number.isFinite(Number(process.env.REFRESH_RATE_LIMIT_MAX_ENTRIES)) && Number(process.env.REFRESH_RATE_LIMIT_MAX_ENTRIES) > 0
+  ? Number(process.env.REFRESH_RATE_LIMIT_MAX_ENTRIES)
+  : 20000;
 const CONTACT_WINDOW_MS = 10 * 60 * 1000;
 const CONTACT_MAX_ATTEMPTS = 20;
 const CONTACT_RATE_LIMIT_MAX_ENTRIES = 20000;
@@ -756,7 +765,7 @@ if (TRUST_PROXY) {
   app.set('trust proxy', true);
 }
 
-const defaultAllowedOrigins = ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173'];
+const defaultAllowedOrigins = IS_PRODUCTION ? [] : ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:5173'];
 const configuredOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS
     .split(',')
@@ -765,6 +774,10 @@ const configuredOrigins = process.env.CORS_ORIGINS
   : defaultAllowedOrigins
     .map((origin) => normalizeOrigin(origin))
     .filter(Boolean);
+
+if (configuredOrigins.length === 0) {
+  throw new Error('CORS_ORIGINS must include at least one allowed origin.');
+}
 
 const corsOptions = {
   origin: (origin, callback) => {
@@ -982,6 +995,7 @@ const {
   checkLoginRateLimit,
   recordLoginAttempt,
   checkRegistrationRateLimit,
+  checkRefreshRateLimit,
   checkContactRateLimit,
   checkAccountLockout,
   recordAccountLoginAttempt,
@@ -996,6 +1010,9 @@ const {
   registrationWindowMs: REGISTRATION_WINDOW_MS,
   registrationMaxAttempts: REGISTRATION_MAX_ATTEMPTS,
   registrationRateLimitMaxEntries: REGISTRATION_RATE_LIMIT_MAX_ENTRIES,
+  refreshWindowMs: REFRESH_WINDOW_MS,
+  refreshMaxAttempts: REFRESH_MAX_ATTEMPTS,
+  refreshRateLimitMaxEntries: REFRESH_RATE_LIMIT_MAX_ENTRIES,
   contactWindowMs: CONTACT_WINDOW_MS,
   contactMaxAttempts: CONTACT_MAX_ATTEMPTS,
   contactRateLimitMaxEntries: CONTACT_RATE_LIMIT_MAX_ENTRIES,
@@ -1102,6 +1119,7 @@ registerAuthUserRoutes(app, {
   recordAccountLoginAttempt,
   getLoginAttemptCount,
   checkRegistrationRateLimit,
+  checkRefreshRateLimit,
   logSecurityEvent,
   authCookieName: AUTH_COOKIE_NAME,
   authCookieOptions: AUTH_COOKIE_OPTIONS,

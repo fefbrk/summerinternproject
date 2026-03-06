@@ -18,10 +18,14 @@ process.env.AUTH_TOKEN_TTL_MS = '3600000';
 process.env.DEFAULT_ADMIN_EMAIL = 'admin.integration@example.com';
 process.env.DEFAULT_ADMIN_PASSWORD = 'StrongPass123A';
 process.env.CORS_ORIGINS = 'http://localhost:5173';
+process.env.PII_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef';
 process.env.ENABLE_DEMO_ENDPOINTS = 'false';
 process.env.CARRIER_WEBHOOK_SECRET = 'carrier-webhook-test-secret';
 process.env.CARRIER_WEBHOOK_MAX_ATTEMPTS = '5';
 process.env.CARRIER_WEBHOOK_WINDOW_MS = '60000';
+process.env.REFRESH_WINDOW_MS = '600000';
+process.env.REFRESH_MAX_ATTEMPTS = '5';
+process.env.REFRESH_RATE_LIMIT_MAX_ENTRIES = '1000';
 process.env.LOGIN_LOCKOUT_MAX_ATTEMPTS = '3';
 process.env.LOGIN_LOCKOUT_WINDOW_MS = '600000';
 process.env.SECURITY_ALERT_LOGIN_FAILURE_THRESHOLD = '2';
@@ -451,6 +455,8 @@ test('password change revokes previously issued token access', async () => {
 });
 
 test('refresh token endpoint rotates tokens and blocks token reuse', async () => {
+  await database.run("DELETE FROM rate_limits WHERE scope = 'refresh'");
+
   const email = `refresh_flow_${Date.now()}@example.com`;
   const password = 'RefreshFlow123A';
 
@@ -467,11 +473,18 @@ test('refresh token endpoint rotates tokens and blocks token reuse', async () =>
   const firstRefreshToken = extractCookieValue(registerResponse.setCookieHeaders, 'refresh_token');
   assert.ok(firstRefreshToken.length > 0);
 
-  const firstRefreshResponse = await requestJson('/api/refresh', {
+  const bodyOnlyRefreshResponse = await requestJson('/api/refresh', {
     method: 'POST',
     body: {
       refreshToken: firstRefreshToken,
     },
+  });
+
+  assert.equal(bodyOnlyRefreshResponse.status, 401);
+
+  const firstRefreshResponse = await requestJson('/api/refresh', {
+    method: 'POST',
+    cookie: `refresh_token=${firstRefreshToken}`,
   });
 
   assert.equal(firstRefreshResponse.status, 200);
@@ -482,21 +495,160 @@ test('refresh token endpoint rotates tokens and blocks token reuse', async () =>
 
   const reusedRefreshResponse = await requestJson('/api/refresh', {
     method: 'POST',
-    body: {
-      refreshToken: firstRefreshToken,
-    },
+    cookie: `refresh_token=${firstRefreshToken}`,
   });
 
   assert.equal(reusedRefreshResponse.status, 401);
 
   const rotatedRefreshResponse = await requestJson('/api/refresh', {
     method: 'POST',
+    cookie: `refresh_token=${secondRefreshToken}`,
+  });
+
+  assert.equal(rotatedRefreshResponse.status, 401);
+});
+
+test('refresh token endpoint is rate limited', async () => {
+  await database.run("DELETE FROM rate_limits WHERE scope = 'refresh'");
+
+  const registerResponse = await requestJson('/api/register', {
+    method: 'POST',
     body: {
-      refreshToken: secondRefreshToken,
+      name: 'Refresh Rate Limit User',
+      email: `refresh_limit_${Date.now()}@example.com`,
+      password: 'RefreshLimit123A',
     },
   });
 
-  assert.equal(rotatedRefreshResponse.status, 200);
+  assert.equal(registerResponse.status, 201);
+
+  let currentRefreshToken = extractCookieValue(registerResponse.setCookieHeaders, 'refresh_token');
+  assert.ok(currentRefreshToken.length > 0);
+
+  for (let index = 0; index < 5; index += 1) {
+    const refreshResponse = await requestJson('/api/refresh', {
+      method: 'POST',
+      cookie: `refresh_token=${currentRefreshToken}`,
+    });
+
+    assert.equal(refreshResponse.status, 200);
+    currentRefreshToken = extractCookieValue(refreshResponse.setCookieHeaders, 'refresh_token');
+    assert.ok(currentRefreshToken.length > 0);
+  }
+
+  const rateLimitedRefreshResponse = await requestJson('/api/refresh', {
+    method: 'POST',
+    cookie: `refresh_token=${currentRefreshToken}`,
+  });
+
+  assert.equal(rateLimitedRefreshResponse.status, 429);
+});
+
+test('PII fields are encrypted at rest across operational tables', async () => {
+  const adminUser = await database.getUserByEmail(process.env.DEFAULT_ADMIN_EMAIL);
+  assert.ok(adminUser);
+
+  const now = new Date().toISOString();
+  const orderId = crypto.randomUUID();
+  await database.createOrder({
+    id: orderId,
+    userId: adminUser.id,
+    items: [{ id: 'prod-1', name: 'Secure Item', quantity: 1, price: 149, image: '' }],
+    totalAmount: 149,
+    status: 'received',
+    customerName: 'Encrypted Order User',
+    customerEmail: 'secure.order@example.com',
+    shippingAddress: {
+      recipientName: 'Encrypted Order User',
+      phone: '+90-555-000-0001',
+      email: 'secure.order@example.com',
+      address: 'Security Street 1',
+      apartment: '5B',
+      district: 'Kadikoy',
+      city: 'Istanbul',
+      postalCode: '34710',
+      province: 'Istanbul',
+      country: 'Turkey',
+    },
+    billingAddress: null,
+    orderNotes: 'Call before delivery',
+    createdAt: now,
+    paymentMode: 'pending',
+    paymentStatus: 'pending',
+    paymentAmount: 149,
+    paymentCurrency: 'USD',
+  });
+
+  const rawOrder = await database.get(
+    'SELECT customer_name as customerName, customer_email as customerEmail, shipping_address as shippingAddress, order_notes as orderNotes FROM orders WHERE id = ?',
+    [orderId]
+  );
+  assert.match(rawOrder.customerName, /^enc:v1:/);
+  assert.match(rawOrder.customerEmail, /^enc:v1:/);
+  assert.match(rawOrder.shippingAddress, /^enc:v1:/);
+  assert.match(rawOrder.orderNotes, /^enc:v1:/);
+
+  const registrationId = crypto.randomUUID();
+  await database.createRegistration({
+    id: registrationId,
+    userId: adminUser.id,
+    courseName: 'Secure Robotics 101',
+    registrationData: { classroom: 'A1' },
+    status: 'registered',
+    customerName: 'Encrypted Registration User',
+    customerEmail: 'secure.registration@example.com',
+    customerPhone: '+90-555-000-0002',
+    shippingAddress: 'Registration Street 2',
+    shippingCity: 'Istanbul',
+    shippingState: 'Istanbul',
+    shippingZipCode: '34711',
+    billingAddress: 'Billing Street 2',
+    billingCity: 'Istanbul',
+    billingState: 'Istanbul',
+    billingZipCode: '34712',
+    createdAt: now,
+  });
+
+  const rawRegistration = await database.get(
+    `SELECT customer_name as customerName, customer_email as customerEmail, customer_phone as customerPhone,
+            shipping_address as shippingAddress, shipping_city as shippingCity, shipping_state as shippingState,
+            shipping_zip_code as shippingZipCode, billing_address as billingAddress,
+            billing_city as billingCity, billing_state as billingState, billing_zip_code as billingZipCode
+     FROM course_registrations WHERE id = ?`,
+    [registrationId]
+  );
+  assert.match(rawRegistration.customerName, /^enc:v1:/);
+  assert.match(rawRegistration.customerEmail, /^enc:v1:/);
+  assert.match(rawRegistration.customerPhone, /^enc:v1:/);
+  assert.match(rawRegistration.shippingAddress, /^enc:v1:/);
+  assert.match(rawRegistration.shippingCity, /^enc:v1:/);
+  assert.match(rawRegistration.shippingState, /^enc:v1:/);
+  assert.match(rawRegistration.shippingZipCode, /^enc:v1:/);
+  assert.match(rawRegistration.billingAddress, /^enc:v1:/);
+  assert.match(rawRegistration.billingCity, /^enc:v1:/);
+  assert.match(rawRegistration.billingState, /^enc:v1:/);
+  assert.match(rawRegistration.billingZipCode, /^enc:v1:/);
+
+  const contactId = crypto.randomUUID();
+  await database.createContact({
+    id: contactId,
+    type: 'support',
+    name: 'Encrypted Contact User',
+    email: 'secure.contact@example.com',
+    subject: 'Sensitive Subject',
+    message: 'Sensitive contact message',
+    status: 'new',
+    createdAt: now,
+  });
+
+  const rawContact = await database.get(
+    'SELECT name, email, subject, message FROM contacts WHERE id = ?',
+    [contactId]
+  );
+  assert.match(rawContact.name, /^enc:v1:/);
+  assert.match(rawContact.email, /^enc:v1:/);
+  assert.match(rawContact.subject, /^enc:v1:/);
+  assert.match(rawContact.message, /^enc:v1:/);
 });
 
 test('tampered access tokens are rejected', async () => {

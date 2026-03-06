@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Bold, Italic, Underline, List, ListOrdered, Link, Image, AlignLeft, AlignCenter, AlignRight, Type, Palette } from 'lucide-react';
+import { sanitizeEditorContent, sanitizeImageUrl, sanitizeUserUrl } from '@/lib/sanitizeHtml';
 
 interface RichTextEditorProps {
   value: string;
@@ -21,16 +22,59 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   const [customColor, setCustomColor] = useState('');
   const [recentColors, setRecentColors] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value;
+  const syncEditorContent = (nextValue: string) => {
+    if (!editorRef.current) {
+      return;
     }
+
+    const sanitizedValue = sanitizeEditorContent(nextValue);
+    if (editorRef.current.innerHTML !== sanitizedValue) {
+      editorRef.current.innerHTML = sanitizedValue;
+    }
+  };
+
+  useEffect(() => {
+    syncEditorContent(value);
   }, [value]);
 
   const handleInput = () => {
     if (editorRef.current) {
-      onChange(editorRef.current.innerHTML);
+      const sanitizedValue = sanitizeEditorContent(editorRef.current.innerHTML);
+      if (editorRef.current.innerHTML !== sanitizedValue) {
+        editorRef.current.innerHTML = sanitizedValue;
+      }
+      onChange(sanitizedValue);
     }
+  };
+
+  const insertTextAtCursor = (text: string) => {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      editorRef.current?.append(document.createTextNode(text));
+      handleInput();
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(document.createTextNode(text));
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    handleInput();
+  };
+
+  const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    event.preventDefault();
+
+    const pastedText = event.clipboardData.getData('text/plain');
+    if (document.queryCommandSupported?.('insertText')) {
+      document.execCommand('insertText', false, pastedText);
+      handleInput();
+      return;
+    }
+
+    insertTextAtCursor(pastedText);
   };
 
   const execCommand = (command: string, value?: string) => {
@@ -41,25 +85,33 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   const insertLink = () => {
     const url = prompt('Enter link URL:');
-    if (url) {
-      execCommand('createLink', url);
-      // Apply orange color and underline to links
-      setTimeout(() => {
-        const links = editorRef.current?.querySelectorAll('a');
-        links?.forEach(link => {
-          link.style.color = '#f97316'; // Orange color
-          link.style.textDecoration = 'underline';
-        });
-        handleInput();
-      }, 10);
+    if (!url) {
+      return;
     }
+
+    const safeUrl = sanitizeUserUrl(url);
+    if (!safeUrl) {
+      window.alert('Invalid link URL. Only http(s), mailto, or site-relative links are allowed.');
+      return;
+    }
+
+    execCommand('createLink', safeUrl);
+    handleInput();
   };
 
   const insertImage = () => {
     const url = prompt('Enter image URL:');
-    if (url) {
-      execCommand('insertImage', url);
+    if (!url) {
+      return;
     }
+
+    const safeUrl = sanitizeImageUrl(url);
+    if (!safeUrl) {
+      window.alert('Invalid image URL. Only http(s) or site-relative image URLs are allowed.');
+      return;
+    }
+
+    execCommand('insertImage', safeUrl);
   };
 
   const changeTextColor = (color: string) => {
@@ -458,6 +510,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
         ref={editorRef}
         contentEditable
         onInput={handleInput}
+        onPaste={handlePaste}
         className="p-4 focus:outline-none min-h-[200px] prose max-w-none"
         style={{ height: `${height}px`, overflowY: 'auto' }}
         data-placeholder={placeholder}

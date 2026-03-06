@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
-import apiService, { Order, User, Contact, BlogPost, PressRelease, Event, MediaCoverage, OrderPaymentStatus } from '@/services/apiService';
+import apiService, { ROOT_URL, Order, User, Contact, BlogPost, PressRelease, Event, MediaCoverage, OrderPaymentStatus } from '@/services/apiService';
 import AdminOrdersTab from '@/components/admin/AdminOrdersTab';
 import OrderEditModal from '@/components/admin/OrderEditModal';
 import AdminContactsTab from '@/components/admin/AdminContactsTab';
@@ -35,6 +35,39 @@ const getErrorStatus = (error: unknown): number | null => {
 
   const response = (error as { response?: { status?: unknown } }).response;
   return typeof response?.status === 'number' ? response.status : null;
+};
+
+const TEMP_EVENT_IMAGE_PATH = '/postimages/events/temp/images/';
+
+const isTrustedTempEventImageUrl = (value: string): boolean => {
+  const normalizedValue = String(value || '').trim();
+  if (!normalizedValue) {
+    return false;
+  }
+
+  if (normalizedValue.startsWith(TEMP_EVENT_IMAGE_PATH)) {
+    return true;
+  }
+
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  try {
+    const parsedImageUrl = new URL(normalizedValue, window.location.origin);
+    const trustedOrigins = new Set([window.location.origin]);
+
+    try {
+      trustedOrigins.add(new URL(ROOT_URL).origin);
+    } catch (_error) {
+      // no-op
+    }
+
+    return trustedOrigins.has(parsedImageUrl.origin)
+      && parsedImageUrl.pathname.startsWith(TEMP_EVENT_IMAGE_PATH);
+  } catch (_error) {
+    return false;
+  }
 };
 
 const SimpleAdminDashboard = () => {
@@ -486,7 +519,7 @@ const SimpleAdminDashboard = () => {
         const newEvent = await apiService.createEvent(apiData);
         
         // Move image from temp folder to event folder if it's a temp image
-        if (eventFormData.imageUrl && eventFormData.imageUrl.includes('/postimages/events/temp/images/')) {
+        if (isTrustedTempEventImageUrl(eventFormData.imageUrl)) {
           try {
             toast.info('Moving image to event folder...');
             // Create a File object from the blob

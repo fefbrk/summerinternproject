@@ -110,8 +110,8 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setAddresses(addressesData.map(mapAddress));
       setProfileInfo(mapProfile(profileData));
     } catch (error) {
-      console.error('Kullan�c� verileri y�klenirken hata:', error);
-      toast.error('Veriler y�klenirken bir hata olu�tu');
+      console.error('Kullanici verileri yuklenirken hata:', error);
+      toast.error('Veriler yuklenirken bir hata olustu');
     } finally {
       setIsLoading(false);
     }
@@ -123,7 +123,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const addAddress = async (address: Omit<Address, 'id'>): Promise<string> => {
     if (!user?.id) {
-      toast.error('Kullan�c� giri�i yapmal�s�n�z');
+      toast.error('Kullanici girisi yapmalisiniz');
       return '';
     }
 
@@ -147,11 +147,11 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       const result = await apiService.createUserAddress(backendAddress);
       await refreshUserData();
-      toast.success('Adres ba�ar�yla eklendi');
+      toast.success('Adres basariyla eklendi');
       return result.id;
     } catch (error) {
       console.error('Adres eklenirken hata:', error);
-      toast.error('Adres eklenirken bir hata olu�tu');
+      toast.error('Adres eklenirken bir hata olustu');
       return '';
     }
   };
@@ -159,7 +159,7 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const updateAddress = async (id: string, updatedAddress: Partial<Address>) => {
     const existingAddress = addresses.find((address) => address.id === id);
     if (!user?.id || !existingAddress) {
-      toast.error('Adres bulunamad�');
+      toast.error('Adres bulunamadi');
       return;
     }
 
@@ -183,26 +183,26 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       await apiService.updateUserAddress(id, backendAddress);
       await refreshUserData();
-      toast.success('Adres ba�ar�yla g�ncellendi');
+      toast.success('Adres basariyla guncellendi');
     } catch (error) {
-      console.error('Adres g�ncellenirken hata:', error);
-      toast.error('Adres g�ncellenirken bir hata olu�tu');
+      console.error('Adres guncellenirken hata:', error);
+      toast.error('Adres guncellenirken bir hata olustu');
     }
   };
 
   const deleteAddress = async (id: string) => {
     if (!user?.id) {
-      toast.error('Kullan�c� giri�i yapmal�s�n�z');
+      toast.error('Kullanici girisi yapmalisiniz');
       return;
     }
 
     try {
       await apiService.deleteUserAddress(id);
       await refreshUserData();
-      toast.success('Adres ba�ar�yla silindi');
+      toast.success('Adres basariyla silindi');
     } catch (error) {
       console.error('Adres silinirken hata:', error);
-      toast.error('Adres silinirken bir hata olu�tu');
+      toast.error('Adres silinirken bir hata olustu');
     }
   };
 
@@ -236,10 +236,10 @@ export const UserDataProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const updatedProfile = await apiService.updateAccountProfile(toProfilePayload(nextProfile));
       setProfileInfo(mapProfile(updatedProfile));
-      toast.success('Profil ba�ar�yla g�ncellendi');
+      toast.success('Profil basariyla guncellendi');
     } catch (error) {
-      console.error('Profil g�ncellenirken hata:', error);
-      toast.error('Profil g�ncellenirken bir hata olu�tu');
+      console.error('Profil guncellenirken hata:', error);
+      toast.error('Profil guncellenirken bir hata olustu');
       throw error;
     }
   };

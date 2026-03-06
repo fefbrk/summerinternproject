@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   login: (email: string, password: string, captchaToken?: string) => Promise<boolean>;
   register: (email: string, password: string, name: string) => Promise<boolean>;
-  logout: () => void;
+  logout: () => Promise<void>;
   isLoading: boolean;
   isInitializing: boolean;
   lastAuthErrorCode: string | null;
@@ -28,22 +28,8 @@ const getErrorCode = (error: unknown): string | null => {
     : null;
 };
 
-const readCachedUser = (): User | null => {
-  try {
-    const raw = localStorage.getItem('auth_user');
-    if (!raw) {
-      return null;
-    }
-
-    const parsed = JSON.parse(raw) as User;
-    return parsed && typeof parsed.id === 'string' ? parsed : null;
-  } catch (_error) {
-    return null;
-  }
-};
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => readCachedUser());
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [lastAuthErrorCode, setLastAuthErrorCode] = useState<string | null>(null);
@@ -56,12 +42,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setUser(processedUser);
-    localStorage.setItem('auth_user', JSON.stringify(processedUser));
   };
 
   const clearAuthState = () => {
     setUser(null);
-    localStorage.removeItem('auth_user');
   };
 
   useEffect(() => {
@@ -127,13 +111,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    void apiService.logout().catch((error) => {
+  const logout = async () => {
+    setIsLoading(true);
+
+    try {
+      await apiService.logout();
+      setLastAuthErrorCode(null);
+      clearAuthState();
+      toast({ title: 'Logged out', description: 'You have been logged out.' });
+    } catch (error) {
       console.error('Logout request failed:', error);
-    });
-    setLastAuthErrorCode(null);
-    clearAuthState();
-    toast({ title: 'Logged out', description: 'You have been logged out.' });
+      toast({
+        variant: 'destructive',
+        title: 'Logout failed',
+        description: getErrorMessage(error, 'Unable to log out right now.'),
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

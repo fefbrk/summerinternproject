@@ -62,7 +62,7 @@ const Shop = () => {
             <div className="w-2/3">
               <h2 className="text-3xl font-bold text-white mb-4">Which KIBO Should You Choose?</h2>
               <p className="text-white/90 mb-6">
-                Trying to figure out which KIBO is right for you? KIBO 10? 15? 18? 21? Maybe you need a <strong>classroom package</strong>? Answer a few simple questions, and we’ll point you in the right direction.
+                Trying to figure out which KIBO is right for you? KIBO 10? 15? 18? 21? Maybe you need a <strong>classroom package</strong>? Answer a few simple questions, and we'll point you in the right direction.
               </p>
               <div className="flex gap-4">
                 <Link to="/help-me-choose"><Button className="px-6 py-3 rounded-lg border border-kibo-orange text-kibo-orange bg-transparent hover:bg-kibo-purple hover:text-kibo-orange active:bg-kibo-purple active:text-kibo-orange transition-colors cursor-pointer">Help Me Choose!</Button></Link>

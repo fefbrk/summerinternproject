@@ -88,7 +88,7 @@ const Login = () => {
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="��������"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className={`bg-purple-100 text-black placeholder:text-gray-600 border-purple-900 ${errors.password ? 'border-orange-500' : ''}`}

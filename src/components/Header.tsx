@@ -97,7 +97,7 @@ const Header = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => logout()}
+                    onClick={() => void logout()}
                     className="ml-1 text-purple-0 hover:text-kibo-purple hover:bg-kibo-orange/20"
                   >
                     <LogOut className="h-4 w-4" />
@@ -173,7 +173,7 @@ const Header = () => {
                     )}
                     <Button
                       variant="ghost"
-                      onClick={() => logout()}
+                      onClick={() => void logout()}
                       className="justify-start w-full mt-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
                       <LogOut className="h-4 w-4 mr-2" />

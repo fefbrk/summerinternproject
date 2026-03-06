@@ -134,6 +134,30 @@ class Database {
         return this.toNormalizedEmail(decrypted);
     }
 
+    ensureEncryptedPiiValue(value) {
+        if (typeof value !== 'string' || value.length === 0) {
+            return value;
+        }
+
+        if (this.isEncryptedPiiValue(value)) {
+            return value;
+        }
+
+        return this.encryptPiiValue(this.decryptPiiValue(value));
+    }
+
+    ensureEncryptedEmailValue(value) {
+        if (typeof value !== 'string' || value.length === 0) {
+            return value;
+        }
+
+        if (this.isEncryptedPiiValue(value)) {
+            return value;
+        }
+
+        return this.maybeEncryptEmail(this.maybeDecryptEmail(value));
+    }
+
     mapUserRow(user) {
         if (!user) {
             return user;
@@ -248,6 +272,7 @@ class Database {
             customerEmail: this.maybeDecryptEmail(order.customerEmail),
             shippingAddress: normalizeOrderAddress(decryptedShippingAddress) || normalizeOrderAddress({}),
             billingAddress: normalizeOrderAddress(decryptedBillingAddress),
+            orderNotes: this.decryptPiiValue(order.orderNotes || ''),
             items: this.normalizeOrderItems(parsedItems)
         };
     }
@@ -963,59 +988,63 @@ class Database {
                 ]);
             }
 
-            const orders = await this.all('SELECT id, customer_name as customerName, customer_email as customerEmail, shipping_address as shippingAddress FROM orders');
+            const orders = await this.all('SELECT id, customer_name as customerName, customer_email as customerEmail, shipping_address as shippingAddress, billing_address as billingAddress, order_notes as orderNotes FROM orders');
             for (const order of orders) {
                 const customerName = this.decryptPiiValue(order.customerName || '');
                 const customerEmail = this.maybeDecryptEmail(order.customerEmail || '');
                 const shippingAddress = this.maybeDecryptJson(order.shippingAddress || '', {});
+                const billingAddress = this.maybeDecryptJson(order.billingAddress || '', null);
                 await this.run(
-                    'UPDATE orders SET customer_name = ?, customer_email = ?, shipping_address = ? WHERE id = ?',
+                    'UPDATE orders SET customer_name = ?, customer_email = ?, shipping_address = ?, billing_address = ?, order_notes = ? WHERE id = ?',
                     [
-                        this.isEncryptedPiiValue(order.customerName) ? order.customerName : this.encryptPiiValue(customerName),
-                        this.isEncryptedPiiValue(order.customerEmail) ? order.customerEmail : this.maybeEncryptEmail(customerEmail),
-                        this.isEncryptedPiiValue(order.shippingAddress) ? order.shippingAddress : this.maybeEncryptJson(JSON.stringify(shippingAddress || {})),
+                        this.ensureEncryptedPiiValue(customerName),
+                        this.ensureEncryptedEmailValue(customerEmail),
+                        this.ensureEncryptedPiiValue(JSON.stringify(shippingAddress || {})),
+                        billingAddress ? this.ensureEncryptedPiiValue(JSON.stringify(billingAddress)) : null,
+                        this.ensureEncryptedPiiValue(this.decryptPiiValue(order.orderNotes || '')),
                         order.id,
                     ]
                 );
             }
 
             const registrations = await this.all(`
-                SELECT id, customer_email as customerEmail, customer_phone as customerPhone,
-                       shipping_address as shippingAddress, billing_address as billingAddress
+                SELECT id, customer_name as customerName, customer_email as customerEmail, customer_phone as customerPhone,
+                       shipping_address as shippingAddress, shipping_city as shippingCity, shipping_state as shippingState,
+                       shipping_zip_code as shippingZipCode, billing_address as billingAddress, billing_city as billingCity,
+                       billing_state as billingState, billing_zip_code as billingZipCode
                 FROM course_registrations
             `);
             for (const registration of registrations) {
                 await this.run(
                     `UPDATE course_registrations
-                     SET customer_email = ?, customer_phone = ?, shipping_address = ?, billing_address = ?
+                     SET customer_name = ?, customer_email = ?, customer_phone = ?, shipping_address = ?,
+                         shipping_city = ?, shipping_state = ?, shipping_zip_code = ?,
+                         billing_address = ?, billing_city = ?, billing_state = ?, billing_zip_code = ?
                      WHERE id = ?`,
                     [
-                        this.isEncryptedPiiValue(registration.customerEmail)
-                            ? registration.customerEmail
-                            : this.maybeEncryptEmail(this.maybeDecryptEmail(registration.customerEmail || '')),
-                        this.isEncryptedPiiValue(registration.customerPhone)
-                            ? registration.customerPhone
-                            : this.encryptPiiValue(this.decryptPiiValue(registration.customerPhone || '')),
-                        this.isEncryptedPiiValue(registration.shippingAddress)
-                            ? registration.shippingAddress
-                            : this.encryptPiiValue(this.decryptPiiValue(registration.shippingAddress || '')),
-                        this.isEncryptedPiiValue(registration.billingAddress)
-                            ? registration.billingAddress
-                            : this.encryptPiiValue(this.decryptPiiValue(registration.billingAddress || '')),
+                        this.ensureEncryptedPiiValue(this.decryptPiiValue(registration.customerName || '')),
+                        this.ensureEncryptedEmailValue(registration.customerEmail || ''),
+                        this.ensureEncryptedPiiValue(this.decryptPiiValue(registration.customerPhone || '')),
+                        this.ensureEncryptedPiiValue(this.decryptPiiValue(registration.shippingAddress || '')),
+                        this.ensureEncryptedPiiValue(this.decryptPiiValue(registration.shippingCity || '')),
+                        this.ensureEncryptedPiiValue(this.decryptPiiValue(registration.shippingState || '')),
+                        this.ensureEncryptedPiiValue(this.decryptPiiValue(registration.shippingZipCode || '')),
+                        this.ensureEncryptedPiiValue(this.decryptPiiValue(registration.billingAddress || '')),
+                        this.ensureEncryptedPiiValue(this.decryptPiiValue(registration.billingCity || '')),
+                        this.ensureEncryptedPiiValue(this.decryptPiiValue(registration.billingState || '')),
+                        this.ensureEncryptedPiiValue(this.decryptPiiValue(registration.billingZipCode || '')),
                         registration.id,
                     ]
                 );
             }
 
-            const contacts = await this.all('SELECT id, email, message FROM contacts');
+            const contacts = await this.all('SELECT id, name, email, subject, message FROM contacts');
             for (const contact of contacts) {
-                await this.run('UPDATE contacts SET email = ?, message = ? WHERE id = ?', [
-                    this.isEncryptedPiiValue(contact.email)
-                        ? contact.email
-                        : this.maybeEncryptEmail(this.maybeDecryptEmail(contact.email || '')),
-                    this.isEncryptedPiiValue(contact.message)
-                        ? contact.message
-                        : this.encryptPiiValue(this.decryptPiiValue(contact.message || '')),
+                await this.run('UPDATE contacts SET name = ?, email = ?, subject = ?, message = ? WHERE id = ?', [
+                    this.ensureEncryptedPiiValue(this.decryptPiiValue(contact.name || '')),
+                    this.ensureEncryptedEmailValue(contact.email || ''),
+                    this.ensureEncryptedPiiValue(this.decryptPiiValue(contact.subject || '')),
+                    this.ensureEncryptedPiiValue(this.decryptPiiValue(contact.message || '')),
                     contact.id,
                 ]);
             }
@@ -1391,6 +1420,37 @@ class Database {
              SET revoked_at = ?, reason = COALESCE(NULLIF(reason, ''), ?)
              WHERE user_id = ? AND revoked_at IS NULL`,
             [Date.now(), String(reason || 'user-credential-change'), userId]
+        );
+    }
+
+    async revokeRefreshTokenFamily(rootJti, reason = 'token-reuse-detected') {
+        if (!rootJti || typeof rootJti !== 'string') {
+            return;
+        }
+
+        const revokedAt = Date.now();
+        const normalizedReason = String(reason || 'token-reuse-detected');
+
+        await this.run(
+            `WITH RECURSIVE token_family(jti) AS (
+                SELECT jti
+                FROM refresh_tokens
+                WHERE jti = ?
+                UNION ALL
+                SELECT rt.replaced_by_jti
+                FROM refresh_tokens rt
+                INNER JOIN token_family tf ON rt.jti = tf.jti
+                WHERE rt.replaced_by_jti IS NOT NULL AND TRIM(rt.replaced_by_jti) <> ''
+            )
+            UPDATE refresh_tokens
+            SET revoked_at = COALESCE(revoked_at, ?),
+                reason = CASE
+                    WHEN revoked_at IS NULL OR reason IS NULL OR TRIM(reason) = '' OR reason = 'rotated'
+                        THEN ?
+                    ELSE reason
+                END
+            WHERE jti IN (SELECT jti FROM token_family)`,
+            [rootJti, revokedAt, normalizedReason]
         );
     }
 
@@ -1853,7 +1913,7 @@ class Database {
                 this.maybeEncryptEmail(order.customerEmail),
                 this.maybeEncryptJson(JSON.stringify(order.shippingAddress || {})),
                 order.billingAddress ? this.maybeEncryptJson(JSON.stringify(order.billingAddress)) : null,
-                order.orderNotes || '',
+                this.encryptPiiValue(String(order.orderNotes || '')),
                 order.createdAt,
                 order.paymentMode || 'pending',
                 order.purchaseOrderNumber || null,
@@ -2234,10 +2294,17 @@ class Database {
         return registrations.map(registration => ({
             ...registration,
             registrationData: registration.registrationData ? this.safeJsonParse(registration.registrationData, {}) : {},
+            customerName: this.decryptPiiValue(registration.customerName),
             customerEmail: this.maybeDecryptEmail(registration.customerEmail),
             customerPhone: this.decryptPiiValue(registration.customerPhone),
             shippingAddress: this.decryptPiiValue(registration.shippingAddress),
+            shippingCity: this.decryptPiiValue(registration.shippingCity),
+            shippingState: this.decryptPiiValue(registration.shippingState),
+            shippingZipCode: this.decryptPiiValue(registration.shippingZipCode),
             billingAddress: this.decryptPiiValue(registration.billingAddress),
+            billingCity: this.decryptPiiValue(registration.billingCity),
+            billingState: this.decryptPiiValue(registration.billingState),
+            billingZipCode: this.decryptPiiValue(registration.billingZipCode),
         }));
     }
 
@@ -2257,10 +2324,17 @@ class Database {
         return registrations.map(registration => ({
             ...registration,
             registrationData: registration.registrationData ? this.safeJsonParse(registration.registrationData, {}) : {},
+            customerName: this.decryptPiiValue(registration.customerName),
             customerEmail: this.maybeDecryptEmail(registration.customerEmail),
             customerPhone: this.decryptPiiValue(registration.customerPhone),
             shippingAddress: this.decryptPiiValue(registration.shippingAddress),
+            shippingCity: this.decryptPiiValue(registration.shippingCity),
+            shippingState: this.decryptPiiValue(registration.shippingState),
+            shippingZipCode: this.decryptPiiValue(registration.shippingZipCode),
             billingAddress: this.decryptPiiValue(registration.billingAddress),
+            billingCity: this.decryptPiiValue(registration.billingCity),
+            billingState: this.decryptPiiValue(registration.billingState),
+            billingZipCode: this.decryptPiiValue(registration.billingZipCode),
         }));
     }
 
@@ -2280,10 +2354,17 @@ class Database {
             registration.registrationData = this.safeJsonParse(registration.registrationData, {});
         }
         if (registration) {
+            registration.customerName = this.decryptPiiValue(registration.customerName);
             registration.customerEmail = this.maybeDecryptEmail(registration.customerEmail);
             registration.customerPhone = this.decryptPiiValue(registration.customerPhone);
             registration.shippingAddress = this.decryptPiiValue(registration.shippingAddress);
+            registration.shippingCity = this.decryptPiiValue(registration.shippingCity);
+            registration.shippingState = this.decryptPiiValue(registration.shippingState);
+            registration.shippingZipCode = this.decryptPiiValue(registration.shippingZipCode);
             registration.billingAddress = this.decryptPiiValue(registration.billingAddress);
+            registration.billingCity = this.decryptPiiValue(registration.billingCity);
+            registration.billingState = this.decryptPiiValue(registration.billingState);
+            registration.billingZipCode = this.decryptPiiValue(registration.billingZipCode);
         }
         return registration;
     }
@@ -2302,17 +2383,17 @@ class Database {
             registration.courseName,
             JSON.stringify(registration.registrationData),
             registration.status,
-            registration.customerName,
+            this.encryptPiiValue(registration.customerName),
             this.maybeEncryptEmail(registration.customerEmail),
             this.encryptPiiValue(registration.customerPhone),
             this.encryptPiiValue(registration.shippingAddress),
-            registration.shippingCity,
-            registration.shippingState,
-            registration.shippingZipCode,
+            this.encryptPiiValue(registration.shippingCity),
+            this.encryptPiiValue(registration.shippingState),
+            this.encryptPiiValue(registration.shippingZipCode),
             this.encryptPiiValue(registration.billingAddress),
-            registration.billingCity,
-            registration.billingState,
-            registration.billingZipCode,
+            this.encryptPiiValue(registration.billingCity),
+            this.encryptPiiValue(registration.billingState),
+            this.encryptPiiValue(registration.billingZipCode),
             registration.createdAt
         ]);
 
@@ -2346,7 +2427,9 @@ class Database {
         const contacts = await this.all(sql, [limit, offset]);
         return contacts.map((contact) => ({
             ...contact,
+            name: this.decryptPiiValue(contact.name),
             email: this.maybeDecryptEmail(contact.email),
+            subject: this.decryptPiiValue(contact.subject),
             message: this.decryptPiiValue(contact.message),
         }));
     }
@@ -2364,7 +2447,9 @@ class Database {
 
         return {
             ...contact,
+            name: this.decryptPiiValue(contact.name),
             email: this.maybeDecryptEmail(contact.email),
+            subject: this.decryptPiiValue(contact.subject),
             message: this.decryptPiiValue(contact.message),
         };
     }
@@ -2377,9 +2462,9 @@ class Database {
         await this.run(sql, [
             contact.id,
             contact.type,
-            contact.name,
+            this.encryptPiiValue(contact.name),
             this.maybeEncryptEmail(contact.email),
-            contact.subject,
+            this.encryptPiiValue(contact.subject),
             this.encryptPiiValue(contact.message),
             contact.status,
             contact.createdAt

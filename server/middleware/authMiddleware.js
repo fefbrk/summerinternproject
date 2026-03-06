@@ -7,9 +7,12 @@ const createAuthMiddleware = ({
   loginMaxAttempts,
   registrationWindowMs = 15 * 60 * 1000,
   registrationMaxAttempts = 20,
+  refreshWindowMs = 10 * 60 * 1000,
+  refreshMaxAttempts = 30,
   demoEndpointsEnabled,
   loginRateLimitMaxEntries = 10000,
   registrationRateLimitMaxEntries = 10000,
+  refreshRateLimitMaxEntries = 20000,
   contactWindowMs = 10 * 60 * 1000,
   contactMaxAttempts = 20,
   contactRateLimitMaxEntries = 20000,
@@ -21,6 +24,7 @@ const createAuthMiddleware = ({
 }) => {
   const loginAttempts = new Map();
   const registrationAttempts = new Map();
+  const refreshAttempts = new Map();
   const contactAttempts = new Map();
   const accountLockouts = new Map();
   const hasPersistentRateLimitStore = Boolean(
@@ -438,6 +442,62 @@ const createAuthMiddleware = ({
     return next();
   };
 
+  const checkRefreshRateLimit = async (req, res, next) => {
+    const clientIp = getClientIp(req);
+    const refreshKey = `ip:${clientIp}`;
+
+    if (hasPersistentRateLimitStore) {
+      try {
+        const state = await database.incrementRateLimit('refresh', refreshKey, refreshWindowMs, refreshRateLimitMaxEntries);
+        if (state.count > refreshMaxAttempts) {
+          emitRateLimitExceededEvent({
+            req,
+            scope: 'refresh',
+            key: refreshKey,
+            count: state.count,
+            resetAt: state.resetAt,
+            severity: 'medium',
+          });
+          return res.status(429).json({ error: 'Too many refresh attempts. Please try again later.' });
+        }
+
+        return next();
+      } catch (error) {
+        console.error('Persistent refresh rate-limit error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+
+    const now = Date.now();
+    pruneRateLimitMap(refreshAttempts, now, refreshRateLimitMaxEntries);
+
+    const record = refreshAttempts.get(refreshKey);
+    if (!record || now > record.resetAt) {
+      if (refreshAttempts.size >= refreshRateLimitMaxEntries) {
+        return res.status(429).json({ error: 'Too many refresh attempts. Please try again later.' });
+      }
+
+      refreshAttempts.set(refreshKey, { count: 1, resetAt: now + refreshWindowMs });
+      return next();
+    }
+
+    if (record.count >= refreshMaxAttempts) {
+      emitRateLimitExceededEvent({
+        req,
+        scope: 'refresh',
+        key: refreshKey,
+        count: record.count,
+        resetAt: record.resetAt,
+        severity: 'medium',
+      });
+      return res.status(429).json({ error: 'Too many refresh attempts. Please try again later.' });
+    }
+
+    record.count += 1;
+    refreshAttempts.set(refreshKey, record);
+    return next();
+  };
+
   const checkRegistrationRateLimit = async (req, res, next) => {
     const rateLimitKeys = getRateLimitKeysForRequest(req, true);
 
@@ -799,6 +859,7 @@ const createAuthMiddleware = ({
     checkLoginRateLimit,
     recordLoginAttempt,
     checkRegistrationRateLimit,
+    checkRefreshRateLimit,
     checkContactRateLimit,
     checkAccountLockout,
     recordAccountLoginAttempt,

@@ -75,6 +75,7 @@ const registerAuthUserRoutes = (app, deps) => {
     recordAccountLoginAttempt = async () => {},
     getLoginAttemptCount = async () => 0,
     checkRegistrationRateLimit,
+    checkRefreshRateLimit = (_req, _res, next) => next(),
     logSecurityEvent = async () => {},
     authCookieName = 'auth_token',
     authCookieOptions = {},
@@ -131,11 +132,13 @@ const registerAuthUserRoutes = (app, deps) => {
       return cookies[refreshCookieName].trim();
     }
 
-    if (typeof req.body?.refreshToken === 'string' && req.body.refreshToken.trim().length > 0) {
-      return req.body.refreshToken.trim();
-    }
-
     return '';
+  };
+
+  const denyRefreshRequest = (res, statusCode, errorMessage) => {
+    clearAuthCookie(res);
+    clearRefreshCookie(res);
+    return res.status(statusCode).json({ error: errorMessage });
   };
 
   const persistRefreshToken = async (token, payload) => {
@@ -273,36 +276,77 @@ const registerAuthUserRoutes = (app, deps) => {
     }
   });
 
-  app.post('/api/refresh', async (req, res) => {
+  app.post('/api/refresh', checkRefreshRateLimit, async (req, res) => {
     try {
       const refreshToken = readRefreshTokenFromRequest(req);
       if (!refreshToken) {
-        return res.status(401).json({ error: 'Refresh token is required' });
+        return denyRefreshRequest(res, 401, 'Refresh token is required');
       }
 
       const payload = verifyRefreshToken(refreshToken);
       if (!payload || !payload.jti || !payload.sub) {
-        return res.status(401).json({ error: 'Invalid or expired refresh token' });
+        emitSecurityEvent({
+          eventType: 'AUTH_REFRESH_INVALID',
+          severity: 'medium',
+          req,
+        });
+        return denyRefreshRequest(res, 401, 'Invalid or expired refresh token');
       }
 
       if (typeof database.getRefreshTokenByJti === 'function') {
         const storedToken = await database.getRefreshTokenByJti(payload.jti);
         if (!storedToken) {
-          return res.status(401).json({ error: 'Refresh token not recognized' });
+          emitSecurityEvent({
+            eventType: 'AUTH_REFRESH_NOT_RECOGNIZED',
+            severity: 'medium',
+            userId: payload.sub,
+            req,
+          });
+          return denyRefreshRequest(res, 401, 'Invalid or expired refresh token');
         }
 
         if (storedToken.revokedAt) {
-          return res.status(401).json({ error: 'Refresh token has been revoked' });
+          if (storedToken.replacedByJti && typeof database.revokeRefreshTokenFamily === 'function') {
+            await database.revokeRefreshTokenFamily(payload.jti, 'token-reuse-detected');
+          }
+
+          emitSecurityEvent({
+            eventType: storedToken.replacedByJti ? 'AUTH_REFRESH_REUSE_DETECTED' : 'AUTH_REFRESH_REVOKED',
+            severity: storedToken.replacedByJti ? 'high' : 'medium',
+            userId: payload.sub,
+            req,
+            alerted: Boolean(storedToken.replacedByJti),
+          });
+          return denyRefreshRequest(res, 401, 'Invalid or expired refresh token');
         }
 
         if (storedToken.userId !== payload.sub) {
-          return res.status(401).json({ error: 'Invalid refresh token' });
+          emitSecurityEvent({
+            eventType: 'AUTH_REFRESH_SUBJECT_MISMATCH',
+            severity: 'high',
+            userId: payload.sub,
+            req,
+            alerted: true,
+          });
+          return denyRefreshRequest(res, 401, 'Invalid or expired refresh token');
         }
 
         const tokenHash = hashToken(refreshToken);
         if (!tokenHash || tokenHash !== storedToken.tokenHash) {
-          await database.revokeRefreshToken(payload.jti, 'token-hash-mismatch');
-          return res.status(401).json({ error: 'Invalid refresh token' });
+          if (typeof database.revokeRefreshTokenFamily === 'function') {
+            await database.revokeRefreshTokenFamily(payload.jti, 'token-hash-mismatch');
+          } else {
+            await database.revokeRefreshToken(payload.jti, 'token-hash-mismatch');
+          }
+
+          emitSecurityEvent({
+            eventType: 'AUTH_REFRESH_HASH_MISMATCH',
+            severity: 'high',
+            userId: payload.sub,
+            req,
+            alerted: true,
+          });
+          return denyRefreshRequest(res, 401, 'Invalid or expired refresh token');
         }
       }
 
@@ -311,7 +355,7 @@ const registerAuthUserRoutes = (app, deps) => {
         if (typeof database.revokeRefreshToken === 'function') {
           await database.revokeRefreshToken(payload.jti, 'user-not-found');
         }
-        return res.status(401).json({ error: 'Invalid refresh token' });
+        return denyRefreshRequest(res, 401, 'Invalid or expired refresh token');
       }
 
       const safeUser = toSafeUser(user);
