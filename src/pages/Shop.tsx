@@ -131,8 +131,7 @@ const Shop = () => {
                         </div>
                         <div className="p-4 flex flex-col flex-grow">
                           <h3 className="text-lg font-semibold mb-2 flex-grow">{product.name}</h3>
-                          <p className="text-xl font-bold text-kibo-purple mb-1">${product.price.toFixed(2)}</p>
-                          <p className="text-xs text-gray-500 mb-4">{product.id}</p>
+                          <p className="text-xl font-bold text-kibo-purple mb-4">${product.price.toFixed(2)}</p>
                           <Button
                             className={`w-full transition-colors duration-100 focus:outline-none focus:ring-0 hover:shadow-none ${justAddedId === product.id ? 'bg-kibo-purple text-kibo-orange' : 'bg-kibo-orange text-white hover:bg-kibo-orange hover:text-kibo-purple'}`}
                             onClick={(e) => {

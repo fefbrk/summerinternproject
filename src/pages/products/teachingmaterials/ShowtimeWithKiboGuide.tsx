@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import ProductIdMeta from '@/components/shop/ProductIdMeta';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCart } from '@/context/CartContext';
@@ -175,6 +176,7 @@ const ShowtimeWithKiboGuide = () => {
             {/* Product Meta */}
             <div className="text-sm text-gray-500 space-y-1">
               <div><span className="font-medium">SKU:</span> TM-SHOWTIME-KIBO</div>
+              <ProductIdMeta />
               <div><span className="font-medium">Category:</span> <Link to="/shop/learning-materials" className="text-purple-600 hover:underline">Teaching Materials</Link></div>
             </div>
           </div>

@@ -1,23 +1,22 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import ProductIdMeta from '@/components/shop/ProductIdMeta';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useCart } from '@/context/CartContext';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronRight, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
+import { products } from '@/data/products';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCartPlus } from '@fortawesome/free-solid-svg-icons';
-import { products } from '@/data/products';
 
-// Import images
-import MainImg from '@/assets/product/partsandreplacements/waitforclapblock/KIBO-120519_9228-600x400.jpg';
-import SecondImg from '@/assets/product/partsandreplacements/waitforclapblock/KIBO-120519_9292.jpg';
-import LegoImg from '@/assets/product/partsandreplacements/waitforclapblock/Lego-Masterpiece-2-600x450.jpg';
+import MainImg from '@/assets/kibo/athome/home-resource1-225x300.jpg';
+import AltImgOne from '@/assets/kibo/athome/home-resource1-1-225x300.jpg';
+import AltImgTwo from '@/assets/kibo/athome/home-resource2-1-225x300.jpg';
+import AltImgThree from '@/assets/kibo/athome/home-resource3-1-225x300.jpg';
 
-const WaitForClapBlock = () => {
+const KiboHomeRoboticsGuide = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
@@ -27,80 +26,70 @@ const WaitForClapBlock = () => {
   const { addToCart, cartItems, updateQuantity } = useCart();
   const { toast } = useToast();
 
-  // Get the current quantity of this product in the cart
-  const productInCart = cartItems.find(item => item.id === '326');
+  const productInCart = cartItems.find((item) => item.id === '419');
   const quantity = productInCart ? productInCart.quantity : 0;
 
-  const images = [
-    MainImg,
-    SecondImg,
-    LegoImg
-  ];
+  const images = [MainImg, AltImgOne, AltImgTwo, AltImgThree];
 
   const handleAddToCart = () => {
-    const product = products.find(p => p.id === '326');
+    const product = products.find((p) => p.id === '419');
     if (product) {
       addToCart(product);
       setJustAdded(true);
       setTimeout(() => setJustAdded(false), 1000);
     }
-    
+
     toast({
-      title: "Added to cart",
-      description: "WAIT FOR CLAP Block added to your cart.",
+      title: 'Added to cart',
+      description: 'KIBO Home Robotics Guide added to your cart.',
     });
   };
 
   const getPrice = () => {
-    const product = products.find(p => p.id === '326');
-    return product ? `$${product.price.toFixed(2)}` : '$8.00';
+    const product = products.find((p) => p.id === '419');
+    return product ? `$${product.price.toFixed(2)}` : '$800.00';
   };
 
   return (
     <div className="min-h-screen bg-orange-50">
       <Header />
-      
-      {/* Product Section */}
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Breadcrumb Navigation */}
         <nav className="flex items-center space-x-2 text-sm text-gray-600 mb-6">
           <Link to="/shop" className="hover:text-kibo-purple transition-colors">Shop KIBO</Link>
           <span>/</span>
-          <Link to="/shop/parts-replacements" className="hover:text-kibo-purple transition-colors">Parts & Replacements</Link>
+          <Link to="/shop/learning-materials" className="hover:text-kibo-purple transition-colors">Teaching Materials</Link>
           <span>/</span>
-          <span className="text-kibo-purple font-medium">WAIT FOR CLAP Block</span>
+          <span className="text-kibo-purple font-medium">KIBO Home Robotics Guide</span>
         </nav>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Product Images */}
           <div className="space-y-4">
-            {/* Main Image */}
-             <div className="relative bg-white border rounded-lg overflow-hidden group">
-               <button 
-                 onClick={() => setIsModalOpen(true)}
-                 className="absolute top-4 right-4 z-10 bg-gradient-to-r from-kibo-purple to-kibo-orange text-white rounded-full p-2 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-110"
-               >
-                 <Search className="h-5 w-5" />
-               </button>
-               <img
-                 src={images[selectedImage]}
-                 alt="WAIT FOR CLAP Block"
-                 className="w-full h-96 object-cover cursor-pointer transition-transform duration-300 hover:scale-150"
-                 onClick={() => setIsModalOpen(true)}
-                 onMouseMove={(e) => {
-                   const rect = e.currentTarget.getBoundingClientRect();
-                   const x = ((e.clientX - rect.left) / rect.width) * 100;
-                   const y = ((e.clientY - rect.top) / rect.height) * 100;
-                   e.currentTarget.style.transformOrigin = `${x}% ${y}%`;
-                 }}
-               />
-             </div>
-            
-            {/* Thumbnail Images */}
-            <div className="flex space-x-2">
+            <div className="relative bg-white border rounded-lg overflow-hidden group">
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="absolute top-4 right-4 z-10 bg-gradient-to-r from-kibo-purple to-kibo-orange text-white rounded-full p-2 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-110"
+              >
+                <Search className="h-5 w-5" />
+              </button>
+              <img
+                src={images[selectedImage]}
+                alt="KIBO Home Robotics Guide"
+                className="w-full h-96 object-contain bg-white cursor-pointer transition-transform duration-300 hover:scale-150"
+                onClick={() => setIsModalOpen(true)}
+                onMouseMove={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const x = ((e.clientX - rect.left) / rect.width) * 100;
+                  const y = ((e.clientY - rect.top) / rect.height) * 100;
+                  e.currentTarget.style.transformOrigin = `${x}% ${y}%`;
+                }}
+              />
+            </div>
+
+            <div className="flex space-x-2 flex-wrap">
               {images.map((image, index) => (
                 <button
-                  key={index}
+                  key={image}
                   onClick={() => setSelectedImage(index)}
                   className={`w-20 h-20 border-2 rounded-lg overflow-hidden ${
                     selectedImage === index ? 'border-purple-500' : 'border-gray-200'
@@ -108,7 +97,7 @@ const WaitForClapBlock = () => {
                 >
                   <img
                     src={image}
-                    alt={`WAIT FOR CLAP Block view ${index + 1}`}
+                    alt={`KIBO Home Robotics Guide view ${index + 1}`}
                     className="w-full h-full object-cover"
                   />
                 </button>
@@ -116,21 +105,22 @@ const WaitForClapBlock = () => {
             </div>
           </div>
 
-          {/* Product Information */}
           <div className="space-y-6">
             <div>
-              <h1 className="text-3xl font-bold text-kibo-purple mb-4">WAIT FOR CLAP Block</h1>
-              
+              <h1 className="text-3xl font-bold text-kibo-purple mb-4">KIBO Home Robotics Guide</h1>
               <div className="text-2xl font-bold text-gray-900 mb-4">{getPrice()}</div>
+              <p className="text-gray-700 leading-relaxed">
+                A home-friendly KIBO curriculum booklet that helps families and homeschools bring
+                coding, robotics, and engineering into everyday learning.
+              </p>
             </div>
 
-            {/* Quantity and Add to Cart */}
             <div className="flex items-center space-x-4">
               <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden flex-shrink-0">
                 <button
                   onClick={() => {
                     if (quantity > 0) {
-                      updateQuantity('326', quantity - 1);
+                      updateQuantity('419', quantity - 1);
                       setMinusClicked(true);
                       setTimeout(() => setMinusClicked(false), 1000);
                     }
@@ -147,7 +137,7 @@ const WaitForClapBlock = () => {
                     if (quantity === 0) {
                       handleAddToCart();
                     } else {
-                      updateQuantity('326', quantity + 1);
+                      updateQuantity('419', quantity + 1);
                     }
                     setPlusClicked(true);
                     setTimeout(() => setPlusClicked(false), 1000);
@@ -159,7 +149,7 @@ const WaitForClapBlock = () => {
                   }`}
                 >+</button>
               </div>
-              
+
               <Button
                 onClick={handleAddToCart}
                 className={`w-full transition-colors duration-100 focus:outline-none focus:ring-0 hover:shadow-none ${
@@ -173,16 +163,14 @@ const WaitForClapBlock = () => {
               </Button>
             </div>
 
-            {/* Product Meta */}
             <div className="text-sm text-gray-500 space-y-1">
-              <div><span className="font-medium">SKU:</span> BLK-WAIT-CLAP</div>
+              <div><span className="font-medium">SKU:</span> TM-HOME-GUIDE</div>
               <ProductIdMeta />
-              <div><span className="font-medium">Category:</span> <Link to="/shop/parts-replacements" className="text-purple-600 hover:underline">Parts & Replacements</Link></div>
+              <div><span className="font-medium">Category:</span> <Link to="/shop/learning-materials" className="text-purple-600 hover:underline">Teaching Materials</Link></div>
             </div>
           </div>
         </div>
 
-        {/* Product Tabs */}
         <div className="mt-16">
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8">
@@ -214,17 +202,24 @@ const WaitForClapBlock = () => {
               <div className="prose max-w-none">
                 <h2 className="text-2xl font-bold text-kibo-purple mb-6">Description</h2>
                 <p className="text-gray-700 mb-4">
-                  Wait for it! When children use the WAIT FOR CLAP block as part of their programming sequence, KIBO stops until they clap in KIBO’s “ear”. The children control the next step in their code!
-                  <br></br><br></br> 
-                  <p>This block requires the Clap/Sound Sensor (Ear) to function. Please be sure to order this module if you don’t have it already!</p>
+                  The KIBO Home Robotics Guide is designed for families, caregivers, and homeschool
+                  educators who want a clearer path into screen-free robotics at home.
                 </p>
-                
-               
-                
-              
-          
-                
-            
+                <p className="text-gray-700 mb-4">
+                  It explains the scope and sequence of the home robotics course, offers practical
+                  teaching tips for home-based learning, and helps adults guide children through
+                  coding, engineering, and creative problem-solving with confidence.
+                </p>
+                <p className="text-gray-700 mb-4">
+                  The guide pairs especially well with a KIBO robot kit, Creating with KIBO, and
+                  KIBO Activity Cards to create a well-rounded home learning experience.
+                </p>
+                <ul className="list-disc list-inside text-gray-700 space-y-2 mb-4">
+                  <li>Scope and sequence support for home robotics lessons</li>
+                  <li>Tips tailored to homes and homeschools</li>
+                  <li>Guidance for introducing coding and engineering concepts</li>
+                  <li>Designed to support project-based, open-ended learning</li>
+                </ul>
               </div>
             )}
 
@@ -235,12 +230,16 @@ const WaitForClapBlock = () => {
                   <table className="w-full">
                     <tbody>
                       <tr className="border-b border-gray-200">
-                        <td className="px-6 py-4 font-medium text-gray-900 bg-gray-100 w-1/3">Weight</td>
-                        <td className="px-6 py-4 text-gray-700 w-2/3">0.31 lbs</td>
+                        <td className="px-6 py-4 font-medium text-gray-900 bg-gray-100 w-1/3">Format</td>
+                        <td className="px-6 py-4 text-gray-700 w-2/3">Printed curriculum booklet</td>
+                      </tr>
+                      <tr className="border-b border-gray-200">
+                        <td className="px-6 py-4 font-medium text-gray-900 bg-gray-100 w-1/3">Audience</td>
+                        <td className="px-6 py-4 text-gray-700 w-2/3">Families, caregivers, and homeschools</td>
                       </tr>
                       <tr>
-                        <td className="px-6 py-4 font-medium text-gray-900 bg-gray-100 w-1/3">Dimensions</td>
-                        <td className="px-6 py-4 text-gray-700 w-2/3">5 × 5 × 4 in</td>
+                        <td className="px-6 py-4 font-medium text-gray-900 bg-gray-100 w-1/3">Pairs well with</td>
+                        <td className="px-6 py-4 text-gray-700 w-2/3">KIBO kits, Creating with KIBO, and KIBO Activity Cards</td>
                       </tr>
                     </tbody>
                   </table>
@@ -251,28 +250,27 @@ const WaitForClapBlock = () => {
         </div>
       </div>
 
-      {/* Image Modal */}
-       {isModalOpen && (
-         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onClick={() => setIsModalOpen(false)}>
-           <div className="relative max-w-4xl max-h-[90vh] p-4">
-             <button 
-               onClick={() => setIsModalOpen(false)}
-               className="absolute -top-4 -right-4 bg-gradient-to-r from-kibo-purple to-kibo-orange text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 z-10"
-             >
-               <span className="font-bold text-lg">×</span>
-             </button>
-             <img
-                src={images[selectedImage]}
-                alt="WAIT FOR CLAP Block - Enlarged"
-                className="max-w-full max-h-full object-contain rounded-lg"
-              />
-           </div>
-         </div>
-       )}
-      
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onClick={() => setIsModalOpen(false)}>
+          <div className="relative max-w-4xl max-h-[90vh] p-4">
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="absolute -top-4 -right-4 bg-gradient-to-r from-kibo-purple to-kibo-orange text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 z-10"
+            >
+              <span className="font-bold text-lg">x</span>
+            </button>
+            <img
+              src={images[selectedImage]}
+              alt="KIBO Home Robotics Guide - Enlarged"
+              className="max-w-full max-h-full object-contain rounded-lg bg-white"
+            />
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );
 };
 
-export default WaitForClapBlock;
+export default KiboHomeRoboticsGuide;
